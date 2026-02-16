@@ -288,8 +288,8 @@ export default function PublicProfile() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, ease: "easeOut" }}
                         className={`relative z-10 -mt-8 rounded-t-[32px] px-6 py-8 min-h-screen transition-colors duration-300 ${isLightMode
-                            ? 'bg-white/80 backdrop-blur-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.08)] border-t border-white/50'
-                            : 'bg-zinc-950/80 backdrop-blur-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.4)] border-t border-white/10'
+                            ? 'bg-white/60 backdrop-blur-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.06)] border-t border-white/50'
+                            : 'bg-zinc-950/50 backdrop-blur-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.3)] border-t border-white/10'
                             }`}
                     >
                         {/* Pull indicator */}
