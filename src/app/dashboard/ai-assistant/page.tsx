@@ -1,6 +1,6 @@
 'use client'
 
-import { Bot, Sparkles } from 'lucide-react'
+import { Bot, Sparkles, MessageSquare, Mic } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export default function AIAssistantPage() {
@@ -8,7 +8,7 @@ export default function AIAssistantPage() {
         <div className="max-w-2xl mx-auto">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">AI Assistant</h1>
-                <p className="text-zinc-400">Asisten cerdas untuk membantu Anda membangun profil terbaik</p>
+                <p className="text-zinc-400">AI representatif yang mewakili Anda — pengunjung bisa berinteraksi langsung dengan AI Anda</p>
             </div>
 
             <motion.div
@@ -25,17 +25,17 @@ export default function AIAssistantPage() {
 
                 <h2 className="text-2xl font-bold text-white mb-3">Coming Soon</h2>
                 <p className="text-zinc-400 text-base leading-relaxed max-w-md mx-auto mb-8">
-                    AI Assistant akan membantu Anda menulis bio yang menarik, menyarankan desain yang cocok, dan mengoptimalkan profil digital Anda secara otomatis.
+                    AI Assistant akan menjadi <span className="text-blue-400 font-medium">representatif digital Anda</span>. Setiap pengunjung yang membuka profil Anda bisa langsung berinteraksi — chat atau ngobrol — dengan AI yang memahami informasi tentang Anda.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {[
-                        { icon: '✍️', title: 'Smart Bio', desc: 'Auto-generate bio menarik' },
-                        { icon: '🎨', title: 'Design Suggest', desc: 'Rekomendasi warna & tema' },
-                        { icon: '📊', title: 'Insight Analysis', desc: 'Analisis profil & tips' },
+                        { icon: <MessageSquare className="w-6 h-6 text-blue-400" />, title: 'Chat Interaktif', desc: 'Pengunjung bisa tanya jawab tentang Anda melalui chat' },
+                        { icon: <Mic className="w-6 h-6 text-purple-400" />, title: 'Voice Chat', desc: 'Ngobrol langsung dengan AI yang mewakili Anda' },
+                        { icon: <Bot className="w-6 h-6 text-emerald-400" />, title: 'Smart Answers', desc: 'AI memberikan jawaban akurat sesuai info profil Anda' },
                     ].map((feature) => (
-                        <div key={feature.title} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-center">
-                            <span className="text-2xl mb-2 block">{feature.icon}</span>
+                        <div key={feature.title} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 text-center">
+                            <div className="flex justify-center mb-3">{feature.icon}</div>
                             <h3 className="text-sm font-bold text-white mb-1">{feature.title}</h3>
                             <p className="text-xs text-zinc-500">{feature.desc}</p>
                         </div>
@@ -44,7 +44,7 @@ export default function AIAssistantPage() {
 
                 <div className="mt-8 inline-flex items-center gap-2 text-xs text-zinc-600 bg-zinc-900/50 border border-zinc-800 px-4 py-2 rounded-full">
                     <Sparkles className="w-3 h-3" />
-                    Segera hadir di update berikutnya
+                    Segera hadir — pengunjung bisa interaksi langsung dengan AI Anda
                 </div>
             </motion.div>
         </div>
