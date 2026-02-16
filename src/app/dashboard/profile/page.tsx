@@ -19,8 +19,8 @@ import {
     FileText,
     Trash2
 } from 'lucide-react'
-import { compressImage } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { uploadAvatar, uploadGalleryImage, uploadDocument, deleteFile } from '@/lib/storage'
 
 export default function ProfileEditor() {
     const supabase = createClient()
@@ -143,24 +143,33 @@ export default function ProfileEditor() {
             return
         }
 
+        if (!userId) {
+            setError('Anda harus login terlebih dahulu')
+            return
+        }
+
         setIsUploading(true)
         setError('')
 
         try {
-            const base64 = await compressImage(file)
-            const newFormData = { ...formData, avatar_url: base64 }
+            const publicUrl = await uploadAvatar(file, userId)
+            const newFormData = { ...formData, avatar_url: publicUrl }
             setFormData(newFormData)
-            syncToPreview(newFormData) // Live update preview
+            syncToPreview(newFormData)
         } catch (err) {
             console.error(err)
-            setError('Gagal memproses gambar. Silakan coba lagi.')
+            setError('Gagal upload gambar. Silakan coba lagi.')
         } finally {
             setIsUploading(false)
         }
     }
 
 
-    const handleRemovePhoto = () => {
+    const handleRemovePhoto = async () => {
+        // Delete from storage if it's a storage URL
+        if (formData.avatar_url && formData.avatar_url.includes('/storage/')) {
+            await deleteFile('avatars', formData.avatar_url)
+        }
         const newFormData = { ...formData, avatar_url: '' }
         setFormData(newFormData)
         syncToPreview(newFormData)
@@ -171,58 +180,78 @@ export default function ProfileEditor() {
 
     const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Ukuran foto galeri maksimal 5MB.')
-                return
-            }
+        if (!file) return
 
-            try {
-                const compressedBase64 = await compressImage(file)
-                const newItem = {
-                    id: Date.now().toString(),
-                    url: compressedBase64,
-                    caption: file.name
-                }
-                const newGallery = [...formData.gallery, newItem]
-                updateField('gallery', newGallery)
-            } catch (err) {
-                console.error(err)
-                alert('Gagal memproses foto galeri.')
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Ukuran foto galeri maksimal 5MB.')
+            return
+        }
+
+        if (!userId) {
+            alert('Anda harus login terlebih dahulu')
+            return
+        }
+
+        try {
+            const publicUrl = await uploadGalleryImage(file, userId)
+            const newItem = {
+                id: Date.now().toString(),
+                url: publicUrl,
+                caption: file.name
             }
+            const newGallery = [...formData.gallery, newItem]
+            updateField('gallery', newGallery)
+        } catch (err) {
+            console.error(err)
+            alert('Gagal upload foto galeri.')
         }
     }
 
-    const removeGalleryItem = (id: string) => {
+    const removeGalleryItem = async (id: string) => {
+        const item = formData.gallery.find(g => g.id === id)
+        if (item?.url && item.url.includes('/storage/')) {
+            await deleteFile('gallery', item.url)
+        }
         const newGallery = formData.gallery.filter(item => item.id !== id)
         updateField('gallery', newGallery)
     }
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                alert('Ukuran file maksimal 5MB.')
-                return
-            }
+        if (!file) return
 
-            const reader = new FileReader()
-            reader.onloadend = () => {
-                const newItem = {
-                    id: Date.now().toString(),
-                    url: reader.result as string,
-                    title: file.name,
-                    size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-                    type: 'pdf' as const
-                }
-                const newFiles = [...formData.files, newItem]
-                updateField('files', newFiles)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Ukuran file maksimal 5MB.')
+            return
+        }
+
+        if (!userId) {
+            alert('Anda harus login terlebih dahulu')
+            return
+        }
+
+        try {
+            const publicUrl = await uploadDocument(file, userId)
+            const newItem = {
+                id: Date.now().toString(),
+                url: publicUrl,
+                title: file.name,
+                size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+                type: 'pdf' as const
             }
-            reader.readAsDataURL(file)
+            const newFiles = [...formData.files, newItem]
+            updateField('files', newFiles)
+        } catch (err) {
+            console.error(err)
+            alert('Gagal upload file.')
         }
     }
 
-    const removeFileItem = (id: string) => {
+    const removeFileItem = async (id: string) => {
+        const item = formData.files.find(f => f.id === id)
+        if (item?.url && item.url.includes('/storage/')) {
+            await deleteFile('files', item.url)
+        }
         const newFiles = formData.files.filter(item => item.id !== id)
         updateField('files', newFiles)
     }
