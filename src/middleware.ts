@@ -8,11 +8,11 @@ export async function middleware(request: NextRequest) {
     const isDevelopment = process.env.NODE_ENV === 'development'
 
     // Public routes that don't need auth
-    const publicRoutes = ['/', '/login', '/register', '/activate', '/admin']
-    const isPublicRoute = publicRoutes.includes(pathname)
+    const publicRoutes = ['/', '/login', '/register', '/activate', '/admin', '/get-started']
+    const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/tap') || pathname.startsWith('/auth')
 
     // Check if it's a public profile route (slug at root level)
-    const reservedPaths = ['login', 'register', 'dashboard', 'activate', 'api', '_next', 'favicon.ico', 'admin', 'tap']
+    const reservedPaths = ['login', 'register', 'dashboard', 'activate', 'api', '_next', 'favicon.ico', 'admin', 'tap', 'auth', 'get-started']
     const pathSegments = pathname.split('/').filter(Boolean)
     const isPublicProfile = pathSegments.length === 1 && !reservedPaths.includes(pathSegments[0])
 
