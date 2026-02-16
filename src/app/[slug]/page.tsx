@@ -5,7 +5,7 @@ import { notFound, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import AIAssistant from '@/components/profile/AIAssistant'
+
 import { Instagram, Twitter, Linkedin, Globe, MessageCircle, ChevronRight, Mail, Phone, Download, MapPin, Share2, Copy, Check, X, FileText, Image as ImageIcon } from 'lucide-react'
 import { generateVCard } from '@/lib/vcard'
 
@@ -17,7 +17,7 @@ export default function PublicProfile() {
     const [activeTab, setActiveTab] = useState('links') // links | gallery | files
     const [showShare, setShowShare] = useState(false)
     const [copied, setCopied] = useState(false)
-    const [scrolled, setScrolled] = useState(false)
+
     const [selectedImage, setSelectedImage] = useState<string | null>(null)
     const [bioExpanded, setBioExpanded] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -81,13 +81,7 @@ export default function PublicProfile() {
 
         fetchProfile()
 
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 50)
-        }
-        window.addEventListener('scroll', handleScroll)
-        return () => {
-            window.removeEventListener('scroll', handleScroll)
-        }
+
     }, [params?.slug])
 
     if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading...</div>
@@ -160,9 +154,9 @@ export default function PublicProfile() {
     );
 
     // Text color helper based on theme
-    const textPrimary = isLightMode ? 'text-zinc-900' : 'text-white'
-    const textSecondary = isLightMode ? 'text-zinc-700' : 'text-white/90'
-    const textMuted = isLightMode ? 'text-zinc-500' : 'text-white/70'
+    const textPrimary = isLightMode ? 'text-zinc-900 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white'
+    const textSecondary = isLightMode ? 'text-zinc-800 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-white/90'
+    const textMuted = isLightMode ? 'text-zinc-600 drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]' : 'text-white/70'
 
     return (
         <>
@@ -196,12 +190,8 @@ export default function PublicProfile() {
                                 alt={profile.display_name}
                                 className={`w-full h-full object-cover object-top transition-all duration-700 ${isGrayscale ? 'grayscale' : ''}`}
                             />
-                            {/* Overlay: Bright initially, Darkens on Scroll */}
-                            <div
-                                className={`absolute inset-0 bg-black transition-opacity duration-500 pointer-events-none ${scrolled ? 'opacity-60' : 'opacity-0'}`}
-                            />
-                            {/* Overlay Gradient for readability */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-50" />
+                            {/* Subtle gradient for text readability (no scroll darkening) */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                         </div>
                     ) : (
                         <div className={`w-full h-full flex items-center justify-center ${isLightMode ? 'bg-zinc-200' : 'bg-zinc-900'}`}>
@@ -217,7 +207,7 @@ export default function PublicProfile() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, ease: "easeOut" }}
                         className={`backdrop-blur-xl rounded-t-[40px] rounded-b-[40px] p-8 min-h-[60vh] transition-colors duration-300 shadow-2xl overflow-hidden relative ${isLightMode
-                            ? 'bg-white/5 shadow-zinc-200/20'
+                            ? 'bg-white/70 shadow-zinc-200/20'
                             : 'bg-black/10 shadow-black/40'
                             }`}
                     >
@@ -287,14 +277,14 @@ export default function PublicProfile() {
                         </button>
 
                         {/* Content Tabs */}
-                        <div className={`flex items-center justify-center gap-8 mb-8 border-b pb-4 relative z-10 ${isLightMode ? 'border-zinc-200' : 'border-white/10'}`}>
+                        <div className={`flex items-center justify-center gap-8 mb-8 border-b pb-4 relative z-10 ${isLightMode ? 'border-zinc-300' : 'border-white/10'}`}>
                             {['links', 'gallery', 'files'].map(tab => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
                                     className={`text-sm font-bold uppercase tracking-widest pb-2 border-b-2 transition-all drop-shadow-md ${activeTab === tab
-                                        ? 'text-white border-white'
-                                        : 'text-white/60 border-transparent hover:text-white'
+                                        ? (isLightMode ? 'text-zinc-900 border-zinc-900' : 'text-white border-white')
+                                        : (isLightMode ? 'text-zinc-500 border-transparent hover:text-zinc-700' : 'text-white/60 border-transparent hover:text-white')
                                         }`}
                                 >
                                     {tab}
@@ -324,8 +314,8 @@ export default function PublicProfile() {
                                                 {renderIcon(link.icon, "w-6 h-6")}
                                             </div>
                                             <div className="text-left">
-                                                <h4 className="font-bold text-base transition-colors drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] text-white group-hover:text-purple-200">{link.title || 'Untitled Link'}</h4>
-                                                <p className="text-xs font-medium uppercase tracking-wider mt-1 drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] text-white/80 group-hover:text-white">
+                                                <h4 className={`font-bold text-base transition-colors ${isLightMode ? 'text-zinc-900 group-hover:text-zinc-700' : 'text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] group-hover:text-purple-200'}`}>{link.title || 'Untitled Link'}</h4>
+                                                <p className={`text-xs font-medium uppercase tracking-wider mt-1 ${isLightMode ? 'text-zinc-500 group-hover:text-zinc-700' : 'text-white/80 drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] group-hover:text-white'}`}>
                                                     {getLinkSubtitle(link)}
                                                 </p>
                                             </div>
@@ -366,7 +356,8 @@ export default function PublicProfile() {
                                         <a
                                             key={file.id}
                                             href={file.url}
-                                            download={file.title}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
                                             className={`block w-full p-5 rounded-2xl flex items-center gap-5 transition-all text-left cursor-pointer active:scale-[0.99] backdrop-blur-sm shadow-sm ${isLightMode
                                                 ? 'bg-white/20 hover:bg-white/40'
                                                 : 'bg-black/10 hover:bg-white/10'
@@ -376,8 +367,8 @@ export default function PublicProfile() {
                                                 <FileText className="w-6 h-6" />
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <h4 className="font-bold text-base drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] text-white">{file.title}</h4>
-                                                <p className="text-xs mt-1 drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)] text-white/80">{file.size} • PDF Document</p>
+                                                <h4 className={`font-bold text-base ${isLightMode ? 'text-zinc-900' : 'text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]'}`}>{file.title}</h4>
+                                                <p className={`text-xs mt-1 ${isLightMode ? 'text-zinc-500' : 'text-white/80 drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]'}`}>{file.url ? 'Open Link' : 'Document'}</p>
                                             </div>
                                             <Download className={`w-5 h-5 ml-auto ${isLightMode ? 'text-zinc-400' : 'text-zinc-500'}`} />
                                         </a>
@@ -393,11 +384,10 @@ export default function PublicProfile() {
 
                         {/* Footer */}
                         <div className="mt-12 text-center relative z-10">
-                            <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isLightMode ? 'text-zinc-300' : 'text-white/30'}`}>Powered by GenHub</p>
+                            <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isLightMode ? 'text-zinc-400' : 'text-white/30'}`}>Powered by Gentanala</p>
                         </div>
 
-                        {/* AI Assistant */}
-                        <AIAssistant profile={profile} />
+
                     </motion.div>
                 </div>
 

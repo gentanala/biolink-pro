@@ -69,12 +69,8 @@ export default function PhonePreview() {
                                 alt={profile.display_name}
                                 className={`w-full h-full object-cover object-top transition-all duration-700 ${isGrayscale ? 'grayscale' : ''}`}
                             />
-                            {/* Overlay: Bright initially, Darkens on Scroll */}
-                            <div
-                                className={`absolute inset-0 bg-black transition-opacity duration-500 pointer-events-none ${scrolled ? 'opacity-60' : 'opacity-0'}`}
-                            />
-                            {/* Always present gradient for bottom text readability if needed, but subtle */}
-                            <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/50 to-transparent opacity-40" />
+                            {/* Subtle gradient for text readability (no scroll darkening) */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
                         </div>
                     ) : (
                         <div className={`w-full h-full flex items-center justify-center ${isLightMode ? 'bg-zinc-200' : 'bg-zinc-900'}`}>
@@ -90,7 +86,7 @@ export default function PhonePreview() {
                         initial={{ opacity: 0, y: 50 }}
                         animate={{ opacity: 1, y: 0 }}
                         className={`backdrop-blur-xl rounded-t-[30px] p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] min-h-[60vh] transition-colors duration-300 border-t ${isLightMode
-                            ? 'bg-white/80 border-white/40'
+                            ? 'bg-white/70 border-white/40'
                             : 'bg-black/40 border-white/10'
                             }`}
                     >
@@ -210,7 +206,7 @@ export default function PhonePreview() {
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <h4 className={`font-bold text-sm truncate ${isLightMode ? 'text-zinc-800' : 'text-white'}`}>{file.title}</h4>
-                                                <p className={`text-[10px] ${isLightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{file.size} • PDF</p>
+                                                <p className={`text-[10px] ${isLightMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{file.url ? 'Open Link' : 'Document'}</p>
                                             </div>
                                             <Download className={`w-4 h-4 ${isLightMode ? 'text-zinc-400' : 'text-zinc-600'}`} />
                                         </div>
@@ -225,7 +221,7 @@ export default function PhonePreview() {
 
                         {/* Footer */}
                         <div className="mt-8 text-center">
-                            <p className={`text-[9px] uppercase tracking-widest ${isLightMode ? 'text-zinc-400' : 'text-zinc-600'}`}>Powered by GenHub</p>
+                            <p className={`text-[9px] uppercase tracking-widest ${isLightMode ? 'text-zinc-400' : 'text-zinc-600'}`}>Powered by Gentanala</p>
                         </div>
                     </motion.div>
                 </div>

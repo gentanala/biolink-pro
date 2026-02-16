@@ -410,66 +410,7 @@ export default function ProfileEditor() {
                     </div>
                 </motion.section>
 
-                {/* Theme & Filter Settings */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
-                    <h3 className="text-lg font-bold text-white mb-4">Tampilan & Filter</h3>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Theme Mode */}
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-3">Tema Tampilan</label>
-                            <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-                                <button
-                                    type="button"
-                                    onClick={() => updateField('theme_mode', 'dark')}
-                                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${formData.theme_mode === 'dark'
-                                        ? 'bg-zinc-800 text-white shadow-sm'
-                                        : 'text-zinc-500 hover:text-zinc-300'
-                                        }`}
-                                >
-                                    Dark Mode
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => updateField('theme_mode', 'light')}
-                                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${formData.theme_mode === 'light'
-                                        ? 'bg-white text-zinc-900 shadow-sm'
-                                        : 'text-zinc-500 hover:text-zinc-300'
-                                        }`}
-                                >
-                                    Light Mode
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Image Filter */}
-                        <div>
-                            <label className="block text-sm font-medium text-zinc-400 mb-3">Filter Foto</label>
-                            <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
-                                <button
-                                    type="button"
-                                    onClick={() => updateField('image_filter', 'normal')}
-                                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${formData.image_filter === 'normal'
-                                        ? 'bg-zinc-800 text-white shadow-sm'
-                                        : 'text-zinc-500 hover:text-zinc-300'
-                                        }`}
-                                >
-                                    Normal
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => updateField('image_filter', 'grayscale')}
-                                    className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${formData.image_filter === 'grayscale'
-                                        ? 'bg-zinc-800 text-white shadow-sm'
-                                        : 'text-zinc-500 hover:text-zinc-300'
-                                        }`}
-                                >
-                                    B&W
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Gallery Section */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">

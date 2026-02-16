@@ -8,8 +8,12 @@ import {
     Save,
     Loader2,
     Layout,
-    Type
+    Type,
+    Sun,
+    Moon,
+    ImageIcon
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const COLORS = [
     { name: 'Blue', value: '#3B82F6', class: 'bg-blue-500' },
@@ -29,6 +33,7 @@ const STYLES = [
 ]
 
 export default function AppearancePage() {
+    const supabase = createClient()
     const [isLoading, setIsLoading] = useState(false)
     const [isSaved, setIsSaved] = useState(false)
     const [theme, setTheme] = useState({
@@ -36,26 +41,91 @@ export default function AppearancePage() {
         background: '#0F172A',
         style: 'default'
     })
+    const [themeMode, setThemeMode] = useState('dark')
+    const [imageFilter, setImageFilter] = useState('normal')
 
     useEffect(() => {
-        const profileStr = localStorage.getItem('genhub_profile')
-        if (profileStr) {
-            const profile = JSON.parse(profileStr)
-            if (profile.theme) {
-                setTheme(profile.theme)
+        const fetchSettings = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('theme')
+                .eq('user_id', user.id)
+                .single()
+
+            if (profile?.theme) {
+                const t = profile.theme
+                setTheme({
+                    primary: t.primary || '#3B82F6',
+                    background: t.background || '#0F172A',
+                    style: t.style || 'default'
+                })
+                setThemeMode(t.theme_mode || 'dark')
+                setImageFilter(t.image_filter || 'normal')
+            }
+
+            // Also sync to localStorage for live preview
+            const profileStr = localStorage.getItem('genhub_profile')
+            if (profileStr) {
+                const p = JSON.parse(profileStr)
+                if (p.theme_mode) setThemeMode(p.theme_mode)
+                if (p.image_filter) setImageFilter(p.image_filter)
             }
         }
+
+        fetchSettings()
     }, [])
 
     const handleSave = async () => {
         setIsLoading(true)
-        await new Promise(resolve => setTimeout(resolve, 800))
 
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            setIsLoading(false)
+            alert('Anda harus login terlebih dahulu')
+            return
+        }
+
+        // Get existing profile theme data
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('theme')
+            .eq('user_id', user.id)
+            .single()
+
+        const existingTheme = profile?.theme || {}
+
+        // Merge appearance settings into existing theme
+        const updatedTheme = {
+            ...existingTheme,
+            primary: theme.primary,
+            background: theme.background,
+            style: theme.style,
+            theme_mode: themeMode,
+            image_filter: imageFilter,
+        }
+
+        const { error } = await supabase
+            .from('profiles')
+            .update({ theme: updatedTheme })
+            .eq('user_id', user.id)
+
+        if (error) {
+            console.error('Error saving appearance:', error)
+            alert('Gagal menyimpan tampilan')
+            setIsLoading(false)
+            return
+        }
+
+        // Also sync to localStorage for live preview
         const profileStr = localStorage.getItem('genhub_profile')
         if (profileStr) {
-            const profile = JSON.parse(profileStr)
-            profile.theme = theme
-            localStorage.setItem('genhub_profile', JSON.stringify(profile))
+            const p = JSON.parse(profileStr)
+            p.theme_mode = themeMode
+            p.image_filter = imageFilter
+            localStorage.setItem('genhub_profile', JSON.stringify(p))
         }
 
         setIsSaved(true)
@@ -67,14 +137,88 @@ export default function AppearancePage() {
         <div className="max-w-2xl mx-auto">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Tampilan</h1>
-                <p className="text-zinc-400">Kustomisasi warna dan gaya profil Anda</p>
+                <p className="text-zinc-400">Kustomisasi warna, gaya, dan filter profil Anda</p>
             </div>
 
             <div className="space-y-8">
+                {/* Theme Mode */}
+                <motion.section
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="glass rounded-3xl p-8"
+                >
+                    <div className="flex items-center gap-3 mb-6">
+                        {themeMode === 'dark' ? (
+                            <Moon className="w-5 h-5 text-blue-400" />
+                        ) : (
+                            <Sun className="w-5 h-5 text-amber-400" />
+                        )}
+                        <h2 className="text-lg font-semibold text-white">Tema Tampilan</h2>
+                    </div>
+
+                    <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                        <button
+                            onClick={() => setThemeMode('dark')}
+                            className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'dark'
+                                ? 'bg-zinc-800 text-white shadow-sm'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                                }`}
+                        >
+                            <Moon className="w-4 h-4" />
+                            Dark Mode
+                        </button>
+                        <button
+                            onClick={() => setThemeMode('light')}
+                            className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'light'
+                                ? 'bg-white text-zinc-900 shadow-sm'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                                }`}
+                        >
+                            <Sun className="w-4 h-4" />
+                            Light Mode
+                        </button>
+                    </div>
+                </motion.section>
+
+                {/* Image Filter */}
+                <motion.section
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
+                    className="glass rounded-3xl p-8"
+                >
+                    <div className="flex items-center gap-3 mb-6">
+                        <ImageIcon className="w-5 h-5 text-emerald-400" />
+                        <h2 className="text-lg font-semibold text-white">Filter Foto</h2>
+                    </div>
+
+                    <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                        <button
+                            onClick={() => setImageFilter('normal')}
+                            className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'normal'
+                                ? 'bg-zinc-800 text-white shadow-sm'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                                }`}
+                        >
+                            Normal
+                        </button>
+                        <button
+                            onClick={() => setImageFilter('grayscale')}
+                            className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'grayscale'
+                                ? 'bg-zinc-800 text-white shadow-sm'
+                                : 'text-zinc-500 hover:text-zinc-300'
+                                }`}
+                        >
+                            B&W
+                        </button>
+                    </div>
+                </motion.section>
+
                 {/* Colors */}
                 <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
                     className="glass rounded-3xl p-8"
                 >
                     <div className="flex items-center gap-3 mb-6">
@@ -100,7 +244,7 @@ export default function AppearancePage() {
                 <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
+                    transition={{ delay: 0.15 }}
                     className="glass rounded-3xl p-8"
                 >
                     <div className="flex items-center gap-3 mb-6">
@@ -126,7 +270,7 @@ export default function AppearancePage() {
                     </div>
                 </motion.section>
 
-                {/* Buttons styles placeholder */}
+                {/* Typography placeholder */}
                 <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
