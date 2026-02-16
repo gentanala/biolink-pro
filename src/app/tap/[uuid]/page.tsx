@@ -8,9 +8,9 @@ import { motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-// Mock product for dev mode
-const MOCK_PRODUCT = {
-    id: 'mock-product-1',
+// Default product info (used when no product join is available)
+const DEFAULT_PRODUCT = {
+    id: 'default-product',
     name: 'Gentanala Classic',
     slug: 'gentanala-classic',
     description: 'The flagship timepiece that started it all.',
@@ -28,17 +28,6 @@ const MOCK_PRODUCT = {
         provenance: 'Crafted in our Jakarta atelier',
         story: 'Born from a vision to create watches that tell more than time.'
     }
-}
-
-interface SerialFromStorage {
-    id: string
-    serial_uuid: string
-    product_name: string
-    is_claimed: boolean
-    claimed_at: string | null
-    owner_email: string | null
-    nfc_tap_count: number
-    created_at: string
 }
 
 export default function TapPage() {
@@ -69,126 +58,71 @@ export default function TapPage() {
 
         const checkAndClaim = async () => {
             const supabase = createClient()
-            const { data: { session } } = await supabase.auth.getSession()
 
-            // Try to load from localStorage (dev mode)
-            let storedSerials = localStorage.getItem('genhub_serials')
-            let serials: SerialFromStorage[] = []
+            // 1. Query Supabase for this serial
+            const { data: dbSerial, error } = await supabase
+                .from('serial_numbers')
+                .select('*')
+                .eq('serial_uuid', cleanUuid)
+                .single()
 
-            if (storedSerials) {
-                serials = JSON.parse(storedSerials)
-            } else {
-                // AUTO-SEED MOCK DATA if storage is empty
-                serials = [
-                    {
-                        id: '1',
-                        serial_uuid: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-                        product_name: 'Gentanala Classic',
-                        is_claimed: false,
-                        claimed_at: null,
-                        owner_email: null,
-                        nfc_tap_count: 0,
-                        created_at: new Date().toISOString()
-                    },
-                    {
-                        id: '2',
-                        serial_uuid: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-                        product_name: 'Gentanala Classic',
-                        is_claimed: true,
-                        claimed_at: new Date().toISOString(),
-                        owner_email: 'demo@gentanala.com',
-                        nfc_tap_count: 12,
-                        created_at: new Date().toISOString()
-                    }
-                ]
-                localStorage.setItem('genhub_serials', JSON.stringify(serials))
-            }
-
-            let found = serials.find(s => s.serial_uuid === cleanUuid)
-
-            if (found) {
-                // If user is logged in and it's an unclaimed serial + claim param is present
-                // GUARD: Only auto-claim if the claim was explicitly initiated (via sessionStorage flag)
-                const claimInitiated = typeof window !== 'undefined' && sessionStorage.getItem('claim_initiated') === cleanUuid
-                if (session?.user && !found.is_claimed && shouldClaim && claimInitiated) {
-                    // Clear the flag
-                    sessionStorage.removeItem('claim_initiated')
-                    // PERFORM CLAIM (updating localStorage for dev simulation)
-                    found = {
-                        ...found,
-                        is_claimed: true,
-                        owner_email: session.user.email || 'guest',
-                        claimed_at: new Date().toISOString()
-                    }
-                    const updatedSerials = serials.map(s => s.serial_uuid === cleanUuid ? found : s)
-                    localStorage.setItem('genhub_serials', JSON.stringify(updatedSerials))
-
-                    // Also initialize a mock profile if it doesn't exist
-                    const profileKey = `genhub_profile_${session.user.id}`
-                    if (!localStorage.getItem(profileKey)) {
-                        localStorage.setItem(profileKey, JSON.stringify({
-                            slug: session.user.email?.split('@')[0] || 'owner',
-                            display_name: session.user.email?.split('@')[0] || 'Owner',
-                            bio: 'Digital Creator',
-                            theme_mode: 'dark',
-                            avatar_url: null
-                        }))
-                    }
-
-                    // REDIRECT TO DASHBOARD AFTER CLAIM
-                    window.location.href = '/dashboard?claim_success=true'
-                    return
-                }
-
-                // Increment tap count
-                const updated = serials.map(s =>
-                    s.serial_uuid === cleanUuid
-                        ? { ...s, nfc_tap_count: s.nfc_tap_count + 1 }
-                        : s
-                )
-                localStorage.setItem('genhub_serials', JSON.stringify(updated))
-
-                // Build serial object compatible with views
-                const serialData = {
-                    id: found.id,
-                    serial_uuid: found.serial_uuid,
-                    product_id: 'mock-product-1',
-                    variant_id: null,
-                    owner_id: found.is_claimed ? 'mock-owner' : null,
-                    is_claimed: found.is_claimed,
-                    claimed_at: found.claimed_at,
-                    activation_code: null,
-                    nfc_tap_count: found.nfc_tap_count + 1,
-                    last_tapped_at: new Date().toISOString(),
-                    manufactured_at: null,
-                    created_at: found.created_at,
-                    product: MOCK_PRODUCT,
-                    owner: found.is_claimed ? {
-                        id: 'mock-owner',
-                        user_id: 'mock-user',
-                        slug: found.owner_email?.split('@')[0] || 'owner',
-                        display_name: found.owner_email?.split('@')[0] || 'Owner',
-                        bio: 'Welcome to my profile!',
-                        avatar_url: null,
-                        theme: {},
-                        phone: null,
-                        email: found.owner_email,
-                        company: null,
-                        job_title: null,
-                        social_links: [],
-                        is_public: true,
-                        created_at: found.created_at,
-                        updated_at: found.created_at
-                    } : undefined
-                }
-
-                setSerial(serialData)
+            if (error || !dbSerial) {
+                console.log('Serial not found in Supabase:', cleanUuid)
+                setNotFound(true)
                 setLoading(false)
                 return
             }
 
-            // Not found in localStorage
-            setNotFound(true)
+            // 2. Increment tap count in Supabase (fire and forget)
+            supabase.rpc('increment_tap_count', { p_serial_uuid: cleanUuid }).then(() => {
+                console.log('Tap count incremented')
+            })
+
+            // 3. If claimed, try to load owner profile and redirect
+            if (dbSerial.is_claimed && dbSerial.owner_id) {
+                // Fetch owner profile from Supabase
+                const { data: ownerProfile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('user_id', dbSerial.owner_id)
+                    .single()
+
+                if (ownerProfile?.slug) {
+                    // Redirect to owner's public profile
+                    window.location.href = `/${ownerProfile.slug}`
+                    return
+                }
+
+                // Fallback: check localStorage for profile
+                const localProfile = localStorage.getItem('genhub_profile')
+                if (localProfile) {
+                    const parsed = JSON.parse(localProfile)
+                    if (parsed.slug) {
+                        window.location.href = `/${parsed.slug}`
+                        return
+                    }
+                }
+            }
+
+            // 4. Build serial object for the view components
+            const serialData = {
+                id: dbSerial.id,
+                serial_uuid: dbSerial.serial_uuid,
+                product_id: dbSerial.product_id,
+                variant_id: dbSerial.variant_id || null,
+                owner_id: dbSerial.owner_id || null,
+                is_claimed: dbSerial.is_claimed || false,
+                claimed_at: dbSerial.claimed_at,
+                activation_code: dbSerial.activation_code || null,
+                nfc_tap_count: (dbSerial.nfc_tap_count || 0) + 1,
+                last_tapped_at: new Date().toISOString(),
+                manufactured_at: dbSerial.manufactured_at,
+                created_at: dbSerial.created_at,
+                product: DEFAULT_PRODUCT,
+                owner: undefined as any
+            }
+
+            setSerial(serialData)
             setLoading(false)
         }
 

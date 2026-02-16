@@ -14,6 +14,7 @@ import {
     Search,
     Package
 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 interface SerialNumber {
     id: string
@@ -73,78 +74,84 @@ export default function AdminPage() {
         }
     }
 
-    const loadSerials = () => {
+    const loadSerials = async () => {
         setLoading(true)
-        // Load from localStorage (mock database)
-        const stored = localStorage.getItem('genhub_serials')
-        if (stored) {
-            setSerials(JSON.parse(stored))
-        } else {
-            // Initialize with some sample data
-            const initialSerials: SerialNumber[] = [
-                {
-                    id: '1',
-                    serial_uuid: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-                    product_name: 'Gentanala Classic',
-                    is_claimed: false,
-                    claimed_at: null,
-                    owner_email: null,
-                    nfc_tap_count: 0,
-                    created_at: new Date().toISOString()
-                },
-                {
-                    id: '2',
-                    serial_uuid: 'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-                    product_name: 'Gentanala Classic',
-                    is_claimed: true,
-                    claimed_at: new Date().toISOString(),
-                    owner_email: 'demo@example.com',
-                    nfc_tap_count: 15,
-                    created_at: new Date(Date.now() - 86400000).toISOString()
-                }
-            ]
-            localStorage.setItem('genhub_serials', JSON.stringify(initialSerials))
-            setSerials(initialSerials)
+        const supabase = createClient()
+        const { data, error } = await supabase
+            .from('serial_numbers')
+            .select('*')
+            .order('created_at', { ascending: false })
+
+        if (error) {
+            console.error('Error loading serials:', error)
+            setLoading(false)
+            return
         }
+
+        const mapped: SerialNumber[] = (data || []).map((s: any) => ({
+            id: s.id,
+            serial_uuid: s.serial_uuid,
+            product_name: 'Gentanala Classic',
+            is_claimed: s.is_claimed || false,
+            claimed_at: s.claimed_at,
+            owner_email: s.owner_id || null,
+            nfc_tap_count: s.nfc_tap_count || 0,
+            created_at: s.created_at
+        }))
+        setSerials(mapped)
         setLoading(false)
     }
 
-    const generateSerials = () => {
+    const generateSerials = async () => {
         setGenerating(true)
+        const supabase = createClient()
 
-        const newSerials: SerialNumber[] = []
+        // Get product ID for Gentanala Classic
+        const { data: product } = await supabase
+            .from('products')
+            .select('id')
+            .eq('slug', 'gentanala-classic')
+            .single()
+
+        const productId = product?.id
+
+        const newRows = []
         for (let i = 0; i < generateCount; i++) {
-            // Generate UUID v4
-            const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-                const r = Math.random() * 16 | 0
-                const v = c === 'x' ? r : (r & 0x3 | 0x8)
-                return v.toString(16)
-            })
-
-            newSerials.push({
-                id: Date.now().toString() + i,
+            const uuid = crypto.randomUUID()
+            newRows.push({
                 serial_uuid: uuid,
-                product_name: 'Gentanala Classic',
+                product_id: productId || null,
                 is_claimed: false,
-                claimed_at: null,
-                owner_email: null,
                 nfc_tap_count: 0,
-                created_at: new Date().toISOString()
             })
         }
 
-        const updated = [...newSerials, ...serials]
-        setSerials(updated)
-        localStorage.setItem('genhub_serials', JSON.stringify(updated))
+        const { error } = await supabase
+            .from('serial_numbers')
+            .insert(newRows)
+
+        if (error) {
+            console.error('Error generating serials:', error)
+            alert('Gagal generate serial: ' + error.message)
+        } else {
+            await loadSerials()
+        }
         setGenerating(false)
     }
 
-    const deleteSerial = (id: string) => {
-        console.log('Deleting serial:', id)
-        const updated = serials.filter(s => s.id !== id)
-        console.log('Updated serials:', updated.length)
-        setSerials(updated)
-        localStorage.setItem('genhub_serials', JSON.stringify(updated))
+    const deleteSerial = async (id: string) => {
+        const supabase = createClient()
+        const { error } = await supabase
+            .from('serial_numbers')
+            .delete()
+            .eq('id', id)
+
+        if (error) {
+            console.error('Error deleting serial:', error)
+            alert('Gagal hapus serial: ' + error.message)
+        } else {
+            setSerials(prev => prev.filter(s => s.id !== id))
+        }
     }
 
     const copyToClipboard = (text: string, id: string) => {

@@ -56,19 +56,26 @@ export function UnclaimedView({ serial }: UnclaimedViewProps) {
             console.warn('Supabase auth skipped:', err)
         }
 
-        // === ALWAYS RUNS: Claim serial ===
-        const storedSerials = localStorage.getItem('genhub_serials')
-        if (storedSerials) {
-            const serials = JSON.parse(storedSerials)
-            const updated = serials.map((s: any) =>
-                s.serial_uuid === serial.serial_uuid
-                    ? { ...s, is_claimed: true, owner_email: userEmail, claimed_at: new Date().toISOString() }
-                    : s
-            )
-            localStorage.setItem('genhub_serials', JSON.stringify(updated))
+        // === CLAIM SERIAL IN SUPABASE ===
+        try {
+            const supabase = createClient()
+            const { error: claimError } = await supabase
+                .from('serial_numbers')
+                .update({
+                    is_claimed: true,
+                    owner_id: userId.startsWith('local-') ? null : userId,
+                    claimed_at: new Date().toISOString(),
+                })
+                .eq('serial_uuid', serial.serial_uuid)
+
+            if (claimError) {
+                console.warn('Supabase claim error (continuing anyway):', claimError)
+            }
+        } catch (err) {
+            console.warn('Supabase claim skipped:', err)
         }
 
-        // === ALWAYS RUNS: Create local profile ===
+        // === ALWAYS RUNS: Create local profile (dashboard fallback) ===
         const slug = 'user-' + Date.now().toString().slice(-6)
         const profile = {
             id: userId,
