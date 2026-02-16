@@ -20,7 +20,7 @@ import {
     Trash2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { uploadAvatar, uploadGalleryImage, uploadDocument, deleteFile } from '@/lib/storage'
+import { uploadAvatar, uploadGalleryImage, deleteFile } from '@/lib/storage'
 
 export default function ProfileEditor() {
     const supabase = createClient()
@@ -30,6 +30,9 @@ export default function ProfileEditor() {
     const [isUploading, setIsUploading] = useState(false)
     const [userId, setUserId] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [showAddFile, setShowAddFile] = useState(false)
+    const [newFileTitle, setNewFileTitle] = useState('')
+    const [newFileUrl, setNewFileUrl] = useState('')
 
     const [formData, setFormData] = useState({
         display_name: '',
@@ -216,42 +219,32 @@ export default function ProfileEditor() {
         updateField('gallery', newGallery)
     }
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
-        if (!file) return
-
-        if (file.size > 5 * 1024 * 1024) {
-            alert('Ukuran file maksimal 5MB.')
+    const addFileLink = () => {
+        if (!newFileTitle.trim() || !newFileUrl.trim()) {
+            alert('Judul dan URL harus diisi')
             return
         }
 
-        if (!userId) {
-            alert('Anda harus login terlebih dahulu')
-            return
+        // Basic URL validation
+        let url = newFileUrl.trim()
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url
         }
 
-        try {
-            const publicUrl = await uploadDocument(file, userId)
-            const newItem = {
-                id: Date.now().toString(),
-                url: publicUrl,
-                title: file.name,
-                size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-                type: 'pdf' as const
-            }
-            const newFiles = [...formData.files, newItem]
-            updateField('files', newFiles)
-        } catch (err) {
-            console.error(err)
-            alert('Gagal upload file.')
+        const newItem = {
+            id: Date.now().toString(),
+            url: url,
+            title: newFileTitle.trim(),
+            type: 'link' as const
         }
+        const newFiles = [...formData.files, newItem]
+        updateField('files', newFiles)
+        setNewFileTitle('')
+        setNewFileUrl('')
+        setShowAddFile(false)
     }
 
-    const removeFileItem = async (id: string) => {
-        const item = formData.files.find(f => f.id === id)
-        if (item?.url && item.url.includes('/storage/')) {
-            await deleteFile('files', item.url)
-        }
+    const removeFileItem = (id: string) => {
         const newFiles = formData.files.filter(item => item.id !== id)
         updateField('files', newFiles)
     }
@@ -511,32 +504,76 @@ export default function ProfileEditor() {
                     )}
                 </div>
 
-                {/* Files Section */}
+                {/* Files / Documents Section */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-white">Dokumen & File</h3>
-                        <label className="cursor-pointer bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-white">Dokumen & Link</h3>
+                        <button
+                            type="button"
+                            onClick={() => setShowAddFile(!showAddFile)}
+                            className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2"
+                        >
                             <FileText className="w-4 h-4" />
-                            <span>Upload PDF</span>
-                            <input type="file" className="hidden" accept=".pdf" onChange={handleFileUpload} />
-                        </label>
+                            <span>+ Tambah Link</span>
+                        </button>
                     </div>
+
+                    {showAddFile && (
+                        <div className="mb-4 p-4 bg-zinc-950 border border-zinc-800 rounded-xl space-y-3">
+                            <div>
+                                <label className="block text-xs font-medium text-zinc-500 uppercase mb-1">Judul Dokumen</label>
+                                <input
+                                    type="text"
+                                    value={newFileTitle}
+                                    onChange={(e) => setNewFileTitle(e.target.value)}
+                                    placeholder="Contoh: Sertifikat Keaslian"
+                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-zinc-500 uppercase mb-1">URL Link</label>
+                                <input
+                                    type="text"
+                                    value={newFileUrl}
+                                    onChange={(e) => setNewFileUrl(e.target.value)}
+                                    placeholder="https://drive.google.com/file/..."
+                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={addFileLink}
+                                    className="bg-amber-500 hover:bg-amber-600 text-black px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                                >
+                                    Simpan
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowAddFile(false); setNewFileTitle(''); setNewFileUrl('') }}
+                                    className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                                >
+                                    Batal
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {formData.files.length === 0 ? (
                         <div className="text-center py-8 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-500 text-sm">
-                            Belum ada file dokumen
+                            Belum ada dokumen. Tambahkan link ke Google Drive, PDF, atau file lainnya.
                         </div>
                     ) : (
                         <div className="space-y-3">
                             {formData.files.map(file => (
                                 <div key={file.id} className="flex items-center justify-between p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
                                     <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
+                                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
                                             <FileText className="w-5 h-5" />
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium text-white truncate">{file.title}</p>
-                                            <p className="text-xs text-zinc-500">{file.size}</p>
+                                            <p className="text-xs text-zinc-500 truncate">{file.url}</p>
                                         </div>
                                     </div>
                                     <button
