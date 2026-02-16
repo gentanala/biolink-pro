@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
     Palette,
@@ -44,6 +44,21 @@ export default function AppearancePage() {
     const [themeMode, setThemeMode] = useState('dark')
     const [imageFilter, setImageFilter] = useState('normal')
 
+    // Sync to localStorage immediately for live preview
+    const syncToPreview = useCallback((mode: string, filter: string) => {
+        try {
+            const profileStr = localStorage.getItem('genhub_profile')
+            if (profileStr) {
+                const p = JSON.parse(profileStr)
+                p.theme_mode = mode
+                p.image_filter = filter
+                localStorage.setItem('genhub_profile', JSON.stringify(p))
+            }
+        } catch (err) {
+            console.error('Failed to sync to preview:', err)
+        }
+    }, [])
+
     useEffect(() => {
         const fetchSettings = async () => {
             const { data: { user } } = await supabase.auth.getUser()
@@ -66,7 +81,7 @@ export default function AppearancePage() {
                 setImageFilter(t.image_filter || 'normal')
             }
 
-            // Also sync to localStorage for live preview
+            // Also check localStorage for any existing values
             const profileStr = localStorage.getItem('genhub_profile')
             if (profileStr) {
                 const p = JSON.parse(profileStr)
@@ -77,6 +92,18 @@ export default function AppearancePage() {
 
         fetchSettings()
     }, [])
+
+    // Handle theme mode change with instant preview sync
+    const handleThemeModeChange = (mode: string) => {
+        setThemeMode(mode)
+        syncToPreview(mode, imageFilter)
+    }
+
+    // Handle image filter change with instant preview sync
+    const handleImageFilterChange = (filter: string) => {
+        setImageFilter(filter)
+        syncToPreview(themeMode, filter)
+    }
 
     const handleSave = async () => {
         setIsLoading(true)
@@ -119,14 +146,8 @@ export default function AppearancePage() {
             return
         }
 
-        // Also sync to localStorage for live preview
-        const profileStr = localStorage.getItem('genhub_profile')
-        if (profileStr) {
-            const p = JSON.parse(profileStr)
-            p.theme_mode = themeMode
-            p.image_filter = imageFilter
-            localStorage.setItem('genhub_profile', JSON.stringify(p))
-        }
+        // Sync to localStorage
+        syncToPreview(themeMode, imageFilter)
 
         setIsSaved(true)
         setIsLoading(false)
@@ -137,7 +158,7 @@ export default function AppearancePage() {
         <div className="max-w-2xl mx-auto">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Tampilan</h1>
-                <p className="text-zinc-400">Kustomisasi warna, gaya, dan filter profil Anda</p>
+                <p className="text-zinc-400">Kustomisasi warna, gaya, dan filter profil Anda. Perubahan langsung terlihat di Live Preview →</p>
             </div>
 
             <div className="space-y-8">
@@ -158,7 +179,7 @@ export default function AppearancePage() {
 
                     <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
                         <button
-                            onClick={() => setThemeMode('dark')}
+                            onClick={() => handleThemeModeChange('dark')}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'dark'
                                 ? 'bg-zinc-800 text-white shadow-sm'
                                 : 'text-zinc-500 hover:text-zinc-300'
@@ -168,7 +189,7 @@ export default function AppearancePage() {
                             Dark Mode
                         </button>
                         <button
-                            onClick={() => setThemeMode('light')}
+                            onClick={() => handleThemeModeChange('light')}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'light'
                                 ? 'bg-white text-zinc-900 shadow-sm'
                                 : 'text-zinc-500 hover:text-zinc-300'
@@ -194,7 +215,7 @@ export default function AppearancePage() {
 
                     <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
                         <button
-                            onClick={() => setImageFilter('normal')}
+                            onClick={() => handleImageFilterChange('normal')}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'normal'
                                 ? 'bg-zinc-800 text-white shadow-sm'
                                 : 'text-zinc-500 hover:text-zinc-300'
@@ -203,7 +224,7 @@ export default function AppearancePage() {
                             Normal
                         </button>
                         <button
-                            onClick={() => setImageFilter('grayscale')}
+                            onClick={() => handleImageFilterChange('grayscale')}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'grayscale'
                                 ? 'bg-zinc-800 text-white shadow-sm'
                                 : 'text-zinc-500 hover:text-zinc-300'

@@ -42,6 +42,7 @@ export default function ProfileEditor() {
         whatsapp: '',
         image_filter: 'normal',
         theme_mode: 'dark',
+        welcome_word: 'hello',
         gallery: [] as { id: string; url: string; caption?: string }[],
         files: [] as { id: string; url: string; title: string; size?: string; type: 'pdf' | 'doc' }[],
         company: '',
@@ -98,6 +99,7 @@ export default function ProfileEditor() {
                     avatar_url: profile.avatar_url || '',
                     image_filter: uiTheme.image_filter || 'normal',
                     theme_mode: uiTheme.theme_mode || 'dark',
+                    welcome_word: uiTheme.welcome_word || 'hello',
                     gallery: uiTheme.gallery || [],
                     files: uiTheme.files || [],
                 }
@@ -287,6 +289,7 @@ export default function ProfileEditor() {
                             whatsapp: formData.whatsapp,
                             image_filter: formData.image_filter,
                             theme_mode: formData.theme_mode,
+                            welcome_word: formData.welcome_word,
                             gallery: formData.gallery,
                             files: formData.files
                         },
@@ -410,7 +413,31 @@ export default function ProfileEditor() {
                     </div>
                 </motion.section>
 
-
+                {/* Welcome Word Section */}
+                <motion.section
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="glass rounded-3xl p-6"
+                >
+                    <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                        <span className="text-2xl">✨</span>
+                        Welcome Word
+                    </h2>
+                    <p className="text-xs text-zinc-500 mb-4">
+                        Kata sapaan ini akan muncul sebagai animasi saat pengunjung pertama kali membuka profil Anda.
+                    </p>
+                    <input
+                        type="text"
+                        value={formData.welcome_word}
+                        onChange={(e) => updateField('welcome_word', e.target.value)}
+                        placeholder="hello"
+                        maxLength={30}
+                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder:text-zinc-600 focus:border-blue-500 focus:outline-none transition-colors font-light italic text-lg"
+                        style={{ fontFamily: "'Georgia', 'Times New Roman', serif" }}
+                    />
+                    <p className="text-[10px] text-zinc-600 mt-2">Contoh: hello, halo, selamat datang, welcome, apa kabar</p>
+                </motion.section>
 
                 {/* Gallery Section */}
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">

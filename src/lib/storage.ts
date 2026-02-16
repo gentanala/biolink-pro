@@ -46,9 +46,11 @@ export async function uploadFile(
 export async function uploadAvatar(file: File, userId: string): Promise<string> {
     // Compress the image before upload
     const compressed = await compressToBlob(file, 1200, 0.85)
-    const compressedFile = new File([compressed], `avatar.jpg`, { type: 'image/jpeg' })
+    // Use timestamp in filename to bust browser cache
+    const filename = `avatar-${Date.now()}.jpg`
+    const compressedFile = new File([compressed], filename, { type: 'image/jpeg' })
 
-    return uploadFile(compressedFile, 'avatars', userId, 'avatar.jpg')
+    return uploadFile(compressedFile, 'avatars', userId, filename)
 }
 
 /**
