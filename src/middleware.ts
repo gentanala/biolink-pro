@@ -78,34 +78,11 @@ export async function middleware(request: NextRequest) {
                 return NextResponse.redirect(url)
             }
 
-            // Check activation for dashboard routes
-            if (pathname.startsWith('/dashboard')) {
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('is_activated')
-                    .eq('id', user.id)
-                    .single()
-
-                if (!userData?.is_activated) {
-                    const url = request.nextUrl.clone()
-                    url.pathname = '/activate'
-                    return NextResponse.redirect(url)
-                }
-            }
-
-            // Already activated but on activate page
+            // Redirect activate page to dashboard (activation = claiming serial)
             if (pathname === '/activate') {
-                const { data: userData } = await supabase
-                    .from('users')
-                    .select('is_activated')
-                    .eq('id', user.id)
-                    .single()
-
-                if (userData?.is_activated) {
-                    const url = request.nextUrl.clone()
-                    url.pathname = '/dashboard'
-                    return NextResponse.redirect(url)
-                }
+                const url = request.nextUrl.clone()
+                url.pathname = '/dashboard'
+                return NextResponse.redirect(url)
             }
         }
 

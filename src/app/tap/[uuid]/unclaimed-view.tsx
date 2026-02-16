@@ -71,6 +71,29 @@ export function UnclaimedView({ serial }: UnclaimedViewProps) {
             if (claimError) {
                 console.warn('Supabase claim error (continuing anyway):', claimError)
             }
+
+            // Auto-activate user (skip activation code step)
+            if (!userId.startsWith('local-')) {
+                await supabase
+                    .from('users')
+                    .update({ is_activated: true, activated_at: new Date().toISOString() })
+                    .eq('id', userId)
+
+                // Create a basic profile in Supabase
+                const slug = userEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') + '-' + Date.now().toString().slice(-4)
+                await supabase
+                    .from('profiles')
+                    .insert({
+                        user_id: userId,
+                        slug: slug,
+                        display_name: userEmail.split('@')[0],
+                        bio: 'Gentanala Owner',
+                        email: userEmail,
+                    })
+                    .then(({ error }) => {
+                        if (error) console.warn('Profile creation error (may already exist):', error)
+                    })
+            }
         } catch (err) {
             console.warn('Supabase claim skipped:', err)
         }
