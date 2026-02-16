@@ -1,0 +1,52 @@
+'use client'
+
+import { Bot, Sparkles } from 'lucide-react'
+import { motion } from 'framer-motion'
+
+export default function AIAssistantPage() {
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold mb-2">AI Assistant</h1>
+                <p className="text-zinc-400">Asisten cerdas untuk membantu Anda membangun profil terbaik</p>
+            </div>
+
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass rounded-3xl p-12 text-center"
+            >
+                <div className="relative mb-8 mx-auto w-24 h-24">
+                    <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-2xl animate-pulse" />
+                    <div className="relative w-24 h-24 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center border border-white/10">
+                        <Bot className="w-12 h-12 text-blue-400" />
+                    </div>
+                </div>
+
+                <h2 className="text-2xl font-bold text-white mb-3">Coming Soon</h2>
+                <p className="text-zinc-400 text-base leading-relaxed max-w-md mx-auto mb-8">
+                    AI Assistant akan membantu Anda menulis bio yang menarik, menyarankan desain yang cocok, dan mengoptimalkan profil digital Anda secara otomatis.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[
+                        { icon: '✍️', title: 'Smart Bio', desc: 'Auto-generate bio menarik' },
+                        { icon: '🎨', title: 'Design Suggest', desc: 'Rekomendasi warna & tema' },
+                        { icon: '📊', title: 'Insight Analysis', desc: 'Analisis profil & tips' },
+                    ].map((feature) => (
+                        <div key={feature.title} className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 text-center">
+                            <span className="text-2xl mb-2 block">{feature.icon}</span>
+                            <h3 className="text-sm font-bold text-white mb-1">{feature.title}</h3>
+                            <p className="text-xs text-zinc-500">{feature.desc}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-8 inline-flex items-center gap-2 text-xs text-zinc-600 bg-zinc-900/50 border border-zinc-800 px-4 py-2 rounded-full">
+                    <Sparkles className="w-3 h-3" />
+                    Segera hadir di update berikutnya
+                </div>
+            </motion.div>
+        </div>
+    )
+}

@@ -39,6 +39,7 @@ export default function DashboardPage() {
     const [profile, setProfile] = useState<Profile | null>(null)
     const [user, setUser] = useState<any>(null)
     const [viewCount, setViewCount] = useState(0)
+    const [linkClicks, setLinkClicks] = useState(0)
     const [isLoading, setIsLoading] = useState(true)
 
     const [showClaimSuccess, setShowClaimSuccess] = useState(false)
@@ -136,20 +137,16 @@ export default function DashboardPage() {
                 localStorage.setItem('genhub_activated', 'true')
             }
 
-            // Load view count (Mock for now, should use real analytics later)
+            // Load real analytics from Supabase theme JSON
             const { data: analyticsData } = await supabase
                 .from('profiles')
                 .select('theme')
                 .eq('user_id', authUser.id)
                 .single()
 
-            const storedViewCount = localStorage.getItem('genhub_view_count')
-            if (storedViewCount) {
-                setViewCount(parseInt(storedViewCount, 10))
-            } else {
-                const initialCount = Math.floor(Math.random() * 50) + 12
-                localStorage.setItem('genhub_view_count', initialCount.toString())
-                setViewCount(initialCount)
+            if (analyticsData?.theme) {
+                setViewCount(analyticsData.theme.view_count || 0)
+                setLinkClicks(analyticsData.theme.link_clicks || 0)
             }
             setIsLoading(false)
         }
@@ -280,7 +277,7 @@ export default function DashboardPage() {
                                 <BarChart3 className="w-6 h-6 text-green-500" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold">42</p>
+                                <p className="text-2xl font-bold">{linkClicks}</p>
                                 <p className="text-zinc-400 text-sm">Link Clicks</p>
                             </div>
                         </div>

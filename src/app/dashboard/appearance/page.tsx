@@ -7,7 +7,6 @@ import {
     Check,
     Save,
     Loader2,
-    Layout,
     Type,
     Sun,
     Moon,
@@ -26,32 +25,23 @@ const COLORS = [
     { name: 'Rose', value: '#F43F5E', class: 'bg-rose-500' },
 ]
 
-const STYLES = [
-    { id: 'default', name: 'Default Dark', desc: 'Minimalis dan premium', bg: 'bg-[#0F172A]' },
-    { id: 'gradient', name: 'Deep Purple', desc: 'Gradasi mewah', bg: 'bg-gradient-to-br from-indigo-950 to-purple-950' },
-    { id: 'minimal', name: 'Midnight', desc: 'Sangat gelap dan fokus', bg: 'bg-black' },
-]
-
 export default function AppearancePage() {
     const supabase = createClient()
     const [isLoading, setIsLoading] = useState(false)
     const [isSaved, setIsSaved] = useState(false)
-    const [theme, setTheme] = useState({
-        primary: '#3B82F6',
-        background: '#0F172A',
-        style: 'default'
-    })
+    const [primaryColor, setPrimaryColor] = useState('#3B82F6')
     const [themeMode, setThemeMode] = useState('dark')
     const [imageFilter, setImageFilter] = useState('normal')
 
     // Sync to localStorage immediately for live preview
-    const syncToPreview = useCallback((mode: string, filter: string) => {
+    const syncToPreview = useCallback((mode: string, filter: string, color?: string) => {
         try {
             const profileStr = localStorage.getItem('genhub_profile')
             if (profileStr) {
                 const p = JSON.parse(profileStr)
                 p.theme_mode = mode
                 p.image_filter = filter
+                if (color) p.primary_color = color
                 localStorage.setItem('genhub_profile', JSON.stringify(p))
             }
         } catch (err) {
@@ -72,11 +62,7 @@ export default function AppearancePage() {
 
             if (profile?.theme) {
                 const t = profile.theme
-                setTheme({
-                    primary: t.primary || '#3B82F6',
-                    background: t.background || '#0F172A',
-                    style: t.style || 'default'
-                })
+                setPrimaryColor(t.primary || '#3B82F6')
                 setThemeMode(t.theme_mode || 'dark')
                 setImageFilter(t.image_filter || 'normal')
             }
@@ -96,13 +82,19 @@ export default function AppearancePage() {
     // Handle theme mode change with instant preview sync
     const handleThemeModeChange = (mode: string) => {
         setThemeMode(mode)
-        syncToPreview(mode, imageFilter)
+        syncToPreview(mode, imageFilter, primaryColor)
     }
 
     // Handle image filter change with instant preview sync
     const handleImageFilterChange = (filter: string) => {
         setImageFilter(filter)
-        syncToPreview(themeMode, filter)
+        syncToPreview(themeMode, filter, primaryColor)
+    }
+
+    // Handle primary color change with instant sync
+    const handleColorChange = (color: string) => {
+        setPrimaryColor(color)
+        syncToPreview(themeMode, imageFilter, color)
     }
 
     const handleSave = async () => {
@@ -127,9 +119,7 @@ export default function AppearancePage() {
         // Merge appearance settings into existing theme
         const updatedTheme = {
             ...existingTheme,
-            primary: theme.primary,
-            background: theme.background,
-            style: theme.style,
+            primary: primaryColor,
             theme_mode: themeMode,
             image_filter: imageFilter,
         }
@@ -147,7 +137,7 @@ export default function AppearancePage() {
         }
 
         // Sync to localStorage
-        syncToPreview(themeMode, imageFilter)
+        syncToPreview(themeMode, imageFilter, primaryColor)
 
         setIsSaved(true)
         setIsLoading(false)
@@ -158,7 +148,7 @@ export default function AppearancePage() {
         <div className="max-w-2xl mx-auto">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Tampilan</h1>
-                <p className="text-zinc-400">Kustomisasi warna, gaya, dan filter profil Anda. Perubahan langsung terlihat di Live Preview →</p>
+                <p className="text-zinc-400">Kustomisasi warna, tema, dan filter profil Anda. Perubahan langsung terlihat di Live Preview →</p>
             </div>
 
             <div className="space-y-8">
@@ -235,57 +225,28 @@ export default function AppearancePage() {
                     </div>
                 </motion.section>
 
-                {/* Colors */}
+                {/* Primary Color */}
                 <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                     className="glass rounded-3xl p-8"
                 >
-                    <div className="flex items-center gap-3 mb-6">
+                    <div className="flex items-center gap-3 mb-4">
                         <Palette className="w-5 h-5 text-blue-400" />
                         <h2 className="text-lg font-semibold text-white">Warna Utama</h2>
                     </div>
+                    <p className="text-xs text-zinc-500 mb-6">Warna ini akan digunakan pada tombol-tombol di halaman publik Anda</p>
 
                     <div className="grid grid-cols-4 sm:grid-cols-8 gap-4">
                         {COLORS.map((color) => (
                             <button
                                 key={color.value}
-                                onClick={() => setTheme({ ...theme, primary: color.value })}
+                                onClick={() => handleColorChange(color.value)}
                                 className={`w-full aspect-square rounded-2xl flex items-center justify-center transition-all ring-offset-4 ring-offset-zinc-950 ${color.class
-                                    } ${theme.primary === color.value ? 'ring-2 ring-white scale-110' : 'hover:scale-105'}`}
+                                    } ${primaryColor === color.value ? 'ring-2 ring-white scale-110' : 'hover:scale-105'}`}
                             >
-                                {theme.primary === color.value && <Check className="w-5 h-5 text-white" />}
-                            </button>
-                        ))}
-                    </div>
-                </motion.section>
-
-                {/* Style */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="glass rounded-3xl p-8"
-                >
-                    <div className="flex items-center gap-3 mb-6">
-                        <Layout className="w-5 h-5 text-purple-400" />
-                        <h2 className="text-lg font-semibold text-white">Gaya Background</h2>
-                    </div>
-
-                    <div className="grid sm:grid-cols-3 gap-4">
-                        {STYLES.map((style) => (
-                            <button
-                                key={style.id}
-                                onClick={() => setTheme({ ...theme, style: style.id as any })}
-                                className={`text-left p-4 rounded-2xl border-2 transition-all group ${theme.style === style.id
-                                    ? 'border-blue-500 bg-blue-500/5'
-                                    : 'border-zinc-800 hover:border-zinc-700 bg-zinc-900/50'
-                                    }`}
-                            >
-                                <div className={`w-full h-24 rounded-xl mb-4 ${style.bg} border border-white/5`} />
-                                <h3 className="font-medium text-white group-hover:text-blue-400 transition-colors">{style.name}</h3>
-                                <p className="text-xs text-zinc-500 mt-1">{style.desc}</p>
+                                {primaryColor === color.value && <Check className="w-5 h-5 text-white" />}
                             </button>
                         ))}
                     </div>
@@ -295,7 +256,7 @@ export default function AppearancePage() {
                 <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
+                    transition={{ delay: 0.15 }}
                     className="glass rounded-3xl p-8"
                 >
                     <div className="flex items-center gap-3 mb-6">

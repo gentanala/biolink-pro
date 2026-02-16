@@ -14,7 +14,8 @@ import {
     X,
     CreditCard,
     ExternalLink,
-    ChevronRight
+    ChevronRight,
+    Bot
 } from 'lucide-react'
 import PhonePreview from '@/components/dashboard/PhonePreview'
 
@@ -23,6 +24,7 @@ const navItems = [
     { href: '/dashboard/profile', icon: User, label: 'Edit Profil' },
     { href: '/dashboard/links', icon: Link2, label: 'Atur Link' },
     { href: '/dashboard/appearance', icon: Palette, label: 'Tampilan' },
+    { href: '/dashboard/ai-assistant', icon: Bot, label: 'AI Assistant' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

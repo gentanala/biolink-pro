@@ -33,6 +33,7 @@ export default function PhonePreview() {
     // Determine Theme & Filter (Default fallbacks)
     const isLightMode = profile.theme_mode === 'light'
     const isGrayscale = profile.image_filter === 'grayscale'
+    const primaryColor = profile.primary_color || '#3B82F6'
 
     // Filter main social icons
     const allLinks = [...(profile.links || [])];
@@ -122,26 +123,29 @@ export default function PhonePreview() {
 
                         {/* Primary CTA - Save Contact */}
                         <button
-                            className={`w-full py-4 rounded-xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 shadow-lg mb-8 active:scale-[0.98] transition-all ${isLightMode
-                                ? 'bg-zinc-900 text-white shadow-zinc-900/10'
-                                : 'bg-white text-black shadow-white/10'
-                                }`}
+                            className="w-full py-4 rounded-xl font-bold text-sm tracking-wide flex items-center justify-center gap-2 shadow-lg mb-8 active:scale-[0.98] transition-all text-white"
+                            style={{
+                                background: `linear-gradient(135deg, ${primaryColor}dd, ${primaryColor}99)`,
+                                border: `1px solid ${primaryColor}40`,
+                                boxShadow: `0 8px 32px ${primaryColor}30`,
+                            }}
                         >
-                            <div className={`p-1 rounded-full ${isLightMode ? 'bg-zinc-800' : 'bg-zinc-200'}`}>
-                                <Download className={`w-3 h-3 ${isLightMode ? 'text-white' : 'text-black'}`} />
-                            </div>
+                            <Download className="w-4 h-4" />
                             SAVE CONTACT
                         </button>
 
-                        {/* Tabs Navigation */}
-                        <div className={`flex items-center justify-center gap-6 mb-6 border-b pb-4 ${isLightMode ? 'border-zinc-200' : 'border-white/10'}`}>
+                        {/* Tabs Navigation — Liquid Glass */}
+                        <div className={`flex items-center justify-center gap-1 mb-6 ${isLightMode ? 'bg-zinc-100' : 'bg-white/5'} rounded-xl p-1`}>
                             {['links', 'gallery', 'files'].map(tab => (
                                 <button
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
-                                    className={`text-xs font-bold uppercase tracking-widest pb-2 border-b-2 transition-colors ${activeTab === tab
-                                        ? (isLightMode ? 'text-zinc-900 border-zinc-900' : 'text-white border-white')
-                                        : (isLightMode ? 'text-zinc-400 border-transparent' : 'text-zinc-500 border-transparent')
+                                    className={`text-[10px] font-bold uppercase tracking-widest transition-all duration-300 px-3 py-2 rounded-lg ${activeTab === tab
+                                        ? (isLightMode
+                                            ? 'text-zinc-900 bg-white/70 backdrop-blur-xl border border-white/50 shadow-sm'
+                                            : 'text-white bg-white/10 backdrop-blur-xl border border-white/20 shadow-sm'
+                                        )
+                                        : (isLightMode ? 'text-zinc-400' : 'text-zinc-500')
                                         }`}
                                 >
                                     {tab}
