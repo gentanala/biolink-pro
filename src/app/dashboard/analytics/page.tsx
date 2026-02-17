@@ -28,7 +28,8 @@ export default function AnalyticsPage() {
     })
     const [chartData, setChartData] = useState<any[]>([])
     const [recentLeads, setRecentLeads] = useState<any[]>([])
-    const [dateRange, setDateRange] = useState('30d') // 7d, 30d, 90d
+    const [dateRange, setDateRange] = useState('30d')
+    const [leadCaptureEnabled, setLeadCaptureEnabled] = useState(false)
 
     useEffect(() => {
         fetchAnalytics()
@@ -40,14 +41,16 @@ export default function AnalyticsPage() {
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) return
 
-            // Get profile
+            // Get profile and settings
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('id')
+                .select('id, lead_capture_enabled')
                 .eq('user_id', user.id)
                 .single()
 
             if (!profile) return
+
+            setLeadCaptureEnabled(profile.lead_capture_enabled || false)
 
             // 1. Fetch Stats
             const { data: analyticsData } = await supabase
@@ -124,6 +127,30 @@ export default function AnalyticsPage() {
         }
     }
 
+    const toggleLeadCapture = async () => {
+        try {
+            const newValue = !leadCaptureEnabled
+            setLeadCaptureEnabled(newValue)
+
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                const { error } = await supabase
+                    .from('profiles')
+                    .update({ lead_capture_enabled: newValue })
+                    .eq('user_id', user.id)
+
+                if (error) {
+                    // Revert on error
+                    setLeadCaptureEnabled(!newValue)
+                    console.error('Error updating setting:', error)
+                    alert('Failed to update settings')
+                }
+            }
+        } catch (err) {
+            console.error('Error toggling lead capture:', err)
+        }
+    }
+
     const exportLeads = async () => {
         // Implementation for CSV export
         const csvContent = "data:text/csv;charset=utf-8,"
@@ -154,14 +181,36 @@ export default function AnalyticsPage() {
                             key={range}
                             onClick={() => setDateRange(range)}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${dateRange === range
-                                    ? 'bg-zinc-900 text-white shadow-sm'
-                                    : 'text-zinc-500 hover:text-zinc-900'
+                                ? 'bg-zinc-900 text-white shadow-sm'
+                                : 'text-zinc-500 hover:text-zinc-900'
                                 }`}
                         >
                             Last {range.replace('d', ' Days')}
                         </button>
                     ))}
                 </div>
+            </div>
+
+            {/* Lead Capture Toggle Card */}
+            <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-xl flex items-center justify-center ${leadCaptureEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500'}`}>
+                        <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-zinc-900 text-lg">Lead Capture Form</h3>
+                            {leadCaptureEnabled && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Active</span>}
+                        </div>
+                        <p className="text-sm text-zinc-500">Collect visitor contact info (Name, WhatsApp, Email) on your public profile</p>
+                    </div>
+                </div>
+                <button
+                    onClick={toggleLeadCapture}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${leadCaptureEnabled ? 'bg-emerald-500' : 'bg-zinc-200'}`}
+                >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${leadCaptureEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                </button>
             </div>
 
             {loading ? (
