@@ -52,31 +52,44 @@ export default function AnalyticsPage() {
 
             setLeadCaptureEnabled(profile.lead_capture_enabled || false)
 
-            // 1. Fetch Stats
-            const { data: analyticsData } = await supabase
-                .rpc('get_analytics_summary', {
-                    p_profile_id: profile.id,
-                    p_days: parseInt(dateRange)
-                })
+            // 1. Fetch Stats (Direct Counts)
+            console.log('Fetching analytics for profile:', profile.id)
+
+            // Calculate date range
+            const endDate = new Date()
+            const startDate = new Date()
+            startDate.setDate(endDate.getDate() - parseInt(dateRange))
+
+            const { count: viewsCount } = await supabase
+                .from('analytics')
+                .select('*', { count: 'exact', head: true })
+                .eq('profile_id', profile.id)
+                .eq('event_type', 'view')
+                .gte('created_at', startDate.toISOString())
+
+            const { count: clicksCount } = await supabase
+                .from('analytics')
+                .select('*', { count: 'exact', head: true })
+                .eq('profile_id', profile.id)
+                .eq('event_type', 'click')
+                .gte('created_at', startDate.toISOString())
 
             const { count: leadsCount } = await supabase
                 .from('leads')
                 .select('*', { count: 'exact', head: true })
                 .eq('profile_id', profile.id)
 
-            if (analyticsData && analyticsData.length > 0) {
-                setStats({
-                    totalViews: analyticsData[0].total_views || 0,
-                    totalClicks: analyticsData[0].total_clicks || 0,
-                    totalLeads: leadsCount || 0,
-                    uniqueVisitors: analyticsData[0].unique_days || 0
-                })
-            }
+            console.log('Stats fetched:', { views: viewsCount, clicks: clicksCount, leads: leadsCount })
+
+            setStats({
+                totalViews: viewsCount || 0,
+                totalClicks: clicksCount || 0,
+                totalLeads: leadsCount || 0,
+                uniqueVisitors: 0
+            })
 
             // 2. Fetch Chart Data (Daily Views/Clicks)
-            const endDate = new Date()
-            const startDate = new Date()
-            startDate.setDate(endDate.getDate() - parseInt(dateRange))
+            // startDate/endDate already defined above
 
             const { data: dailyData } = await supabase
                 .from('analytics')
@@ -226,29 +239,21 @@ export default function AnalyticsPage() {
                             title="Total Views"
                             value={stats.totalViews}
                             icon={<Eye className="w-5 h-5 text-blue-500" />}
-                            trend="+12%"
-                            trendUp={true}
                         />
                         <StatsCard
                             title="Link Clicks"
                             value={stats.totalClicks}
                             icon={<MousePointer2 className="w-5 h-5 text-purple-500" />}
-                            trend="+5%"
-                            trendUp={true}
                         />
                         <StatsCard
                             title="Total Leads"
                             value={stats.totalLeads}
                             icon={<Users className="w-5 h-5 text-emerald-500" />}
-                            trend="+24%"
-                            trendUp={true}
                         />
                         <StatsCard
                             title="CTR"
                             value={`${stats.totalViews > 0 ? ((stats.totalClicks / stats.totalViews) * 100).toFixed(1) : 0}%`}
                             icon={<TrendingUp className="w-5 h-5 text-orange-500" />}
-                            trend="-2%"
-                            trendUp={false}
                         />
                     </div>
 
@@ -364,11 +369,13 @@ function StatsCard({ title, value, icon, trend, trendUp }: any) {
                 <div className="p-2 bg-zinc-50 rounded-xl">
                     {icon}
                 </div>
-                <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                    }`}>
-                    {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {trend}
-                </div>
+                {trend && (
+                    <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
+                        }`}>
+                        {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                        {trend}
+                    </div>
+                )}
             </div>
             <div>
                 <p className="text-sm text-zinc-500 font-medium">{title}</p>
