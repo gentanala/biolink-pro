@@ -91,16 +91,22 @@ export default function LeadCaptureModal({ isOpen, onClose, profileId, profileNa
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 transition-all duration-500"
                     />
 
                     {/* Modal */}
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 pointer-events-auto relative"
+                            initial={{ opacity: 0, scale: 0.8, borderRadius: "100px" }}
+                            animate={{ opacity: 1, scale: 1, borderRadius: "24px" }}
+                            exit={{ opacity: 0, scale: 0.8, borderRadius: "100px" }}
+                            transition={{
+                                type: "spring",
+                                stiffness: 300,
+                                damping: 25,
+                                mass: 1.2
+                            }}
+                            className="bg-white/80 backdrop-blur-xl border border-white/20 shadow-2xl max-w-md w-full p-8 pointer-events-auto relative overflow-hidden ring-1 ring-black/5"
                         >
                             {/* Close button */}
                             <button
