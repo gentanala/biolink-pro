@@ -50,7 +50,7 @@ export async function GET(request: Request) {
                             .insert({
                                 user_id: user.id,
                                 slug: slug,
-                                display_name: user.email?.split('@')[0] || 'User',
+                                display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
                                 bio: 'Gentanala Owner',
                                 email: user.email,
                             })
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
                 return NextResponse.redirect(`${origin}${next}`)
             }
 
-            // Otherwise, auto-detect: check if user has a profile
+            // Otherwise, auto-detect: check if user has a profile (= has claimed a card)
             if (user) {
                 const { data: profile } = await supabase
                     .from('profiles')
@@ -78,13 +78,18 @@ export async function GET(request: Request) {
                     // Returning user with profile → Dashboard
                     return NextResponse.redirect(`${origin}/dashboard`)
                 }
+
+                // User exists but NO profile = hasn't claimed any card yet
+                // Sign them out and redirect back to login with error
+                await supabase.auth.signOut()
+                return NextResponse.redirect(`${origin}/login?error=unclaimed`)
             }
 
-            // New user without profile → Get Started
-            return NextResponse.redirect(`${origin}/get-started`)
+            // New user without profile → redirect to login with unclaimed error
+            return NextResponse.redirect(`${origin}/login?error=unclaimed`)
         }
     }
 
-    // Return the user to an error page with instructions
-    return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+    // Return the user to login with error
+    return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }
