@@ -9,6 +9,7 @@ import { Instagram, Twitter, Linkedin, Globe, ChevronRight, Mail, Phone, Downloa
 import { QRCodeSVG } from 'qrcode.react'
 import { generateVCard } from '@/lib/vcard'
 import LeadCaptureModal from '@/components/LeadCaptureModal'
+import { trackProfileView, trackLinkClick } from '@/lib/analytics'
 
 // WhatsApp SVG Icon
 function WhatsAppIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -62,7 +63,10 @@ export default function PublicProfile() {
                 setProfile(processedProfile)
                 setLoading(false)
 
-                // Analytics: increment view count
+                // Analytics: Track Page View
+                trackProfileView(dbProfile.id)
+
+                // Analytics: increment view count (Legacy)
                 const sessionKey = `viewed_${slug}`
                 if (!sessionStorage.getItem(sessionKey)) {
                     try {
@@ -145,6 +149,20 @@ export default function PublicProfile() {
 
     // Track link clicks
     const handleLinkClick = async (linkId: string) => {
+        // Analytics: Track Click
+        try {
+            const allLinks = [...(profile.links || []), ...(profile.files || []), ...(profile.gallery || [])]
+            const link = allLinks.find((l: any) => l.id === linkId) || { id: linkId, url: 'unknown', title: 'Unknown Link' }
+
+            if (profile?.id) {
+                trackLinkClick(profile.id, link.url || 'unknown', link.title || link.id)
+            }
+        } catch (err) {
+            // Non-blocking error
+            console.error('Analytics tracking error:', err)
+        }
+
+        // Legacy Tracking (kept for compatibility)
         try {
             const { data: currentProfile } = await supabase
                 .from('profiles')
