@@ -35,6 +35,15 @@ export default function LeadCaptureModal({ isOpen, onClose, profileId, profileNa
         setIsSubmitting(true)
 
         try {
+            // Debug log
+            console.log('Submitting Lead Payload:', {
+                profile_id: profileId,
+                name: formData.name.trim() || null,
+                whatsapp: formData.whatsapp.trim(),
+                email: formData.email.trim() || null,
+                company: formData.company.trim() || null
+            })
+
             // Insert lead to Supabase
             const { error } = await supabase
                 .from('leads')
@@ -48,7 +57,7 @@ export default function LeadCaptureModal({ isOpen, onClose, profileId, profileNa
 
             if (error) {
                 console.error('Error submitting lead:', error)
-                alert('Failed to submit. Please try again.')
+                alert(`Failed to submit: ${error.message} (Details: ${error.details || 'none'})`)
                 setIsSubmitting(false)
                 return
             }
