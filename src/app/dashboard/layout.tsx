@@ -15,12 +15,14 @@ import {
     CreditCard,
     ExternalLink,
     ChevronRight,
-    Bot
+    Bot,
+    BarChart3
 } from 'lucide-react'
 import PhonePreview from '@/components/dashboard/PhonePreview'
 
 const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Beranda' },
+    { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
     { href: '/dashboard/profile', icon: User, label: 'Edit Profil' },
     { href: '/dashboard/links', icon: Link2, label: 'Atur Link' },
     { href: '/dashboard/appearance', icon: Palette, label: 'Tampilan' },
