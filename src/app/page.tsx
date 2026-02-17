@@ -1,213 +1,482 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import Link from "next/link"
-import { motion } from "framer-motion"
-import { ArrowRight, Link as LinkIcon, Lock, Share2, Sparkles, Smartphone, Upload, BarChart3, Globe, Shield, ExternalLink, Instagram, Twitter, MessageCircle } from 'lucide-react'
+import { motion, useScroll, useTransform } from "framer-motion"
+import {
+  ArrowRight,
+  Zap,
+  Palette,
+  BarChart3,
+  Smartphone,
+  Share2,
+  ExternalLink,
+  Instagram,
+  Twitter,
+  MessageCircle,
+  LayoutDashboard
+} from 'lucide-react'
 
-// Import specific fonts if needed, otherwise use serif stack
+const NAV_ITEMS = [
+  { label: 'Buy NFC Watch', href: 'https://gentanala.com', external: true },
+  { label: 'Features', href: '#features', external: false },
+  { label: 'Sign In', href: '/login', external: false },
+]
+
+const FEATURES = [
+  {
+    icon: Zap,
+    title: 'NFC Instant Share',
+    desc: 'Sentuh smartphone siapapun — langsung terhubung. Tanpa download, tanpa ketik.',
+  },
+  {
+    icon: Palette,
+    title: 'Custom Profile',
+    desc: 'Desain profil digital Anda sendiri. Pilih tema, warna, dan tampilkan kepribadian Anda.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Smart Analytics',
+    desc: 'Lacak siapa yang melihat profil Anda, berapa link yang diklik, dan insight lainnya.',
+  },
+]
+
 const fadeUp = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.1, duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }
+    transition: { delay: i * 0.12, duration: 0.8, ease: [0.22, 1, 0.36, 1] as const }
   })
 }
 
 export default function HomePage() {
+  const [activeNav, setActiveNav] = useState(1) // default to 'Features'
+  const navRef = useRef<HTMLDivElement>(null)
+  const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 })
+  const heroRef = useRef<HTMLDivElement>(null)
+
+  // Update sliding pill position
+  useEffect(() => {
+    if (!navRef.current) return
+    const buttons = navRef.current.querySelectorAll<HTMLButtonElement>('[data-nav-btn]')
+    const btn = buttons[activeNav]
+    if (btn) {
+      setPillStyle({
+        left: btn.offsetLeft,
+        width: btn.offsetWidth,
+      })
+    }
+  }, [activeNav])
+
+  // Handle nav click
+  const handleNavClick = (index: number) => {
+    setActiveNav(index)
+    const item = NAV_ITEMS[index]
+    if (item.external) {
+      window.open(item.href, '_blank')
+    } else if (item.href.startsWith('#')) {
+      const el = document.querySelector(item.href)
+      if (el) el.scrollIntoView({ behavior: 'smooth' })
+    } else {
+      window.location.href = item.href
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-white text-zinc-900 overflow-x-hidden selection:bg-pink-100 selection:text-pink-600">
+    <div className="min-h-screen bg-[#f0f0ec] text-zinc-900 overflow-x-hidden selection:bg-cyan-100 selection:text-cyan-700">
 
-      {/* 🌈 Aura Mesh Gradient Background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[120%] h-[120%] opacity-40 blur-[120px] animate-pulse">
-          <div className="absolute top-[10%] left-[20%] w-[40%] h-[40%] bg-pink-300 rounded-full mix-blend-multiply opacity-70" />
-          <div className="absolute top-[30%] right-[20%] w-[40%] h-[40%] bg-orange-200 rounded-full mix-blend-multiply opacity-60" />
-          <div className="absolute bottom-[20%] left-[30%] w-[40%] h-[40%] bg-purple-200 rounded-full mix-blend-multiply opacity-50" />
-          <div className="absolute bottom-[10%] right-[10%] w-[30%] h-[30%] bg-cyan-100 rounded-full mix-blend-multiply opacity-40" />
-        </div>
-        {/* Subtle Grain Overlay for high-end feel */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
-      </div>
+      {/* ─── NAVIGATION ─── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 py-5">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2 shrink-0">
+          <img
+            src="/logo.png"
+            alt="Gentanala"
+            className="h-9 w-auto object-contain brightness-0"
+          />
+        </Link>
 
-      {/* Navigation */}
-      <nav className="relative z-50 flex items-center justify-between px-8 py-8 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <Link href="/">
-            <img
-              src="/logo.png"
-              alt="Gentanala Logo"
-              className="h-10 w-auto object-contain brightness-0"
-            />
-          </Link>
-        </div>
-
-        <div className="hidden md:flex items-center gap-8 text-[13px] font-medium text-zinc-500">
-          <Link href="#features" className="hover:text-zinc-900 transition-colors uppercase tracking-widest">Features</Link>
-          <Link href="#how-it-works" className="hover:text-zinc-900 transition-colors uppercase tracking-widest">Philosophy</Link>
-          <Link href="/login" className="hover:text-zinc-900 transition-colors uppercase tracking-widest">Sign In</Link>
-        </div>
-
-        <Link
-          href="https://gentanala.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-6 py-2.5 rounded-full border border-zinc-200 text-[12px] font-bold uppercase tracking-widest hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all active:scale-95 flex items-center gap-2"
+        {/* Liquid Glass Nav Pill — Center */}
+        <div
+          ref={navRef}
+          className="hidden md:flex items-center relative rounded-full px-1.5 py-1.5"
+          style={{
+            background: 'linear-gradient(165deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.20) 50%, rgba(255,255,255,0.10) 100%)',
+            backdropFilter: 'blur(24px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+            border: '1.5px solid rgba(255,255,255,0.55)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.05), inset 0 1.5px 3px rgba(255,255,255,0.70), inset 0 -1px 2px rgba(0,0,0,0.02)',
+          }}
         >
-          Buy Product <ExternalLink className="w-3 h-3" />
+          {/* Sliding pill indicator */}
+          <motion.div
+            className="absolute top-1.5 bottom-1.5 rounded-full z-0"
+            animate={{ left: pillStyle.left, width: pillStyle.width }}
+            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            style={{
+              background: 'linear-gradient(165deg, rgba(30,30,30,0.90) 0%, rgba(50,50,50,0.85) 100%)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15), inset 0 1px 2px rgba(255,255,255,0.10)',
+            }}
+          />
+          {NAV_ITEMS.map((item, i) => (
+            <button
+              key={item.label}
+              data-nav-btn
+              onClick={() => handleNavClick(i)}
+              className={`relative z-10 px-5 py-2.5 text-[13px] font-semibold tracking-wide transition-colors duration-300 rounded-full whitespace-nowrap ${activeNav === i ? 'text-white' : 'text-zinc-600 hover:text-zinc-900'
+                }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Dashboard button — Right */}
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold tracking-wide transition-all hover:scale-105 active:scale-95 shrink-0"
+          style={{
+            background: 'linear-gradient(165deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.25) 100%)',
+            backdropFilter: 'blur(20px) saturate(150%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+            border: '1.5px solid rgba(255,255,255,0.55)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05), inset 0 1.5px 3px rgba(255,255,255,0.75)',
+          }}
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          Dashboard
         </Link>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative z-10 pt-20 pb-40 px-6 text-center">
-        <div className="max-w-4xl mx-auto">
-          {/* Tagline */}
-          <motion.p
-            custom={0} variants={fadeUp} initial="hidden" animate="visible"
-            className="text-[13px] font-medium italic serif-stack text-zinc-500 mb-6 tracking-wide"
-            style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}
-          >
-            Your networking, in Perfect Rhythm.
-          </motion.p>
-
-          {/* Headline */}
-          <motion.h1
-            custom={1} variants={fadeUp} initial="hidden" animate="visible"
-            className="text-6xl md:text-8xl font-black text-zinc-900 leading-[1.05] tracking-tight mb-10"
-          >
-            Make Your Move,<br />
-            <span className="italic font-normal" style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}>
-              Memorable
-            </span>
-          </motion.h1>
-
-          {/* Subheader */}
-          <motion.p
-            custom={2} variants={fadeUp} initial="hidden" animate="visible"
-            className="text-zinc-500 text-[15px] md:text-[17px] leading-relaxed max-w-2xl mx-auto mb-12 font-medium"
-          >
-            Jadilah pusat perhatian di setiap pertemuan. Bagikan kontak, karya, atau media sosial Anda dengan cara yang lebih modern melalui fitur NFC Gentanala.
-          </motion.p>
-
-          {/* Hero CTA */}
-          <motion.div
-            custom={3} variants={fadeUp} initial="hidden" animate="visible"
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            <Link
-              href="https://gentanala.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-10 py-4 rounded-full bg-black text-white text-[13px] font-bold uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-[0_15px_30px_rgba(0,0,0,0.1)] active:scale-95 w-full sm:w-auto flex items-center justify-center gap-3"
-            >
-              Buy Product <ExternalLink className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="px-10 py-4 rounded-full border border-zinc-200 text-[13px] font-bold uppercase tracking-widest hover:border-zinc-900 hover:text-zinc-900 transition-all bg-white/50 backdrop-blur-sm active:scale-95 w-full sm:w-auto"
-            >
-              Sign In to Profile
-            </Link>
-          </motion.div>
-
-          {/* Phone Illusion (Visual Centerpiece) */}
-          <motion.div
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-20 relative px-4"
-          >
-            <div className="relative inline-block w-full max-w-[320px] md:max-w-[400px]">
-              {/* This mimics the hand-holding-phone centered visual */}
-              <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-20 h-40 bottom-0" />
-              <img
-                src="https://images.unsplash.com/photo-1616348436168-de43ad0db179?q=80&w=800&auto=format&fit=crop"
-                alt="Gentanala Experience"
-                className="rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.1)] grayscale-[0.2] hover:grayscale-0 transition-all duration-700"
-              />
-              <div className="absolute -inset-10 bg-pink-400/10 blur-[60px] rounded-full z-[-1] animate-pulse" />
-            </div>
-          </motion.div>
+      {/* Mobile Nav */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4">
+        <Link href="/" className="shrink-0">
+          <img src="/logo.png" alt="Gentanala" className="h-7 w-auto brightness-0" />
+        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/login" className="text-[12px] font-semibold tracking-wide text-zinc-600 px-4 py-2 rounded-full"
+            style={{
+              background: 'linear-gradient(165deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.25) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: '1.5px solid rgba(255,255,255,0.50)',
+              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.7)',
+            }}
+          >Sign In</Link>
+          <Link href="/dashboard" className="text-[12px] font-semibold tracking-wide text-zinc-600 px-4 py-2 rounded-full"
+            style={{
+              background: 'linear-gradient(165deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.25) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: '1.5px solid rgba(255,255,255,0.50)',
+              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.7)',
+            }}
+          ><LayoutDashboard className="w-4 h-4" /></Link>
         </div>
-      </section>
+      </div>
 
-      {/* Feature Section — Mixed Typography Layout */}
-      <section id="features" className="relative z-10 py-40 px-8 bg-white/50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-20">
-          <div className="md:w-1/2">
-            <h2 className="text-5xl md:text-7xl font-bold text-zinc-900 leading-[1.1] mb-8">
-              Designed to <br /> Help You Do <br />
+
+      {/* ─── HERO BANNER (STICKY — Content scrolls over it) ─── */}
+      <div ref={heroRef} className="sticky top-0 w-full h-screen z-0">
+        <img
+          src="/hero-banner.png"
+          alt="Gentanala NFC Watch"
+          className="w-full h-full object-cover object-center"
+        />
+        {/* Bottom fade so text on content section is readable */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#f0f0ec] via-[#f0f0ec]/30 to-transparent" />
+      </div>
+
+
+      {/* ─── CONTENT OVERLAY (scrolls OVER the hero) ─── */}
+      <div className="relative z-10">
+
+        {/* ─── §3 HEADLINE + TAGLINE ─── */}
+        <section className="relative px-6 pt-20 pb-16 -mt-[45vh]"
+          style={{
+            background: 'linear-gradient(180deg, transparent 0%, #f0f0ec 35%)',
+          }}
+        >
+          <div className="max-w-4xl mx-auto text-center">
+            <motion.p
+              custom={0} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+              className="text-[13px] font-medium text-zinc-500 mb-6 tracking-widest uppercase"
+            >
+              The Art of Digital Networking
+            </motion.p>
+
+            <motion.h1
+              custom={1} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+              className="text-5xl md:text-8xl font-black text-zinc-900 leading-[1.05] tracking-tight mb-8"
+            >
+              Make Your Move,<br />
               <span className="italic font-normal" style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}>
-                More With Less
-              </span><br />
-              Stress
-            </h2>
-          </div>
-          <div className="md:w-1/2 flex flex-col justify-center">
-            <p className="text-zinc-500 text-[18px] md:text-[20px] leading-relaxed font-medium">
-              Profil digital Gentanala dibangun untuk profesional modern yang ingin tetap terorganisir, fokus, dan memegang kendali penuh atas identitas digital mereka.
-            </p>
-          </div>
-        </div>
+                Memorable
+              </span>
+            </motion.h1>
 
-        {/* Small Feature Grid */}
-        <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-12 mt-32">
-          {[
-            { title: 'NFC Instant Sharing', desc: 'Sangat mudah dibagikan, hanya dengan satu sentuhan ke smartphone kolega Anda.' },
-            { title: 'Elegant Customization', desc: 'Sesuaikan profil Anda agar selaras dengan identitas brand atau personalitas Anda.' },
-            { title: 'Analytics Insights', desc: 'Pahami siapa saja yang melihat profil Anda dan tingkatkan koneksi Anda.' },
-          ].map((feat, i) => (
+            <motion.p
+              custom={2} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+              className="text-zinc-500 text-[15px] md:text-[17px] leading-relaxed max-w-2xl mx-auto mb-12 font-medium"
+            >
+              Bagikan kontak, karya, dan media sosial Anda dengan satu sentuhan NFC.
+              Identitas digital yang modern, elegan, dan sepenuhnya milik Anda.
+            </motion.p>
+
+
+            {/* ─── §4 CTA BUTTONS ─── */}
             <motion.div
-              key={feat.title}
+              custom={3} variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8"
+            >
+              <Link
+                href="https://gentanala.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="lg-cta px-10 py-4 rounded-full text-white text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 w-full sm:w-auto flex items-center justify-center gap-3"
+                style={{
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+                }}
+              >
+                <span style={{ position: 'relative', zIndex: 2 }} className="flex items-center gap-3">
+                  Buy NFC Watch <ExternalLink className="w-4 h-4" />
+                </span>
+              </Link>
+              <Link
+                href="/login"
+                className="lg-item px-10 py-4 rounded-full text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 w-full sm:w-auto text-zinc-700"
+              >
+                <span style={{ position: 'relative', zIndex: 2 }}>Sign In to Profile</span>
+              </Link>
+            </motion.div>
+          </div>
+        </section>
+
+
+        {/* ─── §5 THREE FEATURE CARDS ─── */}
+        <section id="features" className="relative z-10 py-20 px-6">
+          <div className="max-w-6xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="text-center mb-16"
+            >
+              <p className="text-[12px] font-bold uppercase tracking-[0.3em] text-zinc-400 mb-4">What Makes It Special</p>
+              <h2 className="text-4xl md:text-6xl font-black text-zinc-900">
+                Built for{' '}
+                <span className="italic font-normal" style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                  Professionals
+                </span>
+              </h2>
+            </motion.div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              {FEATURES.map((feat, i) => (
+                <motion.div
+                  key={feat.title}
+                  initial={{ opacity: 0, y: 40 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.15, duration: 0.7 }}
+                  className="lg-card p-8 md:p-10 group hover:scale-[1.02] transition-transform duration-500"
+                >
+                  <div className="relative z-[2]">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6 bg-white/40"
+                      style={{ boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.6)' }}
+                    >
+                      <feat.icon className="w-7 h-7 text-zinc-800" />
+                    </div>
+                    <h3 className="text-xl font-bold text-zinc-900 mb-3 uppercase tracking-wider">{feat.title}</h3>
+                    <p className="text-zinc-500 text-[15px] leading-relaxed font-medium">{feat.desc}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+
+        {/* ─── §6 PROFILE MOCKUP SECTION ─── */}
+        <section className="relative z-10 py-24 px-6 overflow-hidden">
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col md:flex-row items-center gap-16">
+
+              {/* Phone mockup */}
+              <motion.div
+                initial={{ opacity: 0, x: -60 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8 }}
+                className="md:w-1/2 flex justify-center"
+              >
+                <div className="relative w-[280px] h-[560px]">
+                  {/* Phone frame */}
+                  <div className="absolute inset-0 rounded-[40px] bg-zinc-900 shadow-[0_25px_60px_rgba(0,0,0,0.3)]"
+                    style={{
+                      border: '6px solid #222',
+                    }}
+                  >
+                    {/* Notch */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[100px] h-[26px] bg-zinc-900 rounded-b-2xl z-20" />
+
+                    {/* Screen content */}
+                    <div className="w-full h-full rounded-[34px] overflow-hidden bg-gradient-to-b from-zinc-800 to-zinc-950 p-4 pt-10">
+                      {/* Mini avatar */}
+                      <div className="flex flex-col items-center mb-4">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 mb-3 flex items-center justify-center text-white text-xl font-bold">
+                          G
+                        </div>
+                        <p className="text-white font-bold text-sm">@gentanala</p>
+                        <p className="text-white/50 text-xs mt-1">Digital Creator</p>
+                      </div>
+
+                      {/* Mini social row */}
+                      <div className="flex justify-center gap-2 mb-4">
+                        {[Instagram, Twitter, Share2].map((Icon, i) => (
+                          <div key={i} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
+                            <Icon className="w-4 h-4 text-white/70" />
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Mini link items */}
+                      {['Portfolio Website', 'Book a Call', 'Latest Project'].map((label, i) => (
+                        <div key={i} className="w-full p-3 rounded-xl bg-white/5 border border-white/10 mb-2 flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                            <ExternalLink className="w-4 h-4 text-white/60" />
+                          </div>
+                          <span className="text-white/80 text-xs font-medium">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Description side */}
+              <motion.div
+                initial={{ opacity: 0, x: 60 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8 }}
+                className="md:w-1/2"
+              >
+                <p className="text-[12px] font-bold uppercase tracking-[0.3em] text-zinc-400 mb-4">Your Digital Identity</p>
+                <h2 className="text-4xl md:text-5xl font-black text-zinc-900 mb-6 leading-tight">
+                  One Profile,<br />
+                  <span className="italic font-normal" style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                    Infinite Reach
+                  </span>
+                </h2>
+                <p className="text-zinc-500 text-[16px] leading-relaxed font-medium mb-8">
+                  Profil Gentanala bukan sekadar link-in-bio. Ini adalah identitas digital premium yang siap mewakili Anda di setiap pertemuan — lengkap dengan galeri, dokumen, dan analitik.
+                </p>
+
+                <div className="space-y-5">
+                  {[
+                    { icon: Smartphone, text: 'Tap & Share — Langsung terhubung via NFC' },
+                    { icon: Palette, text: 'Custom Theme — Dark, Light, atau Liquid Glass' },
+                    { icon: Share2, text: 'Share QR Code — Bagikan tanpa batas jarak' },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-4">
+                      <div className="lg-social w-12 h-12 rounded-xl flex items-center justify-center shrink-0">
+                        <item.icon className="w-5 h-5 text-zinc-700" style={{ position: 'relative', zIndex: 2 }} />
+                      </div>
+                      <p className="text-zinc-700 text-[15px] font-medium">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+
+        {/* ─── §7 CLOSING CTA ─── */}
+        <section className="relative z-10 py-32 px-6 text-center overflow-hidden">
+          {/* Subtle background aura */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-200/20 rounded-full blur-[120px]" />
+          </div>
+
+          <div className="relative z-10 max-w-3xl mx-auto">
+            <motion.h2
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-5xl md:text-7xl font-black text-zinc-900 mb-6 leading-tight"
+            >
+              Your Network.<br />
+              <span className="italic font-normal" style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                Your Legacy.
+              </span>
+            </motion.h2>
+
+            <motion.p
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.1 }}
+              transition={{ delay: 0.1 }}
+              className="text-zinc-500 text-[16px] md:text-[18px] leading-relaxed font-medium mb-12 max-w-xl mx-auto"
             >
-              <h3 className="text-[14px] font-bold uppercase tracking-widest text-zinc-900 mb-4">{feat.title}</h3>
-              <p className="text-zinc-500 text-[14px] leading-relaxed font-medium">{feat.desc}</p>
+              Mulai perjalanan networking digital Anda hari ini. Buat kesan pertama yang tak terlupakan.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+            >
+              <Link
+                href="https://gentanala.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="lg-cta inline-flex items-center gap-3 px-12 py-5 rounded-full text-white text-[13px] font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                style={{
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+                }}
+              >
+                <span style={{ position: 'relative', zIndex: 2 }} className="flex items-center gap-3">
+                  Start Your Journey <ArrowRight className="w-5 h-5" />
+                </span>
+              </Link>
             </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* Bottom Aura CTA */}
-      <section className="relative z-10 py-60 px-6 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-t from-orange-100/50 to-transparent z-0" />
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="text-5xl md:text-7xl font-black text-zinc-900 mb-12 italic serif-stack" style={{ fontFamily: 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' }}>
-            Elevate Your Standards.
-          </h2>
-          <Link
-            href="/register"
-            className="px-12 py-5 rounded-full bg-black text-white text-[13px] font-bold uppercase tracking-widest hover:scale-105 transition-all shadow-2xl active:scale-95"
-          >
-            Start Your Journey →
-          </Link>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="relative z-10 py-20 px-8 border-t border-zinc-100 bg-white">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
-          <div>
-            <span className="text-2xl font-bold tracking-tighter">Gentanala</span>
-            <p className="text-zinc-400 text-sm mt-4">Redefining modern networking.</p>
           </div>
-          <div className="flex gap-12">
-            <div className="flex flex-col gap-4">
-              <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-300">Social</span>
-              <div className="flex gap-4 text-zinc-400">
-                <Instagram className="w-5 h-5 hover:text-pink-500 cursor-pointer transition-colors" />
-                <Twitter className="w-5 h-5 hover:text-blue-400 cursor-pointer transition-colors" />
-                <MessageCircle className="w-5 h-5 hover:text-green-500 cursor-pointer transition-colors" />
+        </section>
+
+
+        {/* ─── §8 FOOTER ─── */}
+        <footer className="relative z-10 py-16 px-8 border-t border-zinc-200/60 bg-[#f0f0ec]">
+          <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-start gap-10">
+            <div>
+              <img src="/logo.png" alt="Gentanala" className="h-8 w-auto brightness-0 mb-4" />
+              <p className="text-zinc-400 text-sm font-medium">Redefining modern networking.</p>
+            </div>
+            <div className="flex gap-12">
+              <div className="flex flex-col gap-4">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-300">Product</span>
+                <Link href="https://gentanala.com" target="_blank" className="text-zinc-500 text-sm hover:text-zinc-900 transition-colors">Buy NFC Watch</Link>
+                <Link href="/login" className="text-zinc-500 text-sm hover:text-zinc-900 transition-colors">Sign In</Link>
+                <Link href="/dashboard" className="text-zinc-500 text-sm hover:text-zinc-900 transition-colors">Dashboard</Link>
+              </div>
+              <div className="flex flex-col gap-4">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-300">Social</span>
+                <div className="flex gap-4 text-zinc-400">
+                  <Instagram className="w-5 h-5 hover:text-pink-500 cursor-pointer transition-colors" />
+                  <Twitter className="w-5 h-5 hover:text-blue-400 cursor-pointer transition-colors" />
+                  <MessageCircle className="w-5 h-5 hover:text-green-500 cursor-pointer transition-colors" />
+                </div>
               </div>
             </div>
           </div>
-          <div className="text-[12px] font-medium text-zinc-300 uppercase tracking-widest">
-            © 2026 Gentanala Studio. All rights reserved.
+          <div className="max-w-6xl mx-auto mt-12 pt-8 border-t border-zinc-200/40">
+            <p className="text-[12px] font-medium text-zinc-300 uppercase tracking-widest">
+              © 2026 Gentanala Studio. All rights reserved.
+            </p>
           </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   )
 }
