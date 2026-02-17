@@ -321,8 +321,8 @@ export default function ProfileEditor() {
     return (
         <div className="max-w-2xl mx-auto pb-20">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">Editor Profil</h1>
-                <p className="text-zinc-400">Perubahan langsung terlihat di Live Preview →</p>
+                <h1 className="text-3xl font-bold mb-2 text-zinc-900">Editor Profil</h1>
+                <p className="text-zinc-500">Perubahan langsung terlihat di Live Preview →</p>
             </div>
 
             <form onSubmit={handleSave} className="space-y-8">
@@ -332,13 +332,13 @@ export default function ProfileEditor() {
                     animate={{ opacity: 1, y: 0 }}
                     className="glass rounded-3xl p-6 overflow-hidden"
                 >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <Camera className="w-5 h-5 text-blue-400" />
+                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-zinc-900">
+                        <Camera className="w-5 h-5 text-blue-600" />
                         Foto Profil
                     </h2>
 
                     <p className="text-xs text-zinc-500 mb-4">
-                        Foto ini akan menjadi <span className="text-blue-400 font-medium">hero banner</span> di halaman publik
+                        Foto ini akan menjadi <span className="text-blue-600 font-medium">hero banner</span> di halaman publik
                     </p>
 
                     <div className="flex items-start gap-6">
@@ -346,7 +346,7 @@ export default function ProfileEditor() {
                             {formData.avatar_url ? (
                                 <div className="relative group">
                                     <div
-                                        className="w-32 h-32 rounded-2xl overflow-hidden ring-2 ring-zinc-700 bg-zinc-800"
+                                        className="w-32 h-32 rounded-2xl overflow-hidden ring-2 ring-zinc-200 bg-zinc-100"
                                         style={{
                                             backgroundImage: `url(${formData.avatar_url})`,
                                             backgroundSize: 'cover',
@@ -373,7 +373,7 @@ export default function ProfileEditor() {
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={isUploading}
-                                    className="w-32 h-32 rounded-2xl border-2 border-dashed border-zinc-700 hover:border-blue-500 bg-zinc-900/50 flex flex-col items-center justify-center gap-2 transition-colors"
+                                    className="w-32 h-32 rounded-2xl border-2 border-dashed border-zinc-300 hover:border-blue-500 bg-zinc-50 flex flex-col items-center justify-center gap-2 transition-colors"
                                 >
                                     {isUploading ? (
                                         <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
@@ -420,7 +420,7 @@ export default function ProfileEditor() {
                     transition={{ delay: 0.15 }}
                     className="glass rounded-3xl p-6"
                 >
-                    <h2 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                    <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-zinc-900">
                         <span className="text-2xl">✨</span>
                         Welcome Word
                     </h2>
@@ -433,17 +433,17 @@ export default function ProfileEditor() {
                         onChange={(e) => updateField('welcome_word', e.target.value)}
                         placeholder="hello"
                         maxLength={30}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl py-3 px-4 text-white placeholder:text-zinc-600 focus:border-blue-500 focus:outline-none transition-colors font-light italic text-lg"
-                        style={{ fontFamily: "'Georgia', 'Times New Roman', serif" }}
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl py-3 px-4 text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none transition-colors font-mono text-lg"
+                        style={{ fontFamily: "var(--font-mono), 'JetBrains Mono', monospace" }}
                     />
                     <p className="text-[10px] text-zinc-600 mt-2">Contoh: hello, halo, selamat datang, welcome, apa kabar</p>
                 </motion.section>
 
                 {/* Gallery Section */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
+                <div className="glass rounded-2xl p-6 mb-8">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-white">Galeri Foto</h3>
-                        <label className="cursor-pointer bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2">
+                        <h3 className="text-lg font-bold text-zinc-900">Galeri Foto</h3>
+                        <label className="cursor-pointer bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 border border-zinc-200">
                             <ImageIcon className="w-4 h-4" />
                             <span>Upload</span>
                             <input type="file" className="hidden" accept="image/*" onChange={handleGalleryUpload} />
@@ -451,13 +451,13 @@ export default function ProfileEditor() {
                     </div>
 
                     {formData.gallery.length === 0 ? (
-                        <div className="text-center py-8 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-500 text-sm">
+                        <div className="text-center py-8 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-400 text-sm">
                             Belum ada foto di galeri
                         </div>
                     ) : (
                         <div className="grid grid-cols-3 gap-4">
                             {formData.gallery.map(item => (
-                                <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden group border border-zinc-700">
+                                <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden group border border-zinc-200">
                                     <img src={item.url} alt="Gallery" className="w-full h-full object-cover" />
                                     <button
                                         type="button"
@@ -473,13 +473,13 @@ export default function ProfileEditor() {
                 </div>
 
                 {/* Files / Documents Section */}
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">
+                <div className="glass rounded-2xl p-6 mb-8">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-white">Dokumen & Link</h3>
+                        <h3 className="text-lg font-bold text-zinc-900">Dokumen & Link</h3>
                         <button
                             type="button"
                             onClick={() => setShowAddFile(!showAddFile)}
-                            className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2"
+                            className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 border border-zinc-200"
                         >
                             <FileText className="w-4 h-4" />
                             <span>+ Tambah Link</span>
@@ -487,7 +487,7 @@ export default function ProfileEditor() {
                     </div>
 
                     {showAddFile && (
-                        <div className="mb-4 p-4 bg-zinc-950 border border-zinc-800 rounded-xl space-y-3">
+                        <div className="mb-4 p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3">
                             <div>
                                 <label className="block text-xs font-medium text-zinc-500 uppercase mb-1">Judul Dokumen</label>
                                 <input
@@ -495,7 +495,7 @@ export default function ProfileEditor() {
                                     value={newFileTitle}
                                     onChange={(e) => setNewFileTitle(e.target.value)}
                                     placeholder="Contoh: Sertifikat Keaslian"
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                                    className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:border-blue-500"
                                 />
                             </div>
                             <div>
@@ -505,7 +505,7 @@ export default function ProfileEditor() {
                                     value={newFileUrl}
                                     onChange={(e) => setNewFileUrl(e.target.value)}
                                     placeholder="https://drive.google.com/file/..."
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                                    className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:border-blue-500"
                                 />
                             </div>
                             <div className="flex gap-2">
@@ -519,7 +519,7 @@ export default function ProfileEditor() {
                                 <button
                                     type="button"
                                     onClick={() => { setShowAddFile(false); setNewFileTitle(''); setNewFileUrl('') }}
-                                    className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                                    className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
                                 >
                                     Batal
                                 </button>
@@ -528,20 +528,20 @@ export default function ProfileEditor() {
                     )}
 
                     {formData.files.length === 0 ? (
-                        <div className="text-center py-8 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-500 text-sm">
+                        <div className="text-center py-8 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-400 text-sm">
                             Belum ada dokumen. Tambahkan link ke Google Drive, PDF, atau file lainnya.
                         </div>
                     ) : (
                         <div className="space-y-3">
                             {formData.files.map(file => (
-                                <div key={file.id} className="flex items-center justify-between p-3 bg-zinc-950 border border-zinc-800 rounded-xl">
+                                <div key={file.id} className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-200 rounded-xl">
                                     <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                                        <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
                                             <FileText className="w-5 h-5" />
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-sm font-medium text-white truncate">{file.title}</p>
-                                            <p className="text-xs text-zinc-500 truncate">{file.url}</p>
+                                            <p className="text-sm font-medium text-zinc-900 truncate">{file.title}</p>
+                                            <p className="text-xs text-zinc-400 truncate">{file.url}</p>
                                         </div>
                                     </div>
                                     <button
@@ -564,8 +564,8 @@ export default function ProfileEditor() {
                     transition={{ delay: 0.1 }}
                     className="glass rounded-3xl p-6"
                 >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <User className="w-5 h-5 text-purple-400" />
+                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-zinc-900">
+                        <User className="w-5 h-5 text-purple-600" />
                         Informasi Dasar
                     </h2>
 
@@ -578,7 +578,7 @@ export default function ProfileEditor() {
                                     value={formData.display_name}
                                     onChange={(e) => updateField('display_name', e.target.value)}
                                     placeholder="Nama lengkap Anda"
-                                    className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:border-blue-500 transition-all outline-none"
+                                    className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
                                 />
                             </div>
                             <div>
@@ -590,7 +590,7 @@ export default function ProfileEditor() {
                                         value={formData.slug}
                                         onChange={(e) => updateField('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))}
                                         placeholder="username"
-                                        className="w-full pl-[5.5rem] pr-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:border-blue-500 transition-all outline-none"
+                                        className="w-full pl-[5.5rem] pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
                                     />
                                 </div>
                             </div>
@@ -606,7 +606,7 @@ export default function ProfileEditor() {
                                         value={formData.company}
                                         onChange={(e) => updateField('company', e.target.value)}
                                         placeholder="Nama perusahaan"
-                                        className="w-full pl-12 pr-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:border-blue-500 transition-all outline-none"
+                                        className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
                                     />
                                 </div>
                             </div>
@@ -619,7 +619,7 @@ export default function ProfileEditor() {
                                         value={formData.job_title}
                                         onChange={(e) => updateField('job_title', e.target.value)}
                                         placeholder="CEO, Manager, dll"
-                                        className="w-full pl-12 pr-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:border-blue-500 transition-all outline-none"
+                                        className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
                                     />
                                 </div>
                             </div>
@@ -632,7 +632,7 @@ export default function ProfileEditor() {
                                 onChange={(e) => updateField('bio', e.target.value)}
                                 placeholder="Tuliskan bio singkat Anda..."
                                 rows={3}
-                                className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:border-blue-500 transition-all outline-none resize-none"
+                                className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none resize-none"
                             />
                         </div>
                     </div>
@@ -645,8 +645,8 @@ export default function ProfileEditor() {
                     transition={{ delay: 0.2 }}
                     className="glass rounded-3xl p-6"
                 >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <Phone className="w-5 h-5 text-green-400" />
+                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-zinc-900">
+                        <Phone className="w-5 h-5 text-green-600" />
                         Kontak Langsung
                     </h2>
 
@@ -660,7 +660,7 @@ export default function ProfileEditor() {
                                     value={formData.phone}
                                     onChange={(e) => updateField('phone', e.target.value)}
                                     placeholder="+62 812 3456 7890"
-                                    className="w-full pl-12 pr-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:border-blue-500 transition-all outline-none"
+                                    className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
                                 />
                             </div>
                         </div>
@@ -674,7 +674,7 @@ export default function ProfileEditor() {
                                     value={formData.whatsapp}
                                     onChange={(e) => updateField('whatsapp', e.target.value)}
                                     placeholder="6281234567890"
-                                    className="w-full pl-12 pr-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white placeholder-zinc-600 focus:border-green-500 transition-all outline-none"
+                                    className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-green-500 transition-all outline-none"
                                 />
                             </div>
                         </div>

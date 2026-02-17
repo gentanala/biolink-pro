@@ -147,8 +147,8 @@ export default function AppearancePage() {
     return (
         <div className="max-w-2xl mx-auto">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2">Tampilan</h1>
-                <p className="text-zinc-400">Kustomisasi warna, tema, dan filter profil Anda. Perubahan langsung terlihat di Live Preview →</p>
+                <h1 className="text-3xl font-bold mb-2 text-zinc-900">Tampilan</h1>
+                <p className="text-zinc-500">Kustomisasi warna, tema, dan filter profil Anda. Perubahan langsung terlihat di Live Preview →</p>
             </div>
 
             <div className="space-y-8">
@@ -164,15 +164,15 @@ export default function AppearancePage() {
                         ) : (
                             <Sun className="w-5 h-5 text-amber-400" />
                         )}
-                        <h2 className="text-lg font-semibold text-white">Tema Tampilan</h2>
+                        <h2 className="text-lg font-semibold text-zinc-900">Tema Tampilan</h2>
                     </div>
 
-                    <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                    <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
                         <button
                             onClick={() => handleThemeModeChange('dark')}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'dark'
                                 ? 'bg-zinc-800 text-white shadow-sm'
-                                : 'text-zinc-500 hover:text-zinc-300'
+                                : 'text-zinc-400 hover:text-zinc-600'
                                 }`}
                         >
                             <Moon className="w-4 h-4" />
@@ -181,8 +181,8 @@ export default function AppearancePage() {
                         <button
                             onClick={() => handleThemeModeChange('light')}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'light'
-                                ? 'bg-white text-zinc-900 shadow-sm'
-                                : 'text-zinc-500 hover:text-zinc-300'
+                                ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
+                                : 'text-zinc-400 hover:text-zinc-600'
                                 }`}
                         >
                             <Sun className="w-4 h-4" />
@@ -200,15 +200,15 @@ export default function AppearancePage() {
                 >
                     <div className="flex items-center gap-3 mb-6">
                         <ImageIcon className="w-5 h-5 text-emerald-400" />
-                        <h2 className="text-lg font-semibold text-white">Filter Foto</h2>
+                        <h2 className="text-lg font-semibold text-zinc-900">Filter Foto</h2>
                     </div>
 
-                    <div className="flex bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+                    <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
                         <button
                             onClick={() => handleImageFilterChange('normal')}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'normal'
-                                ? 'bg-zinc-800 text-white shadow-sm'
-                                : 'text-zinc-500 hover:text-zinc-300'
+                                ? 'bg-white text-zinc-900 shadow-sm'
+                                : 'text-zinc-400 hover:text-zinc-600'
                                 }`}
                         >
                             Normal
@@ -216,8 +216,8 @@ export default function AppearancePage() {
                         <button
                             onClick={() => handleImageFilterChange('grayscale')}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'grayscale'
-                                ? 'bg-zinc-800 text-white shadow-sm'
-                                : 'text-zinc-500 hover:text-zinc-300'
+                                ? 'bg-white text-zinc-900 shadow-sm'
+                                : 'text-zinc-400 hover:text-zinc-600'
                                 }`}
                         >
                             B&W
@@ -234,7 +234,7 @@ export default function AppearancePage() {
                 >
                     <div className="flex items-center gap-3 mb-4">
                         <Palette className="w-5 h-5 text-blue-400" />
-                        <h2 className="text-lg font-semibold text-white">Warna Utama</h2>
+                        <h2 className="text-lg font-semibold text-zinc-900">Warna Utama</h2>
                     </div>
                     <p className="text-xs text-zinc-500 mb-6">Warna ini akan digunakan pada tombol-tombol di halaman publik Anda</p>
 
@@ -243,8 +243,8 @@ export default function AppearancePage() {
                             <button
                                 key={color.value}
                                 onClick={() => handleColorChange(color.value)}
-                                className={`w-full aspect-square rounded-2xl flex items-center justify-center transition-all ring-offset-4 ring-offset-zinc-950 ${color.class
-                                    } ${primaryColor === color.value ? 'ring-2 ring-white scale-110' : 'hover:scale-105'}`}
+                                className={`w-full aspect-square rounded-2xl flex items-center justify-center transition-all ring-offset-4 ring-offset-white ${color.class
+                                    } ${primaryColor === color.value ? 'ring-2 ring-zinc-900 scale-110' : 'hover:scale-105'}`}
                             >
                                 {primaryColor === color.value && <Check className="w-5 h-5 text-white" />}
                             </button>
@@ -261,10 +261,10 @@ export default function AppearancePage() {
                 >
                     <div className="flex items-center gap-3 mb-6">
                         <Type className="w-5 h-5 text-pink-400" />
-                        <h2 className="text-lg font-semibold text-white">Tipografi (Coming Soon)</h2>
+                        <h2 className="text-lg font-semibold text-zinc-900">Tipografi (Coming Soon)</h2>
                     </div>
-                    <div className="p-12 text-center border-2 border-dashed border-zinc-800 rounded-2xl">
-                        <p className="text-zinc-600">Fitur pilihan font akan segera hadir</p>
+                    <div className="p-12 text-center border-2 border-dashed border-zinc-200 rounded-2xl">
+                        <p className="text-zinc-400">Fitur pilihan font akan segera hadir</p>
                     </div>
                 </motion.section>
 

@@ -128,8 +128,8 @@ export default function LinkManager() {
         <div className="max-w-2xl mx-auto pb-20">
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold mb-2">Kelola Link</h1>
-                    <p className="text-zinc-400">Tambahkan dan atur link sosial media Anda</p>
+                    <h1 className="text-3xl font-bold mb-2 text-zinc-900">Kelola Link</h1>
+                    <p className="text-zinc-500">Tambahkan dan atur link sosial media Anda</p>
                 </div>
                 <button
                     onClick={() => setIsAdding(true)}
@@ -150,8 +150,8 @@ export default function LinkManager() {
                         <div className="glass rounded-3xl p-6 border-blue-500/30">
                             <form onSubmit={handleAddLink} className="space-y-4">
                                 <div className="flex items-center justify-between mb-2">
-                                    <h3 className="font-semibold text-white">Tambah Link Baru</h3>
-                                    <button type="button" onClick={() => setIsAdding(false)} className="text-zinc-500 hover:text-white">
+                                    <h3 className="font-semibold text-zinc-900">Tambah Link Baru</h3>
+                                    <button type="button" onClick={() => setIsAdding(false)} className="text-zinc-400 hover:text-zinc-700">
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
@@ -164,7 +164,7 @@ export default function LinkManager() {
                                             value={newLink.title}
                                             onChange={e => setNewLink({ ...newLink, title: e.target.value })}
                                             placeholder="Contoh: Instagram Saya"
-                                            className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white focus:border-blue-500 outline-none"
+                                            className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 outline-none"
                                         />
                                     </div>
                                     <div>
@@ -172,7 +172,7 @@ export default function LinkManager() {
                                         <select
                                             value={newLink.icon}
                                             onChange={e => setNewLink({ ...newLink, icon: e.target.value })}
-                                            className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white focus:border-blue-500 outline-none appearance-none"
+                                            className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:border-blue-500 outline-none appearance-none"
                                         >
                                             {ICON_OPTIONS.map(opt => (
                                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -225,19 +225,19 @@ export default function LinkManager() {
                                                 <GripVertical className="w-5 h-5" />
                                             </div>
 
-                                            <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center text-blue-400 ring-1 ring-white/5">
+                                            <div className="w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center text-blue-600 ring-1 ring-zinc-200">
                                                 {renderIcon(link.icon)}
                                             </div>
 
                                             <div className="flex-1 min-w-0">
-                                                <h3 className="font-medium text-white truncate">{link.title}</h3>
-                                                <p className="text-xs text-zinc-500 truncate">{link.url}</p>
+                                                <h3 className="font-medium text-zinc-900 truncate">{link.title}</h3>
+                                                <p className="text-xs text-zinc-400 truncate">{link.url}</p>
                                             </div>
 
                                             <div className="flex items-center gap-2">
                                                 <button
                                                     onClick={() => window.open(link.url, '_blank')}
-                                                    className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
+                                                    className="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
                                                 >
                                                     <ExternalLink className="w-4 h-4" />
                                                 </button>
@@ -259,10 +259,10 @@ export default function LinkManager() {
             </DragDropContext>
 
             {links.length === 0 && !isAdding && (
-                <div className="text-center py-20 border-2 border-dashed border-zinc-800 rounded-3xl">
-                    <PlusCircle className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                    <h3 className="text-zinc-400 font-medium">Belum ada link</h3>
-                    <p className="text-zinc-600 text-sm mt-1">Klik tombol tambah untuk memulai</p>
+                <div className="text-center py-20 border-2 border-dashed border-zinc-200 rounded-3xl">
+                    <PlusCircle className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
+                    <h3 className="text-zinc-500 font-medium">Belum ada link</h3>
+                    <p className="text-zinc-400 text-sm mt-1">Klik tombol tambah untuk memulai</p>
                 </div>
             )}
         </div>

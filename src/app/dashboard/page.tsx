@@ -48,7 +48,6 @@ export default function DashboardPage() {
         const params = new URLSearchParams(window.location.search)
         if (params.get('claim_success') === 'true') {
             setShowClaimSuccess(true)
-            // Clean up URL
             window.history.replaceState({}, '', '/dashboard')
         }
 
@@ -57,12 +56,10 @@ export default function DashboardPage() {
             const { data: { user: authUser } } = await supabase.auth.getUser()
 
             if (!authUser) {
-                // Fallback: check localStorage for dev/local session
                 const localUser = localStorage.getItem('genhub_user')
                 const localProfile = localStorage.getItem('genhub_profile')
 
                 if (localUser && localProfile) {
-                    // Use localStorage-based session (dev mode / email confirmation pending)
                     const parsedUser = JSON.parse(localUser)
                     const parsedProfile = JSON.parse(localProfile)
 
@@ -86,7 +83,6 @@ export default function DashboardPage() {
 
             setUser(authUser)
 
-            // Fetch profile from Supabase
             const { data: dbProfile, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
@@ -106,12 +102,10 @@ export default function DashboardPage() {
                 }
                 setProfile(processedProfile)
 
-                // Keep localStorage updated for live preview bridge
                 localStorage.setItem('genhub_profile', JSON.stringify(processedProfile))
                 localStorage.setItem('genhub_user', JSON.stringify(authUser))
                 localStorage.setItem('genhub_activated', 'true')
             } else {
-                // No profile in Supabase — auto-create one for this user
                 const fallbackSlug = 'user-' + Date.now().toString().slice(-6)
 
                 const { data: newProfile } = await supabase.from('profiles').upsert({
@@ -156,31 +150,31 @@ export default function DashboardPage() {
 
     const handleLogout = async () => {
         await supabase.auth.signOut()
-        localStorage.clear() // Clean up everything for fresh start
+        localStorage.clear()
         router.push('/login')
     }
 
     if (!profile) {
         return (
-            <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-                <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full" />
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-white">
+        <div className="min-h-screen">
             {/* Header */}
-            <header className="border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-sm sticky top-0 z-50">
+            <header className="bg-white/50 backdrop-blur-xl border-b border-white/40 sticky top-0 z-50 shadow-sm">
                 <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-2">
-                        <CreditCard className="w-8 h-8 text-blue-500" />
-                        <span className="text-xl font-bold">GenHub</span>
+                        <CreditCard className="w-8 h-8 text-blue-600" />
+                        <span className="text-xl font-bold text-zinc-900">GenHub</span>
                     </Link>
 
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+                        className="flex items-center gap-2 text-zinc-400 hover:text-zinc-700 transition-colors"
                     >
                         <LogOut className="w-4 h-4" />
                         Keluar
@@ -196,19 +190,19 @@ export default function DashboardPage() {
                         animate={{ opacity: 1, height: 'auto' }}
                         className="mb-8"
                     >
-                        <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
                             <div className="flex items-center gap-4 text-center md:text-left">
-                                <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                    <Check className="w-6 h-6 text-green-500" />
+                                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Check className="w-6 h-6 text-green-600" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-green-500">Klaim Berhasil! 🎉</h3>
-                                    <p className="text-zinc-400 text-sm">Jam Gentanala Anda sekarang sudah terhubung ke akun ini. Silakan atur profil Anda di bawah.</p>
+                                    <h3 className="text-lg font-bold text-green-700">Klaim Berhasil! 🎉</h3>
+                                    <p className="text-green-600 text-sm">Jam Gentanala Anda sekarang sudah terhubung ke akun ini. Silakan atur profil Anda di bawah.</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowClaimSuccess(false)}
-                                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm transition-colors"
+                                className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg text-sm transition-colors"
                             >
                                 Oke, Paham
                             </button>
@@ -222,10 +216,10 @@ export default function DashboardPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-8"
                 >
-                    <h1 className="text-3xl font-bold mb-2">
+                    <h1 className="text-3xl font-bold mb-2 text-zinc-900">
                         Selamat datang, {profile.display_name}! 👋
                     </h1>
-                    <p className="text-zinc-400">
+                    <p className="text-zinc-500">
                         Kelola profil kartu nama digital Anda dari sini
                     </p>
                 </motion.div>
@@ -236,15 +230,15 @@ export default function DashboardPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.1 }}
-                        className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6"
+                        className="glass rounded-2xl p-6"
                     >
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                                <Eye className="w-6 h-6 text-blue-500" />
+                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <Eye className="w-6 h-6 text-blue-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold">{viewCount}</p>
-                                <p className="text-zinc-400 text-sm">Profile Views</p>
+                                <p className="text-2xl font-bold text-zinc-900">{viewCount}</p>
+                                <p className="text-zinc-500 text-sm">Profile Views</p>
                             </div>
                         </div>
                     </motion.div>
@@ -253,15 +247,15 @@ export default function DashboardPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6"
+                        className="glass rounded-2xl p-6"
                     >
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                                <Link2 className="w-6 h-6 text-purple-500" />
+                            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                                <Link2 className="w-6 h-6 text-purple-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold">{profile.links?.length || 0}</p>
-                                <p className="text-zinc-400 text-sm">Total Links</p>
+                                <p className="text-2xl font-bold text-zinc-900">{profile.links?.length || 0}</p>
+                                <p className="text-zinc-500 text-sm">Total Links</p>
                             </div>
                         </div>
                     </motion.div>
@@ -270,15 +264,15 @@ export default function DashboardPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
-                        className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6"
+                        className="glass rounded-2xl p-6"
                     >
                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                                <BarChart3 className="w-6 h-6 text-green-500" />
+                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                                <BarChart3 className="w-6 h-6 text-green-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold">{linkClicks}</p>
-                                <p className="text-zinc-400 text-sm">Link Clicks</p>
+                                <p className="text-2xl font-bold text-zinc-900">{linkClicks}</p>
+                                <p className="text-zinc-500 text-sm">Link Clicks</p>
                             </div>
                         </div>
                     </motion.div>
@@ -292,34 +286,34 @@ export default function DashboardPage() {
                         transition={{ delay: 0.4 }}
                     >
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold">Profil Anda</h2>
+                            <h2 className="text-lg font-semibold text-zinc-900">Profil Anda</h2>
                             <Link
                                 href="/dashboard/profile"
-                                className="flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm"
+                                className="flex items-center gap-2 text-blue-600 hover:text-blue-500 text-sm font-medium"
                             >
                                 <Edit className="w-4 h-4" />
                                 Edit Profil
                             </Link>
                         </div>
 
-                        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
+                        <div className="glass rounded-2xl p-6">
                             <div className="flex items-start gap-6">
                                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
                                     {profile.display_name?.[0]?.toUpperCase() || 'U'}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h3 className="text-xl font-semibold">{profile.display_name || 'Set your name'}</h3>
+                                    <h3 className="text-xl font-semibold text-zinc-900">{profile.display_name || 'Set your name'}</h3>
                                     {profile.bio && (
-                                        <p className="text-zinc-400 text-sm mt-2 line-clamp-2">{profile.bio}</p>
+                                        <p className="text-zinc-500 text-sm mt-2 line-clamp-2">{profile.bio}</p>
                                     )}
                                     <div className="mt-4">
                                         <Link
                                             href={`/${profile.slug}`}
                                             target="_blank"
-                                            className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-white"
+                                            className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-blue-600"
                                         >
                                             <ExternalLink className="w-4 h-4" />
-                                            localhost:3002/{profile.slug}
+                                            {typeof window !== 'undefined' ? window.location.host : ''}{'/'}{profile.slug}
                                         </Link>
                                     </div>
                                 </div>
@@ -333,32 +327,32 @@ export default function DashboardPage() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.5 }}
                     >
-                        <h2 className="text-lg font-semibold mb-4">Aksi Cepat</h2>
+                        <h2 className="text-lg font-semibold mb-4 text-zinc-900">Aksi Cepat</h2>
 
                         <div className="grid gap-3">
                             <Link
                                 href="/dashboard/profile"
-                                className="bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 flex items-center gap-4 transition-all group"
+                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group hover:shadow-md"
                             >
-                                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
-                                    <User className="w-6 h-6 text-blue-500" />
+                                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                    <User className="w-6 h-6 text-blue-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-medium">Edit Profil</h3>
-                                    <p className="text-zinc-400 text-sm">Ubah foto, nama, dan bio</p>
+                                    <h3 className="font-medium text-zinc-900">Edit Profil</h3>
+                                    <p className="text-zinc-500 text-sm">Ubah foto, nama, dan bio</p>
                                 </div>
                             </Link>
 
                             <Link
                                 href="/dashboard/links"
-                                className="bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 flex items-center gap-4 transition-all group"
+                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group hover:shadow-md"
                             >
-                                <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
-                                    <Link2 className="w-6 h-6 text-purple-500" />
+                                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                                    <Link2 className="w-6 h-6 text-purple-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-medium">Kelola Link</h3>
-                                    <p className="text-zinc-400 text-sm">Tambah dan atur social links</p>
+                                    <h3 className="font-medium text-zinc-900">Kelola Link</h3>
+                                    <p className="text-zinc-500 text-sm">Tambah dan atur social links</p>
                                 </div>
                             </Link>
 
@@ -368,14 +362,14 @@ export default function DashboardPage() {
                                     navigator.clipboard.writeText(url);
                                     alert('Link profil disalin!');
                                 }}
-                                className="bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 flex items-center gap-4 transition-all group text-left"
+                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group text-left hover:shadow-md"
                             >
-                                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
-                                    <Share2 className="w-6 h-6 text-blue-500" />
+                                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                    <Share2 className="w-6 h-6 text-blue-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-medium">Salin Link Profil</h3>
-                                    <p className="text-zinc-400 text-sm">Bagikan URL GenHub Anda</p>
+                                    <h3 className="font-medium text-zinc-900">Salin Link Profil</h3>
+                                    <p className="text-zinc-500 text-sm">Bagikan URL GenHub Anda</p>
                                 </div>
                             </button>
 
@@ -387,28 +381,28 @@ export default function DashboardPage() {
                                     links: profile.links,
                                     email: profile.email || undefined
                                 })}
-                                className="bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 flex items-center gap-4 transition-all group text-left"
+                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group text-left hover:shadow-md"
                             >
-                                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
-                                    <Download className="w-6 h-6 text-green-500" />
+                                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                                    <Download className="w-6 h-6 text-green-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-medium">Download vCard</h3>
-                                    <p className="text-zinc-400 text-sm">Simpan kontak ke file .vcf</p>
+                                    <h3 className="font-medium text-zinc-900">Download vCard</h3>
+                                    <p className="text-zinc-500 text-sm">Simpan kontak ke file .vcf</p>
                                 </div>
                             </button>
 
                             <Link
                                 href={`/${profile.slug}`}
                                 target="_blank"
-                                className="bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 flex items-center gap-4 transition-all group"
+                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group hover:shadow-md"
                             >
-                                <div className="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center group-hover:bg-amber-500/30 transition-colors">
-                                    <ExternalLink className="w-6 h-6 text-amber-500" />
+                                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+                                    <ExternalLink className="w-6 h-6 text-amber-600" />
                                 </div>
                                 <div>
-                                    <h3 className="font-medium">Lihat Profil Publik</h3>
-                                    <p className="text-zinc-400 text-sm">Buka halaman kartu digital Anda</p>
+                                    <h3 className="font-medium text-zinc-900">Lihat Profil Publik</h3>
+                                    <p className="text-zinc-500 text-sm">Buka halaman kartu digital Anda</p>
                                 </div>
                             </Link>
                         </div>
@@ -424,10 +418,10 @@ export default function DashboardPage() {
                         className="lg:col-span-2"
                     >
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold">Link Anda</h2>
+                            <h2 className="text-lg font-semibold text-zinc-900">Link Anda</h2>
                             <Link
                                 href="/dashboard/links"
-                                className="flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm"
+                                className="flex items-center gap-2 text-blue-600 hover:text-blue-500 text-sm font-medium"
                             >
                                 <Plus className="w-4 h-4" />
                                 Tambah Link
@@ -437,30 +431,30 @@ export default function DashboardPage() {
                         {profile.links && profile.links.length > 0 ? (
                             <div className="grid gap-3">
                                 {profile.links.slice(0, 5).map((link: any) => (
-                                    <div key={link.id} className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 flex items-center justify-between">
+                                    <div key={link.id} className="glass rounded-xl p-4 flex items-center justify-between">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-blue-400">
+                                            <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-blue-600">
                                                 <Link2 className="w-4 h-4" />
                                             </div>
-                                            <span className="font-medium text-sm">{link.title}</span>
+                                            <span className="font-medium text-sm text-zinc-900">{link.title}</span>
                                         </div>
-                                        <ExternalLink className="w-4 h-4 text-zinc-600" />
+                                        <ExternalLink className="w-4 h-4 text-zinc-400" />
                                     </div>
                                 ))}
                                 {profile.links.length > 5 && (
-                                    <p className="text-center text-xs text-zinc-500 mt-2">Dapatkan akses ke semua link di menu Atur Link</p>
+                                    <p className="text-center text-xs text-zinc-400 mt-2">Dapatkan akses ke semua link di menu Atur Link</p>
                                 )}
                             </div>
                         ) : (
-                            <div className="bg-zinc-900/50 border border-zinc-800 border-dashed rounded-2xl p-12 text-center">
-                                <Link2 className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium mb-2">Belum ada link</h3>
+                            <div className="glass border-dashed rounded-2xl p-12 text-center">
+                                <Link2 className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-medium mb-2 text-zinc-700">Belum ada link</h3>
                                 <p className="text-zinc-400 text-sm mb-6">
                                     Tambahkan social media dan link custom Anda
                                 </p>
                                 <Link
                                     href="/dashboard/links"
-                                    className="inline-flex items-center gap-2 px-6 py-3 btn-gradient rounded-xl font-medium"
+                                    className="inline-flex items-center gap-2 px-6 py-3 btn-gradient rounded-xl font-medium text-white"
                                 >
                                     <Plus className="w-5 h-5" />
                                     Tambah Link Pertama
@@ -474,14 +468,14 @@ export default function DashboardPage() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.7 }}
-                        className="bg-gradient-to-br from-zinc-900 to-zinc-950 border border-zinc-800 rounded-3xl p-6 flex flex-col items-center"
+                        className="glass rounded-3xl p-6 flex flex-col items-center"
                     >
                         <div className="flex items-center gap-2 self-start mb-6">
-                            <QrCode className="w-5 h-5 text-blue-500" />
-                            <h2 className="text-lg font-semibold">QR Code Profil</h2>
+                            <QrCode className="w-5 h-5 text-blue-600" />
+                            <h2 className="text-lg font-semibold text-zinc-900">QR Code Profil</h2>
                         </div>
 
-                        <div className="bg-white p-4 rounded-2xl shadow-2xl mb-6">
+                        <div className="bg-white p-4 rounded-2xl shadow-lg mb-6">
                             <QRCodeSVG
                                 value={`${typeof window !== 'undefined' ? window.location.origin : ''}/${profile.slug}`}
                                 size={180}
@@ -490,7 +484,7 @@ export default function DashboardPage() {
                             />
                         </div>
 
-                        <p className="text-zinc-400 text-sm text-center mb-6 px-4">
+                        <p className="text-zinc-500 text-sm text-center mb-6 px-4">
                             Scan untuk melihat kartu nama digital Anda secara instan
                         </p>
 
@@ -515,7 +509,7 @@ export default function DashboardPage() {
                                     img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
                                 }
                             }}
-                            className="w-full py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors"
+                            className="w-full py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-sm font-medium transition-colors"
                         >
                             Download QR Code
                         </button>
@@ -525,7 +519,7 @@ export default function DashboardPage() {
 
             {/* Dev badge */}
             <div className="fixed bottom-4 right-4">
-                <span className="text-xs text-gray-600 bg-gray-800/80 px-3 py-1.5 rounded-full">
+                <span className="text-xs text-zinc-400 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full border border-zinc-200/50">
                     🔧 Dev Mode
                 </span>
             </div>
