@@ -19,7 +19,8 @@ import {
     Mail,
     CheckCircle2,
     Clock,
-    XCircle
+    XCircle,
+    ArrowUpDown
 } from 'lucide-react'
 
 // Helper for status colors
@@ -47,9 +48,63 @@ export default function AnalyticsPage() {
     const [leadCaptureDelay, setLeadCaptureDelay] = useState(4)
     const [savingDelay, setSavingDelay] = useState(false)
 
+    // Filtering & Sorting State
+    const [statusFilter, setStatusFilter] = useState('all')
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
+    const [loadingLeads, setLoadingLeads] = useState(false)
+
     useEffect(() => {
         fetchAnalytics()
     }, [dateRange])
+
+    useEffect(() => {
+        fetchLeads()
+    }, [statusFilter, sortOrder])
+
+    const fetchLeads = async () => {
+        try {
+            setLoadingLeads(true)
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+
+            // Get profile ID first (we need it for the query)
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('user_id', user.id)
+                .single()
+
+            if (!profile) return
+
+            let query = supabase
+                .from('leads')
+                .select('*')
+                .eq('profile_id', profile.id)
+
+            // Apply Status Filter
+            if (statusFilter !== 'all') {
+                query = query.eq('status', statusFilter)
+            }
+
+            // Apply Sorting
+            query = query.order('created_at', { ascending: sortOrder === 'asc' })
+
+            // Limit (increase limit for better UX with filtering)
+            query = query.limit(50)
+
+            const { data: leads, error } = await query
+
+            if (error) {
+                console.error('Error fetching leads:', error)
+            } else {
+                setRecentLeads(leads || [])
+            }
+        } catch (err) {
+            console.error('Error in fetchLeads:', err)
+        } finally {
+            setLoadingLeads(false)
+        }
+    }
 
     const fetchAnalytics = async () => {
         try {
@@ -72,8 +127,6 @@ export default function AnalyticsPage() {
             setLeadCaptureDelay(profile.lead_capture_delay || 4)
 
             // 1. Fetch Stats (Direct Counts)
-            console.log('Fetching analytics for profile:', profile.id)
-
             // Calculate date range
             const endDate = new Date()
             const startDate = new Date()
@@ -119,38 +172,24 @@ export default function AnalyticsPage() {
 
             // Process daily data
             const days = new Map()
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                days.set(dateStr, { date: dateStr, views: 0, clicks: 0 })
+            }
+
             if (dailyData) {
                 dailyData.forEach((item: any) => {
                     const date = new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    if (!days.has(date)) {
-                        days.set(date, { date, views: 0, clicks: 0 })
+                    if (days.has(date)) {
+                        const dayStats = days.get(date)
+                        if (item.event_type === 'view') dayStats.views++
+                        if (item.event_type === 'click') dayStats.clicks++
                     }
-                    const dayStats = days.get(date)
-                    if (item.event_type === 'view') dayStats.views++
-                    if (item.event_type === 'click') dayStats.clicks++
                 })
             }
-            // Fill in missing days
-            const chart = []
-            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-                const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                if (days.has(dateStr)) {
-                    chart.push(days.get(dateStr))
-                } else {
-                    chart.push({ date: dateStr, views: 0, clicks: 0 })
-                }
-            }
-            setChartData(chart)
+            setChartData(Array.from(days.values()))
 
-            // 3. Fetch Recent Leads
-            const { data: leads } = await supabase
-                .from('leads')
-                .select('*')
-                .eq('profile_id', profile.id)
-                .order('created_at', { ascending: false })
-                .limit(10)
-
-            setRecentLeads(leads || [])
+            // Note: fetchLeads is called by useEffect now
 
         } catch (err) {
             console.error('Error fetching analytics:', err)
@@ -417,12 +456,42 @@ export default function AnalyticsPage() {
 
                         {/* Recent Leads Table */}
                         <div className="lg:col-span-3 bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
-                            <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
+                            <div className="p-6 border-b border-zinc-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <h3 className="font-semibold text-zinc-900">Recent Leads</h3>
-                                <button onClick={exportLeads} className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors px-4 py-2 bg-emerald-50 rounded-lg">
-                                    <Download className="w-4 h-4" />
-                                    Export CSV
-                                </button>
+
+                                <div className="flex items-center gap-3">
+                                    {/* Status Filter */}
+                                    <div className="relative">
+                                        <select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value)}
+                                            className="appearance-none bg-zinc-50 border border-zinc-200 text-zinc-700 text-sm rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-zinc-900 cursor-pointer"
+                                        >
+                                            <option value="all">All Status</option>
+                                            <option value="new">New</option>
+                                            <option value="contacted">Contacted</option>
+                                            <option value="converted">Converted</option>
+                                        </select>
+                                        <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-zinc-500">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                    </div>
+
+                                    {/* Sort Toggle */}
+                                    <button
+                                        onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                        className="flex items-center gap-2 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors"
+                                        title={`Sort by Date (${sortOrder === 'desc' ? 'Newest First' : 'Oldest First'})`}
+                                    >
+                                        <ArrowUpDown className="w-4 h-4" />
+                                        <span className="hidden sm:inline">{sortOrder === 'desc' ? 'Newest' : 'Oldest'}</span>
+                                    </button>
+
+                                    <button onClick={exportLeads} className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors px-4 py-2 bg-emerald-50 rounded-lg">
+                                        <Download className="w-4 h-4" />
+                                        <span className="hidden sm:inline">Export</span>
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="overflow-x-auto">
@@ -431,13 +500,26 @@ export default function AnalyticsPage() {
                                         <tr>
                                             <th className="px-6 py-4 font-semibold text-zinc-900">Lead Details</th>
                                             <th className="px-6 py-4 font-semibold text-zinc-900">Contact Info</th>
-                                            <th className="px-6 py-4 font-semibold text-zinc-900">Date</th>
+                                            <th className="px-6 py-4 font-semibold text-zinc-900">
+                                                <div className="flex items-center gap-1 cursor-pointer" onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}>
+                                                    Date
+                                                    <ArrowUpDown className="w-3 h-3 text-zinc-400" />
+                                                </div>
+                                            </th>
                                             <th className="px-6 py-4 font-semibold text-zinc-900">Status</th>
                                             <th className="px-6 py-4 font-semibold text-zinc-900 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-100 text-zinc-600">
-                                        {recentLeads.length > 0 ? (
+                                        {loadingLeads ? (
+                                            <tr>
+                                                <td colSpan={5} className="px-6 py-12 text-center">
+                                                    <div className="flex justify-center">
+                                                        <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ) : recentLeads.length > 0 ? (
                                             recentLeads.map((lead: any) => (
                                                 <tr key={lead.id} className="hover:bg-zinc-50/50 transition-colors">
                                                     <td className="px-6 py-4">
