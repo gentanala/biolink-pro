@@ -10,7 +10,8 @@ import {
     Type,
     Sun,
     Moon,
-    ImageIcon
+    ImageIcon,
+    Sparkles
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -161,34 +162,50 @@ export default function AppearancePage() {
                     <div className="flex items-center gap-3 mb-6">
                         {themeMode === 'dark' ? (
                             <Moon className="w-5 h-5 text-blue-400" />
+                        ) : themeMode === 'liquid_glass' ? (
+                            <Sparkles className="w-5 h-5 text-cyan-400" />
                         ) : (
                             <Sun className="w-5 h-5 text-amber-400" />
                         )}
                         <h2 className="text-lg font-semibold text-zinc-900">Tema Tampilan</h2>
                     </div>
 
-                    <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
+                    <div className="grid grid-cols-3 bg-zinc-100 p-1 rounded-xl border border-zinc-200 gap-1">
                         <button
                             onClick={() => handleThemeModeChange('dark')}
-                            className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'dark'
+                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'dark'
                                 ? 'bg-zinc-800 text-white shadow-sm'
                                 : 'text-zinc-400 hover:text-zinc-600'
                                 }`}
                         >
                             <Moon className="w-4 h-4" />
-                            Dark Mode
+                            Dark
                         </button>
                         <button
                             onClick={() => handleThemeModeChange('light')}
-                            className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'light'
+                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'light'
                                 ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
                                 : 'text-zinc-400 hover:text-zinc-600'
                                 }`}
                         >
                             <Sun className="w-4 h-4" />
-                            Light Mode
+                            Light
+                        </button>
+                        <button
+                            onClick={() => handleThemeModeChange('liquid_glass')}
+                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'liquid_glass'
+                                ? 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 shadow-sm border border-cyan-200'
+                                : 'text-zinc-400 hover:text-zinc-600'
+                                }`}
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            Glass
                         </button>
                     </div>
+
+                    {themeMode === 'liquid_glass' && (
+                        <p className="text-xs text-cyan-600 mt-3 font-medium">✨ Efek kaca transparan cembung — terlihat terbaik dengan foto profil</p>
+                    )}
                 </motion.section>
 
                 {/* Image Filter */}

@@ -198,6 +198,178 @@ textarea:focus {
   -webkit-backdrop-filter: blur(20px) saturate(150%);
 }
 
+/* ─── Liquid Glass Convex Theme ─── */
+
+/* Base convex glass card — thick transparent bubble */
+.lg-card {
+  position: relative;
+  background: linear-gradient(165deg,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0.30) 40%,
+      rgba(255, 255, 255, 0.15) 100%);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1.5px solid rgba(255, 255, 255, 0.60);
+  border-radius: 28px;
+  box-shadow:
+    /* Outer glow */
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    /* Inner light — convex shine top */
+    inset 0 2px 4px rgba(255, 255, 255, 0.80),
+    inset 0 -1px 3px rgba(0, 0, 0, 0.03),
+    /* Chromatic edge highlights */
+    inset 1px 0 1px rgba(200, 220, 255, 0.25),
+    inset -1px 0 1px rgba(255, 200, 240, 0.20);
+  overflow: hidden;
+}
+
+.lg-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.50) 0%,
+      rgba(255, 255, 255, 0.0) 100%);
+  border-radius: 28px 28px 50% 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Link/file item row — pill-shaped convex glass */
+.lg-item {
+  position: relative;
+  background: linear-gradient(160deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.20) 50%,
+      rgba(255, 255, 255, 0.10) 100%);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 22px;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.05),
+    inset 0 1.5px 3px rgba(255, 255, 255, 0.70),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.02),
+    inset 1px 0 1px rgba(200, 220, 255, 0.15),
+    inset -1px 0 1px rgba(255, 200, 240, 0.12);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.lg-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 45%;
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.40) 0%,
+      transparent 100%);
+  border-radius: 22px 22px 50% 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.lg-item:hover {
+  background: linear-gradient(160deg,
+      rgba(255, 255, 255, 0.70) 0%,
+      rgba(255, 255, 255, 0.35) 50%,
+      rgba(255, 255, 255, 0.20) 100%);
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.08),
+    inset 0 2px 4px rgba(255, 255, 255, 0.80),
+    inset 0 -1px 3px rgba(0, 0, 0, 0.03);
+  transform: translateY(-1px);
+}
+
+/* Social icon circle — convex glass bubble */
+.lg-social {
+  position: relative;
+  background: linear-gradient(160deg,
+      rgba(255, 255, 255, 0.60) 0%,
+      rgba(255, 255, 255, 0.20) 100%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    inset 0 1.5px 3px rgba(255, 255, 255, 0.75),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.lg-social::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 45%;
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.50) 0%,
+      transparent 100%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Tab pill — small convex capsule */
+.lg-tab-active {
+  background: linear-gradient(160deg,
+      rgba(255, 255, 255, 0.65) 0%,
+      rgba(255, 255, 255, 0.25) 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.06),
+    inset 0 1.5px 3px rgba(255, 255, 255, 0.80),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.02);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+/* CTA button — convex glass accent */
+.lg-cta {
+  position: relative;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.10),
+    inset 0 2px 4px rgba(255, 255, 255, 0.40),
+    inset 0 -1px 3px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.lg-cta::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg,
+      rgba(255, 255, 255, 0.30) 0%,
+      transparent 100%);
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Main content card overlay for liquid glass */
+.lg-content-card {
+  position: relative;
+  background: linear-gradient(180deg,
+      rgba(240, 242, 245, 0.75) 0%,
+      rgba(240, 242, 245, 0.50) 30%,
+      rgba(240, 242, 245, 0.85) 100%);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-top: 1.5px solid rgba(255, 255, 255, 0.60);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.05);
+}
+
 /* Safe area for mobile */
 .safe-area-top {
   padding-top: env(safe-area-inset-top, 12px);

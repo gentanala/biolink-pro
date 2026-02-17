@@ -115,7 +115,8 @@ export default function PublicProfile() {
     if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading...</div>
     if (!profile) return notFound()
 
-    const isLightMode = profile.theme_mode === 'light'
+    const isLightMode = profile.theme_mode === 'light' || profile.theme_mode === 'liquid_glass'
+    const isLiquidGlass = profile.theme_mode === 'liquid_glass'
     const isGrayscale = profile.image_filter === 'grayscale'
     const primaryColor = profile.primary_color || '#3B82F6'
 
@@ -191,17 +192,22 @@ export default function PublicProfile() {
     const textMuted = isLightMode ? 'text-zinc-500' : 'text-white/60'
 
     // Liquid glass card styles
-    const glassCard = isLightMode
-        ? 'bg-white/70 backdrop-blur-xl border border-white/40'
-        : 'bg-white/5 backdrop-blur-xl border border-white/10'
+    const glassCard = isLiquidGlass
+        ? 'lg-card'
+        : isLightMode
+            ? 'bg-white/70 backdrop-blur-xl border border-white/40'
+            : 'bg-white/5 backdrop-blur-xl border border-white/10'
 
-    const glassItem = isLightMode
-        ? 'bg-white/60 backdrop-blur-md border border-white/40 hover:bg-white/80'
-        : 'bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10'
+    const glassItem = isLiquidGlass
+        ? 'lg-item'
+        : isLightMode
+            ? 'bg-white/60 backdrop-blur-md border border-white/40 hover:bg-white/80'
+            : 'bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10'
 
     // Tab style with liquid glass
     const getTabStyle = (tab: string) => {
         if (activeTab === tab) {
+            if (isLiquidGlass) return 'text-zinc-900 lg-tab-active shadow-lg'
             return isLightMode
                 ? 'text-zinc-900 bg-white/70 backdrop-blur-xl border border-white/50 shadow-lg'
                 : 'text-white bg-white/15 backdrop-blur-xl border border-white/20 shadow-lg'
@@ -263,7 +269,7 @@ export default function PublicProfile() {
                 </AnimatePresence>
 
                 {/* Scrollable container */}
-                <div className={`h-screen md:h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden relative ${isLightMode ? 'bg-zinc-100' : 'bg-zinc-950'}`}>
+                <div className={`h-screen md:h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden relative ${isLiquidGlass ? 'bg-gradient-to-b from-slate-100 via-gray-50 to-slate-100' : isLightMode ? 'bg-zinc-100' : 'bg-zinc-950'}`}>
 
                     {/* Hero Photo — STICKY, stays fixed while card scrolls over it */}
                     <div className="sticky top-0 w-full z-0" style={{ height: '55vh' }}>
@@ -289,9 +295,11 @@ export default function PublicProfile() {
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, ease: "easeOut" }}
-                        className={`relative z-10 -mt-8 rounded-t-[32px] px-6 py-8 min-h-screen transition-colors duration-300 border-t ${isLightMode
-                            ? 'bg-white/40 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.04)] border-white/40'
-                            : 'bg-zinc-950/30 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] border-white/10'
+                        className={`relative z-10 -mt-8 rounded-t-[32px] px-6 py-8 min-h-screen transition-colors duration-300 ${isLiquidGlass
+                            ? 'lg-content-card'
+                            : isLightMode
+                                ? 'bg-white/40 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.04)] border-t border-white/40'
+                                : 'bg-zinc-950/30 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] border-t border-white/10'
                             }`}
                     >
                         {/* Pull indicator */}
@@ -334,9 +342,11 @@ export default function PublicProfile() {
                                         rel="noopener noreferrer"
                                         key={link.id}
                                         onClick={() => handleLinkClick(link.id)}
-                                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 backdrop-blur-md ${isLightMode
-                                            ? 'bg-white/50 border border-white/50 text-zinc-800 hover:bg-white/70'
-                                            : 'bg-white/5 border border-white/10 text-white hover:bg-white/15'
+                                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 ${isLiquidGlass
+                                            ? 'lg-social text-zinc-800'
+                                            : isLightMode
+                                                ? 'bg-white/50 border border-white/50 text-zinc-800 hover:bg-white/70 backdrop-blur-md'
+                                                : 'bg-white/5 border border-white/10 text-white hover:bg-white/15 backdrop-blur-md'
                                             }`}
                                     >
                                         {renderIcon(link.icon, "w-6 h-6")}
@@ -349,22 +359,26 @@ export default function PublicProfile() {
                         <div className="flex gap-3 mb-6">
                             <button
                                 onClick={handleSaveContact}
-                                className="flex-1 py-4 rounded-2xl font-bold text-base tracking-wide flex items-center justify-center gap-3 active:scale-[0.98] transition-all text-white"
+                                className={`flex-1 py-4 rounded-2xl font-bold text-base tracking-wide flex items-center justify-center gap-3 active:scale-[0.98] transition-all text-white ${isLiquidGlass ? 'lg-cta' : ''}`}
                                 style={{
                                     background: `linear-gradient(135deg, ${primaryColor}dd, ${primaryColor}99)`,
-                                    border: `1px solid ${primaryColor}40`,
-                                    boxShadow: `0 8px 32px ${primaryColor}30`,
-                                    backdropFilter: 'blur(12px)',
+                                    ...(!isLiquidGlass ? {
+                                        border: `1px solid ${primaryColor}40`,
+                                        boxShadow: `0 8px 32px ${primaryColor}30`,
+                                        backdropFilter: 'blur(12px)',
+                                    } : {}),
                                 }}
                             >
-                                <Download className="w-5 h-5" />
-                                SAVE CONTACT
+                                <Download className="w-5 h-5" style={{ position: 'relative', zIndex: 2 }} />
+                                <span style={{ position: 'relative', zIndex: 2 }}>SAVE CONTACT</span>
                             </button>
                             <button
                                 onClick={() => setShowQR(!showQR)}
-                                className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 active:scale-95 transition-all backdrop-blur-md ${isLightMode
-                                    ? 'bg-white/50 text-zinc-700 border border-white/50 hover:bg-white/70'
-                                    : 'bg-white/5 text-white border border-white/10 hover:bg-white/15'
+                                className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 active:scale-95 transition-all ${isLiquidGlass
+                                    ? 'lg-social text-zinc-700'
+                                    : isLightMode
+                                        ? 'bg-white/50 text-zinc-700 border border-white/50 hover:bg-white/70 backdrop-blur-md'
+                                        : 'bg-white/5 text-white border border-white/10 hover:bg-white/15 backdrop-blur-md'
                                     }`}
                                 title="Show QR Code"
                             >
@@ -372,9 +386,11 @@ export default function PublicProfile() {
                             </button>
                             <button
                                 onClick={handleShare}
-                                className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 active:scale-95 transition-all backdrop-blur-md ${isLightMode
-                                    ? 'bg-white/50 text-zinc-700 border border-white/50 hover:bg-white/70'
-                                    : 'bg-white/5 text-white border border-white/10 hover:bg-white/15'
+                                className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 active:scale-95 transition-all ${isLiquidGlass
+                                    ? 'lg-social text-zinc-700'
+                                    : isLightMode
+                                        ? 'bg-white/50 text-zinc-700 border border-white/50 hover:bg-white/70 backdrop-blur-md'
+                                        : 'bg-white/5 text-white border border-white/10 hover:bg-white/15 backdrop-blur-md'
                                     }`}
                             >
                                 <Share2 className="w-5 h-5" />
@@ -426,10 +442,10 @@ export default function PublicProfile() {
                                         className={`block w-full p-5 rounded-2xl flex items-center justify-between group transition-all active:scale-[0.99] ${glassItem}`}
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-sm ${isLightMode ? 'bg-zinc-100/80 text-zinc-700' : 'bg-white/10 text-white/90'}`}>
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isLiquidGlass ? 'bg-white/30 text-zinc-700' : isLightMode ? 'bg-zinc-100/80 text-zinc-700' : 'bg-white/10 text-white/90'}`} style={{ position: 'relative', zIndex: 2 }}>
                                                 {renderIcon(link.icon, "w-6 h-6")}
                                             </div>
-                                            <div className="text-left">
+                                            <div className="text-left" style={{ position: 'relative', zIndex: 2 }}>
                                                 <h4 className={`font-bold text-base ${isLightMode ? 'text-zinc-900' : 'text-white'}`}>{link.title || 'Untitled Link'}</h4>
                                                 <p className={`text-xs font-medium uppercase tracking-wider mt-1 ${isLightMode ? 'text-zinc-400' : 'text-white/40'}`}>{getLinkSubtitle(link)}</p>
                                             </div>
@@ -467,7 +483,7 @@ export default function PublicProfile() {
                                             onClick={() => handleLinkClick(file.id)}
                                             className={`block w-full p-5 rounded-2xl flex items-center gap-4 transition-all active:scale-[0.99] ${glassItem}`}
                                         >
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-sm ${isLightMode ? 'bg-zinc-100/80 text-zinc-600' : 'bg-amber-500/10 text-amber-400'}`}>
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isLiquidGlass ? 'bg-white/30 text-zinc-600' : isLightMode ? 'bg-zinc-100/80 text-zinc-600' : 'bg-amber-500/10 text-amber-400'}`} style={{ position: 'relative', zIndex: 2 }}>
                                                 <FileText className="w-6 h-6" />
                                             </div>
                                             <div className="min-w-0 flex-1">
