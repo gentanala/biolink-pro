@@ -143,7 +143,8 @@ export default function AnalyticsPage() {
                     // Revert on error
                     setLeadCaptureEnabled(!newValue)
                     console.error('Error updating setting:', error)
-                    alert('Failed to update settings')
+                    console.error('Error details:', error.message, error.details, error.hint)
+                    alert(`Failed to update settings: ${error.message}`)
                 }
             }
         } catch (err) {
