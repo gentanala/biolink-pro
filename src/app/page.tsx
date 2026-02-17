@@ -186,7 +186,7 @@ export default function HomePage() {
       <div ref={heroRef} className="sticky top-0 w-full h-screen z-0">
         {/* Desktop: fill cover / Mobile: contain full image */}
         <img
-          src="/hero-banner.jpg"
+          src="https://damgyhadhnirwabekbvs.supabase.co/storage/v1/object/public/public-assets/7a9c1211-b7bf-4f1d-8da5-57c3ea8e9072/banner%20home%20page%20nfc%20web.jpg"
           alt="Gentanala NFC Watch"
           className="w-full h-full object-cover md:object-cover object-contain object-top bg-white"
         />
