@@ -112,10 +112,11 @@ export default function PublicProfile() {
 
         // Show modal if enabled and user hasn't submitted yet
         if (leadCaptureEnabled && !hasSubmitted) {
-            // Delay showing the modal by 4 seconds for better UX
+            // Delay showing the modal (default 4s if not set)
+            const delaySeconds = profile.lead_capture_delay || 4
             const timer = setTimeout(() => {
                 setShowLeadModal(true)
-            }, 4000)
+            }, delaySeconds * 1000)
 
             return () => clearTimeout(timer)
         }

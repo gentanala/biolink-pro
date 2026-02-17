@@ -14,8 +14,22 @@ import {
     Download,
     Loader2,
     Eye,
-    MessageSquare
+    MessageSquare,
+    Phone,
+    Mail,
+    CheckCircle2,
+    Clock,
+    XCircle
 } from 'lucide-react'
+
+// Helper for status colors
+const getStatusColor = (status: string) => {
+    switch (status) {
+        case 'contacted': return 'bg-orange-100 text-orange-700 border-orange-200'
+        case 'converted': return 'bg-green-100 text-green-700 border-green-200'
+        default: return 'bg-blue-100 text-blue-700 border-blue-200'
+    }
+}
 
 export default function AnalyticsPage() {
     const supabase = createClient()
@@ -30,6 +44,8 @@ export default function AnalyticsPage() {
     const [recentLeads, setRecentLeads] = useState<any[]>([])
     const [dateRange, setDateRange] = useState('30d')
     const [leadCaptureEnabled, setLeadCaptureEnabled] = useState(false)
+    const [leadCaptureDelay, setLeadCaptureDelay] = useState(4)
+    const [savingDelay, setSavingDelay] = useState(false)
 
     useEffect(() => {
         fetchAnalytics()
@@ -44,13 +60,16 @@ export default function AnalyticsPage() {
             // Get profile and settings
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('id, lead_capture_enabled')
+                .select('id, lead_capture_enabled, lead_capture_delay')
                 .eq('user_id', user.id)
                 .single()
 
             if (!profile) return
 
+            console.log('Fetching analytics for profile:', profile.id)
+
             setLeadCaptureEnabled(profile.lead_capture_enabled || false)
+            setLeadCaptureDelay(profile.lead_capture_delay || 4)
 
             // 1. Fetch Stats (Direct Counts)
             console.log('Fetching analytics for profile:', profile.id)
@@ -182,6 +201,51 @@ export default function AnalyticsPage() {
         document.body.removeChild(link);
     }
 
+    const updateLeadStatus = async (leadId: string, newStatus: string) => {
+        try {
+            // Optimistic update
+            setRecentLeads(prev => prev.map(lead =>
+                lead.id === leadId ? { ...lead, status: newStatus } : lead
+            ))
+
+            const { error } = await supabase
+                .from('leads')
+                .update({ status: newStatus })
+                .eq('id', leadId)
+
+            if (error) {
+                console.error('Error updating status:', error)
+                // Revert
+                fetchAnalytics()
+                alert('Failed to update status')
+            }
+        } catch (err) {
+            console.error('Error updating status:', err)
+        }
+    }
+
+    const saveDelaySettings = async (newDelay: number) => {
+        try {
+            setSavingDelay(true)
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+
+            const { error } = await supabase
+                .from('profiles')
+                .update({ lead_capture_delay: newDelay })
+                .eq('user_id', user.id)
+
+            if (error) {
+                console.error('Error saving delay:', error)
+                alert('Failed to save delay settings')
+            }
+        } catch (err) {
+            console.error('Error saving delay:', err)
+        } finally {
+            setSavingDelay(false)
+        }
+    }
+
     return (
         <div className="max-w-6xl mx-auto space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -205,26 +269,64 @@ export default function AnalyticsPage() {
                 </div>
             </div>
 
-            {/* Lead Capture Toggle Card */}
-            <div className="bg-white p-5 rounded-2xl border border-zinc-200 shadow-sm flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl flex items-center justify-center ${leadCaptureEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500'}`}>
+            {/* Lead Capture Settings Card */}
+            <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6 transition-all">
+                <div className="flex items-start gap-4">
+                    <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 transition-colors ${leadCaptureEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500'}`}>
                         <Users className="w-6 h-6" />
                     </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-zinc-900 text-lg">Lead Capture Form</h3>
-                            {leadCaptureEnabled && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Active</span>}
+                    <div className="space-y-4 w-full">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold text-zinc-900 text-lg">Lead Capture Form</h3>
+                                {leadCaptureEnabled && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Active</span>}
+                            </div>
+                            <p className="text-sm text-zinc-500">Collect visitor contact info (Name, WhatsApp, Email) on your public profile</p>
                         </div>
-                        <p className="text-sm text-zinc-500">Collect visitor contact info (Name, WhatsApp, Email) on your public profile</p>
+
+                        {/* Delay Slider */}
+                        {leadCaptureEnabled && (
+                            <div className="bg-zinc-50 p-4 rounded-xl max-w-sm space-y-3 border border-zinc-100">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="font-medium text-zinc-700 flex items-center gap-2">
+                                        <Clock className="w-4 h-4 text-zinc-400" />
+                                        Popup Delay
+                                    </span>
+                                    <span className="bg-white px-2 py-0.5 rounded border border-zinc-200 text-zinc-600 font-mono text-xs">
+                                        {leadCaptureDelay}s
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="15"
+                                    step="1"
+                                    value={leadCaptureDelay}
+                                    onChange={(e) => setLeadCaptureDelay(parseInt(e.target.value))}
+                                    onMouseUp={(e) => saveDelaySettings(parseInt((e.target as HTMLInputElement).value))}
+                                    onTouchEnd={(e) => saveDelaySettings(parseInt((e.target as HTMLInputElement).value))}
+                                    className="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900 hover:accent-zinc-700 transition-all"
+                                />
+                                <div className="flex justify-between text-[10px] text-zinc-400 font-medium px-0.5">
+                                    <span>Fast (1s)</span>
+                                    <span>Slow (15s)</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
-                <button
-                    onClick={toggleLeadCapture}
-                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${leadCaptureEnabled ? 'bg-emerald-500' : 'bg-zinc-200'}`}
-                >
-                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${leadCaptureEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
-                </button>
+
+                <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-4 md:pt-0 border-zinc-100 w-full md:w-auto">
+                    <span className="text-sm font-medium text-zinc-700 md:hidden">
+                        Enable Feature
+                    </span>
+                    <button
+                        onClick={toggleLeadCapture}
+                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${leadCaptureEnabled ? 'bg-emerald-500' : 'bg-zinc-200'}`}
+                    >
+                        <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${leadCaptureEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                    </button>
+                </div>
             </div>
 
             {loading ? (
@@ -313,42 +415,104 @@ export default function AnalyticsPage() {
                             </div>
                         </div>
 
-                        {/* Recent Leads */}
-                        <div className="bg-white rounded-3xl p-6 border border-zinc-100 shadow-sm flex flex-col">
-                            <div className="flex items-center justify-between mb-6">
+                        {/* Recent Leads Table */}
+                        <div className="lg:col-span-3 bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+                            <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
                                 <h3 className="font-semibold text-zinc-900">Recent Leads</h3>
-                                <button onClick={exportLeads} className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-500 transition-colors" title="Export CSV">
+                                <button onClick={exportLeads} className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors px-4 py-2 bg-emerald-50 rounded-lg">
                                     <Download className="w-4 h-4" />
+                                    Export CSV
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                                {recentLeads.length > 0 ? (
-                                    recentLeads.map((lead) => (
-                                        <div key={lead.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-zinc-50 transition-colors border border-transparent hover:border-zinc-100">
-                                            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                                                <span className="font-bold text-emerald-600">
-                                                    {(lead.name || 'L')[0].toUpperCase()}
-                                                </span>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="font-medium text-sm text-zinc-900 truncate">{lead.name || 'Anonymous'}</p>
-                                                <p className="text-xs text-zinc-500 truncate">{lead.email || lead.whatsapp}</p>
-                                                {lead.company && (
-                                                    <p className="text-[10px] text-zinc-400 mt-0.5 uppercase tracking-wide">{lead.company}</p>
-                                                )}
-                                            </div>
-                                            <span className="text-[10px] text-zinc-400 whitespace-nowrap">
-                                                {new Date(lead.created_at).toLocaleDateString()}
-                                            </span>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="h-full flex flex-col items-center justify-center text-zinc-400 gap-2">
-                                        <MessageSquare className="w-8 h-8 opacity-20" />
-                                        <p className="text-sm">No leads yet</p>
-                                    </div>
-                                )}
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-zinc-50 border-b border-zinc-100">
+                                        <tr>
+                                            <th className="px-6 py-4 font-semibold text-zinc-900">Lead Details</th>
+                                            <th className="px-6 py-4 font-semibold text-zinc-900">Contact Info</th>
+                                            <th className="px-6 py-4 font-semibold text-zinc-900">Date</th>
+                                            <th className="px-6 py-4 font-semibold text-zinc-900">Status</th>
+                                            <th className="px-6 py-4 font-semibold text-zinc-900 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-zinc-100 text-zinc-600">
+                                        {recentLeads.length > 0 ? (
+                                            recentLeads.map((lead: any) => (
+                                                <tr key={lead.id} className="hover:bg-zinc-50/50 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <div className="font-medium text-zinc-900">{lead.name || 'Anonymous'}</div>
+                                                        {lead.company && (
+                                                            <div className="text-xs text-zinc-400 mt-0.5 uppercase tracking-wide">{lead.company}</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center gap-2 text-zinc-700">
+                                                                <Phone className="w-3 h-3 text-zinc-400" />
+                                                                {lead.whatsapp}
+                                                            </div>
+                                                            {lead.email && (
+                                                                <div className="flex items-center gap-2 text-zinc-500 text-xs">
+                                                                    <Mail className="w-3 h-3 text-zinc-400" />
+                                                                    {lead.email}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        {new Date(lead.created_at).toLocaleDateString()}
+                                                        <div className="text-[10px] text-zinc-400">{new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <select
+                                                            value={lead.status || 'new'}
+                                                            onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
+                                                            className={`text-xs font-medium px-2 py-1 rounded-full border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-zinc-900 ${getStatusColor(lead.status || 'new')}`}
+                                                        >
+                                                            <option value="new">New Lead</option>
+                                                            <option value="contacted">Contacted</option>
+                                                            <option value="converted">Converted</option>
+                                                        </select>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            {lead.whatsapp && (
+                                                                <a
+                                                                    href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '').replace(/^0/, '62')}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="p-2 hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors border border-transparent hover:border-emerald-100"
+                                                                    title="Open WhatsApp"
+                                                                >
+                                                                    <Phone className="w-4 h-4" />
+                                                                </a>
+                                                            )}
+                                                            {lead.email && (
+                                                                <a
+                                                                    href={`mailto:${lead.email}`}
+                                                                    className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                                                    title="Send Email"
+                                                                >
+                                                                    <Mail className="w-4 h-4" />
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">
+                                                    <div className="flex flex-col items-center gap-2">
+                                                        <MessageSquare className="w-8 h-8 opacity-20" />
+                                                        <p className="text-sm">No leads collected yet.</p>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

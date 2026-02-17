@@ -104,8 +104,20 @@ export interface Profile {
     social_links: SocialLink[];
     is_public: boolean;
     lead_capture_enabled: boolean;
+    lead_capture_delay: number;
     created_at: string;
     updated_at: string;
+}
+
+export interface Lead {
+    id: string;
+    profile_id: string;
+    created_at: string;
+    name: string | null;
+    email: string | null;
+    whatsapp: string | null;
+    company: string | null;
+    status: 'new' | 'contacted' | 'converted';
 }
 
 export interface SocialLink {
