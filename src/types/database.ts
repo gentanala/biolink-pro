@@ -103,6 +103,7 @@ export interface Profile {
     job_title: string | null;
     social_links: SocialLink[];
     is_public: boolean;
+    lead_capture_enabled: boolean;
     created_at: string;
     updated_at: string;
 }
@@ -111,6 +112,24 @@ export interface SocialLink {
     platform: string;
     url: string;
     label?: string;
+}
+
+export interface Lead {
+    id: string;
+    created_at: string;
+    profile_id: string;
+    name: string | null;
+    email: string | null;
+    whatsapp: string | null;
+    company: string | null;
+}
+
+export interface Analytics {
+    id: string;
+    created_at: string;
+    profile_id: string;
+    event_type: 'view' | 'click';
+    meta: Record<string, unknown>;
 }
 
 export interface Order {

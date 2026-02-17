@@ -11,7 +11,8 @@ import {
     Sun,
     Moon,
     ImageIcon,
-    Sparkles
+    Sparkles,
+    UserPlus
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -33,6 +34,7 @@ export default function AppearancePage() {
     const [primaryColor, setPrimaryColor] = useState('#3B82F6')
     const [themeMode, setThemeMode] = useState('dark')
     const [imageFilter, setImageFilter] = useState('normal')
+    const [leadCaptureEnabled, setLeadCaptureEnabled] = useState(false)
 
     // Sync to localStorage immediately for live preview
     const syncToPreview = useCallback((mode: string, filter: string, color?: string) => {
@@ -57,7 +59,7 @@ export default function AppearancePage() {
 
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('theme')
+                .select('theme, lead_capture_enabled')
                 .eq('user_id', user.id)
                 .single()
 
@@ -66,6 +68,10 @@ export default function AppearancePage() {
                 setPrimaryColor(t.primary || '#3B82F6')
                 setThemeMode(t.theme_mode || 'dark')
                 setImageFilter(t.image_filter || 'normal')
+            }
+
+            if (profile?.lead_capture_enabled !== undefined) {
+                setLeadCaptureEnabled(profile.lead_capture_enabled)
             }
 
             // Also check localStorage for any existing values
@@ -127,7 +133,10 @@ export default function AppearancePage() {
 
         const { error } = await supabase
             .from('profiles')
-            .update({ theme: updatedTheme })
+            .update({
+                theme: updatedTheme,
+                lead_capture_enabled: leadCaptureEnabled
+            })
             .eq('user_id', user.id)
 
         if (error) {
@@ -269,11 +278,47 @@ export default function AppearancePage() {
                     </div>
                 </motion.section>
 
-                {/* Typography placeholder */}
+                {/* Lead Capture */}
                 <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 }}
+                    className="glass rounded-3xl p-8"
+                >
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <UserPlus className="w-5 h-5 text-emerald-400" />
+                            <div>
+                                <h2 className="text-lg font-semibold text-zinc-900">Lead Capture</h2>
+                                <p className="text-sm text-zinc-500 mt-1">Kumpulkan kontak dari pengunjung profil Anda</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setLeadCaptureEnabled(!leadCaptureEnabled)}
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${leadCaptureEnabled ? 'bg-emerald-500' : 'bg-zinc-300'
+                                }`}
+                        >
+                            <span
+                                className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${leadCaptureEnabled ? 'translate-x-7' : 'translate-x-1'
+                                    }`}
+                            />
+                        </button>
+                    </div>
+
+                    {leadCaptureEnabled && (
+                        <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                            <p className="text-sm text-emerald-700">
+                                ✓ Form lead capture akan muncul di profil publik Anda. Pengunjung dapat meninggalkan nama, email, WhatsApp, dan perusahaan mereka.
+                            </p>
+                        </div>
+                    )}
+                </motion.section>
+
+                {/* Typography placeholder */}
+                <motion.section
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
                     className="glass rounded-3xl p-8"
                 >
                     <div className="flex items-center gap-3 mb-6">
