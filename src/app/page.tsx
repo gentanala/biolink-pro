@@ -108,14 +108,17 @@ export default function HomePage() {
             boxShadow: '0 4px 16px rgba(0,0,0,0.05), inset 0 1.5px 3px rgba(255,255,255,0.70), inset 0 -1px 2px rgba(0,0,0,0.02)',
           }}
         >
-          {/* Sliding pill indicator */}
+          {/* Sliding pill indicator — transparent glass */}
           <motion.div
             className="absolute top-1.5 bottom-1.5 rounded-full z-0"
             animate={{ left: pillStyle.left, width: pillStyle.width }}
             transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             style={{
-              background: 'linear-gradient(165deg, rgba(30,30,30,0.90) 0%, rgba(50,50,50,0.85) 100%)',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15), inset 0 1px 2px rgba(255,255,255,0.10)',
+              background: 'rgba(0, 0, 0, 0.25)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.08)',
             }}
           />
           {NAV_ITEMS.map((item, i) => (
@@ -148,28 +151,33 @@ export default function HomePage() {
         </Link>
       </nav>
 
-      {/* Mobile Nav */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4">
+      {/* Mobile Nav — single row, no overlap */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3"
+        style={{
+          background: 'rgba(240,240,236,0.6)',
+          backdropFilter: 'blur(20px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+          borderBottom: '1px solid rgba(255,255,255,0.3)',
+        }}
+      >
         <Link href="/" className="shrink-0">
-          <img src="/logo.png" alt="Gentanala" className="h-7 w-auto brightness-0" />
+          <img src="/logo.png" alt="Gentanala" className="h-6 w-auto brightness-0" />
         </Link>
         <div className="flex items-center gap-2">
-          <Link href="/login" className="text-[12px] font-semibold tracking-wide text-zinc-600 px-4 py-2 rounded-full"
+          <Link href="/login" className="text-[11px] font-semibold text-zinc-700 px-3 py-1.5 rounded-full"
             style={{
-              background: 'linear-gradient(165deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.25) 100%)',
-              backdropFilter: 'blur(20px)',
-              border: '1.5px solid rgba(255,255,255,0.50)',
-              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.7)',
+              background: 'rgba(0, 0, 0, 0.08)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.30)',
             }}
           >Sign In</Link>
-          <Link href="/dashboard" className="text-[12px] font-semibold tracking-wide text-zinc-600 px-4 py-2 rounded-full"
+          <Link href="/dashboard" className="text-zinc-700 p-2 rounded-full"
             style={{
-              background: 'linear-gradient(165deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.25) 100%)',
-              backdropFilter: 'blur(20px)',
-              border: '1.5px solid rgba(255,255,255,0.50)',
-              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.7)',
+              background: 'rgba(0, 0, 0, 0.08)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.30)',
             }}
-          ><LayoutDashboard className="w-4 h-4" /></Link>
+          ><LayoutDashboard className="w-3.5 h-3.5" /></Link>
         </div>
       </div>
 
@@ -177,7 +185,7 @@ export default function HomePage() {
       {/* ─── HERO BANNER (STICKY — Content scrolls over it) ─── */}
       <div ref={heroRef} className="sticky top-0 w-full h-screen z-0">
         <img
-          src="/hero-banner.png"
+          src="/hero-banner.jpg"
           alt="Gentanala NFC Watch"
           className="w-full h-full object-cover object-center"
         />
