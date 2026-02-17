@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Instagram, Twitter, Linkedin, Globe, ChevronRight, Mail, Phone, Download, Share2, Copy, Check, X, FileText, Image as ImageIcon, ExternalLink, QrCode } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { generateVCard } from '@/lib/vcard'
+import LeadCaptureModal from '@/components/LeadCaptureModal'
 
 // WhatsApp SVG Icon
 function WhatsAppIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -32,6 +33,7 @@ export default function PublicProfile() {
     const [welcomeText, setWelcomeText] = useState('')
     const [welcomeComplete, setWelcomeComplete] = useState(false)
     const [showQR, setShowQR] = useState(false)
+    const [showLeadModal, setShowLeadModal] = useState(false)
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -93,6 +95,27 @@ export default function PublicProfile() {
 
         fetchProfile()
     }, [params?.slug])
+
+    // Check if we should show the lead capture modal
+    useEffect(() => {
+        if (!profile) return
+
+        // Check if lead capture is enabled for this profile
+        const leadCaptureEnabled = profile.lead_capture_enabled || false
+
+        // Check if user has already submitted a lead for this profile
+        const hasSubmitted = localStorage.getItem(`has_submitted_lead_${profile.id}`)
+
+        // Show modal if enabled and user hasn't submitted yet
+        if (leadCaptureEnabled && !hasSubmitted) {
+            // Delay showing the modal by 2 seconds for better UX
+            const timer = setTimeout(() => {
+                setShowLeadModal(true)
+            }, 2000)
+
+            return () => clearTimeout(timer)
+        }
+    }, [profile])
 
     // Handwriting animation — letter by letter typewriter
     useEffect(() => {
@@ -567,6 +590,14 @@ export default function PublicProfile() {
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                {/* Lead Capture Modal */}
+                <LeadCaptureModal
+                    isOpen={showLeadModal}
+                    onClose={() => setShowLeadModal(false)}
+                    profileId={profile.id}
+                    profileName={profile.display_name || profile.slug}
+                />
             </div>
         </>
     )
