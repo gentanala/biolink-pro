@@ -22,9 +22,11 @@ import {
     Mail,
     Phone,
     Clock,
-    Activity
+    Activity,
+    QrCode
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { QRCodeSVG } from 'qrcode.react'
 
 interface SerialWithProfile {
     id: string
@@ -65,6 +67,7 @@ export default function AdminPage() {
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
     const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
     const [filterStatus, setFilterStatus] = useState<'all' | 'claimed' | 'unclaimed'>('all')
+    const [qrDownloadData, setQrDownloadData] = useState<{ uuid: string; label: string; url: string } | null>(null)
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -228,6 +231,64 @@ export default function AdminPage() {
         a.click()
         URL.revokeObjectURL(url)
     }
+
+    const downloadQR = (uuid: string, label?: string) => {
+        const tapUrl = `${siteUrl}/tap/${uuid}`
+        setQrDownloadData({ uuid, label: label || uuid.substring(0, 18) + '...', url: tapUrl })
+    }
+
+    // Effect to handle QR download when qrDownloadData is set
+    useEffect(() => {
+        if (!qrDownloadData) return
+
+        const timer = setTimeout(() => {
+            const svgEl = document.getElementById('qr-download-svg')?.querySelector('svg')
+            if (!svgEl) {
+                setQrDownloadData(null)
+                return
+            }
+
+            const size = 400
+            const canvas = document.createElement('canvas')
+            canvas.width = size
+            canvas.height = size + 60
+            const ctx = canvas.getContext('2d')!
+
+            // White background
+            ctx.fillStyle = '#ffffff'
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+            const svgData = new XMLSerializer().serializeToString(svgEl)
+            const img = new Image()
+            img.onload = () => {
+                const padding = 30
+                const qrSize = size - padding * 2
+                ctx.drawImage(img, padding, padding, qrSize, qrSize)
+
+                // Label
+                ctx.fillStyle = '#18181b'
+                ctx.font = 'bold 14px Inter, system-ui, sans-serif'
+                ctx.textAlign = 'center'
+                ctx.fillText(qrDownloadData.label, size / 2, size + 20)
+
+                ctx.fillStyle = '#71717a'
+                ctx.font = '11px Inter, system-ui, sans-serif'
+                ctx.fillText('Gentanala Digital Card', size / 2, size + 42)
+
+                // Download
+                const pngUrl = canvas.toDataURL('image/png')
+                const a = document.createElement('a')
+                a.download = `qr-${qrDownloadData.uuid.substring(0, 8)}.png`
+                a.href = pngUrl
+                a.click()
+
+                setQrDownloadData(null)
+            }
+            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)))
+        }, 150) // Wait for React to render the QR
+
+        return () => clearTimeout(timer)
+    }, [qrDownloadData])
 
     const toggleSort = (field: SortField) => {
         if (sortField === field) {
@@ -606,6 +667,13 @@ export default function AdminPage() {
                                             <td className="px-4 py-4">
                                                 <div className="flex items-center gap-1 justify-end">
                                                     <button
+                                                        onClick={() => downloadQR(serial.serial_uuid, serial.display_name || undefined)}
+                                                        className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                                        title="Download QR Code"
+                                                    >
+                                                        <QrCode className="w-4 h-4 text-blue-400" />
+                                                    </button>
+                                                    <button
                                                         onClick={() => copyToClipboard(`${siteUrl}/tap/${serial.serial_uuid}`, serial.id)}
                                                         className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
                                                         title="Copy NFC URL"
@@ -712,6 +780,17 @@ export default function AdminPage() {
                     </div>
                 )}
             </AnimatePresence>
+            {/* Hidden QR Renderer for Download */}
+            {qrDownloadData && (
+                <div id="qr-download-svg" className="fixed -left-[9999px] top-0" aria-hidden="true">
+                    <QRCodeSVG
+                        value={qrDownloadData.url}
+                        size={340}
+                        level="H"
+                        includeMargin={false}
+                    />
+                </div>
+            )}
         </div>
     )
 }
