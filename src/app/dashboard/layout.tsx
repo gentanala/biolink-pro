@@ -35,9 +35,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     useEffect(() => {
         const profileStr = localStorage.getItem('genhub_profile')
-        if (profileStr) {
-            setProfile(JSON.parse(profileStr))
-        }
+        if (profileStr) setProfile(JSON.parse(profileStr))
     }, [])
 
     const handleLogout = () => {
@@ -48,13 +46,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
     return (
-        <div className="min-h-screen bg-zinc-950 flex overflow-hidden">
-            {/* Sidebar Desktop */}
-            <aside className="hidden lg:flex flex-col w-64 bg-zinc-900 border-r border-zinc-800 shrink-0">
+        <div className="min-h-screen bg-gradient-to-br from-zinc-100 via-blue-50/50 to-zinc-100 flex overflow-hidden">
+            {/* Sidebar Desktop — Liquid Glass Light */}
+            <aside className="hidden lg:flex flex-col w-64 bg-white/50 backdrop-blur-2xl border-r border-white/40 shrink-0 shadow-sm">
                 <div className="p-6">
                     <Link href="/" className="flex items-center gap-2">
-                        <CreditCard className="w-8 h-8 text-blue-500" />
-                        <span className="text-xl font-bold gradient-text">GenHub</span>
+                        <CreditCard className="w-8 h-8 text-blue-600" />
+                        <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">GenHub</span>
                     </Link>
                 </div>
 
@@ -66,40 +64,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 key={item.href}
                                 href={item.href}
                                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive
-                                    ? 'bg-blue-500/10 text-blue-400 font-medium'
-                                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                                    ? 'bg-blue-600/10 text-blue-600 font-medium shadow-sm border border-blue-100'
+                                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/60'
                                     }`}
                             >
-                                <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-400' : ''}`} />
+                                <item.icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : ''}`} />
                                 {item.label}
                             </Link>
                         )
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-zinc-800 space-y-4">
+                <div className="p-4 border-t border-zinc-200/50 space-y-4">
                     {profile && (
                         <Link
                             href={`/${profile.slug}`}
                             target="_blank"
-                            className="flex items-center justify-between p-3 rounded-xl bg-zinc-800/50 hover:bg-zinc-800 transition-colors"
+                            className="flex items-center justify-between p-3 rounded-xl bg-white/60 backdrop-blur-sm border border-zinc-200/50 hover:bg-white/80 transition-colors"
                         >
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white">
+                                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">
                                     {profile.display_name?.[0]?.toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="text-sm font-medium text-white truncate">Preview Profil</p>
-                                    <p className="text-xs text-zinc-500 truncate">/{profile.slug}</p>
+                                    <p className="text-sm font-medium text-zinc-900 truncate">Preview Profil</p>
+                                    <p className="text-xs text-zinc-400 truncate">/{profile.slug}</p>
                                 </div>
                             </div>
-                            <ExternalLink className="w-4 h-4 text-zinc-500" />
+                            <ExternalLink className="w-4 h-4 text-zinc-400" />
                         </Link>
                     )}
 
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-3 w-full px-4 py-3 text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
+                        className="flex items-center gap-3 w-full px-4 py-3 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                     >
                         <LogOut className="w-5 h-5" />
                         Keluar
@@ -107,31 +105,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
             </aside>
 
-            {/* Mobile Header */}
+            {/* Mobile Header — Liquid Glass Light */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                <header className="lg:hidden bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
+                <header className="lg:hidden bg-white/50 backdrop-blur-2xl border-b border-white/40 p-4 flex items-center justify-between shadow-sm">
                     <Link href="/" className="flex items-center gap-2">
-                        <CreditCard className="w-6 h-6 text-blue-500" />
-                        <span className="text-lg font-bold">GenHub</span>
+                        <CreditCard className="w-6 h-6 text-blue-600" />
+                        <span className="text-lg font-bold text-zinc-900">GenHub</span>
                     </Link>
-                    <button
-                        onClick={() => setIsSidebarOpen(true)}
-                        className="p-2 text-zinc-400"
-                    >
+                    <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-zinc-500 hover:text-zinc-900">
                         <Menu className="w-6 h-6" />
                     </button>
                 </header>
 
-                {/* Transition area for sub-pages */}
+                {/* Main Content + Preview */}
                 <div className="flex-1 flex overflow-hidden">
-                    <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12">
+                    <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 text-zinc-900">
                         {children}
                     </main>
 
-                    {/* Desktop Preview Sidebar */}
-                    <aside className="hidden xl:flex flex-col w-[400px] border-l border-zinc-800 bg-zinc-950 items-center justify-center p-8 sticky top-0 h-full">
+                    {/* Desktop Preview Sidebar — Liquid Glass */}
+                    <aside className="hidden xl:flex flex-col w-[400px] border-l border-white/40 bg-white/30 backdrop-blur-xl items-center justify-center p-8 sticky top-0 h-full">
                         <div className="text-center mb-6">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 bg-zinc-900 px-3 py-1 rounded-full border border-zinc-800">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full border border-zinc-200/50 shadow-sm">
                                 Live Preview
                             </span>
                         </div>
@@ -140,7 +135,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
             </div>
 
-            {/* Mobile Mobile Navigation Overlay */}
+            {/* Mobile Navigation Overlay — Liquid Glass */}
             <AnimatePresence>
                 {isSidebarOpen && (
                     <>
@@ -149,18 +144,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setIsSidebarOpen(false)}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden"
+                            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] lg:hidden"
                         />
                         <motion.aside
                             initial={{ x: '-100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed inset-y-0 left-0 w-[80%] max-w-sm bg-zinc-900 border-r border-zinc-800 z-[101] lg:hidden flex flex-col"
+                            className="fixed inset-y-0 left-0 w-[80%] max-w-sm bg-white/90 backdrop-blur-2xl border-r border-white/50 shadow-xl z-[101] lg:hidden flex flex-col"
                         >
                             <div className="p-6 flex items-center justify-between">
-                                <CreditCard className="w-8 h-8 text-blue-500" />
-                                <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400">
+                                <CreditCard className="w-8 h-8 text-blue-600" />
+                                <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 hover:text-zinc-900">
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
@@ -174,8 +169,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                             href={item.href}
                                             onClick={() => setIsSidebarOpen(false)}
                                             className={`flex items-center justify-between px-4 py-4 rounded-2xl transition-all ${isActive
-                                                ? 'bg-blue-500 text-white font-medium shadow-lg shadow-blue-500/20'
-                                                : 'text-zinc-400 active:bg-zinc-800'
+                                                ? 'bg-blue-600 text-white font-medium shadow-lg shadow-blue-600/20'
+                                                : 'text-zinc-500 active:bg-zinc-100'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-4">
@@ -188,10 +183,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 })}
                             </nav>
 
-                            <div className="p-6 border-t border-zinc-800">
+                            <div className="p-6 border-t border-zinc-200/50">
                                 <button
                                     onClick={handleLogout}
-                                    className="flex items-center gap-4 w-full px-4 py-4 text-red-400 bg-red-500/5 rounded-2xl font-medium"
+                                    className="flex items-center gap-4 w-full px-4 py-4 text-red-500 bg-red-50 rounded-2xl font-medium"
                                 >
                                     <LogOut className="w-5 h-5" />
                                     Keluar

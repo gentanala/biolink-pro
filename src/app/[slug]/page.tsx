@@ -5,7 +5,8 @@ import { notFound, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Instagram, Twitter, Linkedin, Globe, ChevronRight, Mail, Phone, Download, Share2, Copy, Check, X, FileText, Image as ImageIcon, ExternalLink } from 'lucide-react'
+import { Instagram, Twitter, Linkedin, Globe, ChevronRight, Mail, Phone, Download, Share2, Copy, Check, X, FileText, Image as ImageIcon, ExternalLink, QrCode } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { generateVCard } from '@/lib/vcard'
 
 // WhatsApp SVG Icon
@@ -30,6 +31,7 @@ export default function PublicProfile() {
     const [showWelcome, setShowWelcome] = useState(true)
     const [welcomeText, setWelcomeText] = useState('')
     const [welcomeComplete, setWelcomeComplete] = useState(false)
+    const [showQR, setShowQR] = useState(false)
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -236,22 +238,22 @@ export default function PublicProfile() {
                                 <motion.span
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
-                                    className={`text-5xl md:text-6xl ${isLightMode ? 'text-zinc-900' : 'text-white'}`}
+                                    className={`text-4xl md:text-5xl ${isLightMode ? 'text-zinc-900' : 'text-emerald-400'}`}
                                     style={{
-                                        fontFamily: "'Brush Script MT', 'Segoe Script', 'Dancing Script', cursive",
-                                        fontWeight: 300,
-                                        fontStyle: 'italic',
-                                        letterSpacing: '0.02em',
+                                        fontFamily: "var(--font-mono), 'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
+                                        fontWeight: 500,
+                                        fontStyle: 'normal',
+                                        letterSpacing: '0.05em',
                                     }}
                                 >
                                     {welcomeText}
                                     {!welcomeComplete && (
                                         <motion.span
                                             animate={{ opacity: [1, 0] }}
-                                            transition={{ repeat: Infinity, duration: 0.6 }}
-                                            className="inline-block ml-0.5"
+                                            transition={{ repeat: Infinity, duration: 0.5 }}
+                                            className={`inline-block ml-0.5 ${isLightMode ? 'text-zinc-900' : 'text-emerald-400'}`}
                                         >
-                                            |
+                                            ▌
                                         </motion.span>
                                     )}
                                 </motion.span>
@@ -287,9 +289,9 @@ export default function PublicProfile() {
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, ease: "easeOut" }}
-                        className={`relative z-10 -mt-8 rounded-t-[32px] px-6 py-8 min-h-screen transition-colors duration-300 ${isLightMode
-                            ? 'bg-white/60 backdrop-blur-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.06)] border-t border-white/50'
-                            : 'bg-zinc-950/50 backdrop-blur-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.3)] border-t border-white/10'
+                        className={`relative z-10 -mt-8 rounded-t-[32px] px-6 py-8 min-h-screen transition-colors duration-300 border-t ${isLightMode
+                            ? 'bg-white/40 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.04)] border-white/40'
+                            : 'bg-zinc-950/30 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] border-white/10'
                             }`}
                     >
                         {/* Pull indicator */}
@@ -343,8 +345,8 @@ export default function PublicProfile() {
                             </div>
                         )}
 
-                        {/* CTA: Save Contact + Share */}
-                        <div className="flex gap-3 mb-10">
+                        {/* CTA: Save Contact + QR + Share */}
+                        <div className="flex gap-3 mb-6">
                             <button
                                 onClick={handleSaveContact}
                                 className="flex-1 py-4 rounded-2xl font-bold text-base tracking-wide flex items-center justify-center gap-3 active:scale-[0.98] transition-all text-white"
@@ -359,6 +361,16 @@ export default function PublicProfile() {
                                 SAVE CONTACT
                             </button>
                             <button
+                                onClick={() => setShowQR(!showQR)}
+                                className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 active:scale-95 transition-all backdrop-blur-md ${isLightMode
+                                    ? 'bg-white/50 text-zinc-700 border border-white/50 hover:bg-white/70'
+                                    : 'bg-white/5 text-white border border-white/10 hover:bg-white/15'
+                                    }`}
+                                title="Show QR Code"
+                            >
+                                <QrCode className="w-5 h-5" />
+                            </button>
+                            <button
                                 onClick={handleShare}
                                 className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 active:scale-95 transition-all backdrop-blur-md ${isLightMode
                                     ? 'bg-white/50 text-zinc-700 border border-white/50 hover:bg-white/70'
@@ -368,6 +380,25 @@ export default function PublicProfile() {
                                 <Share2 className="w-5 h-5" />
                             </button>
                         </div>
+
+                        {/* QR Code Display */}
+                        <AnimatePresence>
+                            {showQR && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="overflow-hidden mb-8"
+                                >
+                                    <div className={`p-6 rounded-2xl text-center backdrop-blur-xl border ${isLightMode ? 'bg-white/50 border-white/50' : 'bg-white/5 border-white/10'}`}>
+                                        <div className="bg-white p-4 rounded-xl inline-block shadow-sm">
+                                            <QRCodeSVG value={typeof window !== 'undefined' ? window.location.href : ''} size={160} level="M" />
+                                        </div>
+                                        <p className={`text-sm mt-3 ${textMuted}`}>Scan untuk buka profil</p>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         {/* Tabs — Liquid Glass Indicator */}
                         <div className={`flex items-center justify-center gap-2 mb-8 rounded-2xl p-1.5 ${isLightMode ? 'bg-zinc-100/80' : 'bg-white/5'}`}>
