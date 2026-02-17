@@ -85,8 +85,8 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[#f0f0ec] text-zinc-900 overflow-x-hidden selection:bg-cyan-100 selection:text-cyan-700">
 
-      {/* ─── NAVIGATION ─── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 py-5">
+      {/* ─── NAVIGATION (Desktop Only) ─── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 hidden md:flex items-center justify-between px-10 py-5">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 shrink-0">
           <img
@@ -99,7 +99,7 @@ export default function HomePage() {
         {/* Liquid Glass Nav Pill — Center */}
         <div
           ref={navRef}
-          className="hidden md:flex items-center relative rounded-full px-1.5 py-1.5"
+          className="flex items-center relative rounded-full px-1.5 py-1.5"
           style={{
             background: 'linear-gradient(165deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.20) 50%, rgba(255,255,255,0.10) 100%)',
             backdropFilter: 'blur(24px) saturate(160%)',
@@ -151,47 +151,63 @@ export default function HomePage() {
         </Link>
       </nav>
 
-      {/* Mobile Nav — single row, no overlap */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3"
+      {/* Mobile Nav */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 py-2.5"
         style={{
-          background: 'rgba(240,240,236,0.6)',
-          backdropFilter: 'blur(20px) saturate(150%)',
-          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
-          borderBottom: '1px solid rgba(255,255,255,0.3)',
+          background: 'rgba(240,240,236,0.92)',
+          backdropFilter: 'blur(20px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+          borderBottom: '1px solid rgba(0,0,0,0.06)',
         }}
       >
         <Link href="/" className="shrink-0">
-          <img src="/logo.png" alt="Gentanala" className="h-6 w-auto brightness-0" />
+          <img src="/logo.png" alt="Gentanala" className="h-5 w-auto brightness-0" />
         </Link>
-        <div className="flex items-center gap-2">
-          <Link href="/login" className="text-[11px] font-semibold text-zinc-700 px-3 py-1.5 rounded-full"
+        <div className="flex items-center gap-1.5">
+          <Link
+            href="https://gentanala.com"
+            target="_blank"
+            className="text-[10px] font-bold text-zinc-700 px-2.5 py-1.5 rounded-full uppercase tracking-wide"
             style={{
-              background: 'rgba(0, 0, 0, 0.08)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.30)',
+              background: 'rgba(0,0,0,0.06)',
+              border: '1px solid rgba(0,0,0,0.08)',
             }}
-          >Sign In</Link>
-          <Link href="/dashboard" className="text-zinc-700 p-2 rounded-full"
+          >
+            Buy
+          </Link>
+          <Link
+            href="/login"
+            className="text-[10px] font-bold text-white px-2.5 py-1.5 rounded-full uppercase tracking-wide"
             style={{
-              background: 'rgba(0, 0, 0, 0.08)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.30)',
+              background: 'rgba(20,20,20,0.85)',
             }}
-          ><LayoutDashboard className="w-3.5 h-3.5" /></Link>
+          >
+            Sign In
+          </Link>
+          <Link
+            href="/dashboard"
+            className="text-zinc-600 p-1.5 rounded-full flex items-center justify-center"
+            style={{
+              background: 'rgba(0,0,0,0.06)',
+              border: '1px solid rgba(0,0,0,0.06)',
+            }}
+          >
+            <LayoutDashboard className="w-3.5 h-3.5" />
+          </Link>
         </div>
       </div>
 
 
-      {/* ─── HERO BANNER (STICKY — Content scrolls over it) ─── */}
-      <div ref={heroRef} className="sticky top-0 w-full h-screen z-0">
-        {/* Desktop: fill cover / Mobile: contain full image */}
+      {/* ─── HERO BANNER (STICKY) ─── */}
+      <div ref={heroRef} className="sticky top-0 w-full h-[60vh] md:h-screen z-0">
         <img
           src="https://damgyhadhnirwabekbvs.supabase.co/storage/v1/object/public/public-assets/7a9c1211-b7bf-4f1d-8da5-57c3ea8e9072/banner%20home%20page%20nfc%20web.jpg"
           alt="Gentanala NFC Watch"
-          className="w-full h-full object-cover md:object-cover object-contain object-top bg-white"
+          className="w-full h-full object-cover bg-[#f0f0ec]"
+          style={{ objectPosition: 'center 30%' }}
         />
-        {/* Fade only at the very bottom — 30% height max */}
-        <div className="absolute bottom-0 left-0 right-0 h-[30%] bg-gradient-to-t from-[#f0f0ec] via-[#f0f0ec]/60 to-transparent" />
+        {/* Fade gradient responsive */}
+        <div className="absolute bottom-0 left-0 right-0 h-[35%] md:h-[30%] bg-gradient-to-t from-[#f0f0ec] via-[#f0f0ec]/50 to-transparent" />
       </div>
 
 
@@ -240,26 +256,26 @@ export default function HomePage() {
                 href="https://gentanala.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-10 py-4 rounded-full text-zinc-800 text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 hover:scale-[1.03] w-full sm:w-auto flex items-center justify-center gap-3"
+                className="px-10 py-4 rounded-full text-white text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 hover:scale-[1.03] w-full sm:w-auto flex items-center justify-center gap-3"
                 style={{
-                  background: 'rgba(0, 0, 0, 0.08)',
-                  backdropFilter: 'blur(16px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(16px) saturate(140%)',
-                  border: '1.5px solid rgba(255,255,255,0.40)',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.04), inset 0 1px 2px rgba(255,255,255,0.50)',
+                  background: 'rgba(20, 20, 20, 0.85)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
                 }}
               >
                 Buy NFC Watch <ExternalLink className="w-4 h-4" />
               </Link>
               <Link
                 href="/login"
-                className="px-10 py-4 rounded-full text-zinc-800 text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 hover:scale-[1.03] w-full sm:w-auto text-center"
+                className="px-10 py-4 rounded-full text-zinc-700 text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 hover:scale-[1.03] w-full sm:w-auto text-center"
                 style={{
-                  background: 'rgba(0, 0, 0, 0.04)',
+                  background: 'rgba(255, 255, 255, 0.5)',
                   backdropFilter: 'blur(12px)',
                   WebkitBackdropFilter: 'blur(12px)',
                   border: '1.5px solid rgba(0,0,0,0.08)',
-                  boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.40)',
+                  boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.60)',
                 }}
               >
                 Sign In to Profile
@@ -335,19 +351,23 @@ export default function HomePage() {
                     {/* Dynamic Island */}
                     <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[24px] bg-black rounded-full z-20" />
 
-                    {/* Live iframe — scrollable */}
-                    <iframe
-                      src="https://biolink-pro-mu.vercel.app/tap/8cfc5775-897d-418f-8041-322925bbd23f"
-                      title="Gentanala Profile Demo"
-                      className="w-full h-full rounded-[36px] border-0"
-                      style={{
-                        pointerEvents: 'auto',
-                        transform: 'scale(1)',
-                        transformOrigin: 'top left',
-                      }}
-                      loading="lazy"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
-                    />
+                    {/* Live iframe — scaled to match inner frame */}
+                    <div className="w-full h-full" style={{ overflow: 'hidden' }}>
+                      <iframe
+                        src="https://biolink-pro-mu.vercel.app/tap/8cfc5775-897d-418f-8041-322925bbd23f"
+                        title="Gentanala Profile Demo"
+                        className="border-0"
+                        style={{
+                          width: '390px',
+                          height: '844px',
+                          pointerEvents: 'auto',
+                          transform: 'scale(0.677)',  // 264px inner / 390px viewport
+                          transformOrigin: 'top left',
+                        }}
+                        loading="lazy"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                      />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -431,13 +451,13 @@ export default function HomePage() {
                 href="https://gentanala.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 px-12 py-5 rounded-full text-zinc-800 text-[13px] font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                className="inline-flex items-center gap-3 px-12 py-5 rounded-full text-white text-[13px] font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
                 style={{
-                  background: 'rgba(0, 0, 0, 0.10)',
-                  backdropFilter: 'blur(16px) saturate(140%)',
-                  WebkitBackdropFilter: 'blur(16px) saturate(140%)',
-                  border: '1.5px solid rgba(255,255,255,0.45)',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.04), inset 0 1px 3px rgba(255,255,255,0.50)',
+                  background: 'rgba(20, 20, 20, 0.85)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
                 }}
               >
                 Start Your Journey <ArrowRight className="w-5 h-5" />
