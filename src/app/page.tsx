@@ -184,13 +184,14 @@ export default function HomePage() {
 
       {/* ─── HERO BANNER (STICKY — Content scrolls over it) ─── */}
       <div ref={heroRef} className="sticky top-0 w-full h-screen z-0">
+        {/* Desktop: fill cover / Mobile: contain full image */}
         <img
           src="/hero-banner.jpg"
           alt="Gentanala NFC Watch"
-          className="w-full h-full object-cover object-center"
+          className="w-full h-full object-cover md:object-cover object-contain object-top bg-white"
         />
-        {/* Bottom fade so text on content section is readable */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#f0f0ec] via-[#f0f0ec]/30 to-transparent" />
+        {/* Fade only at the very bottom — 30% height max */}
+        <div className="absolute bottom-0 left-0 right-0 h-[30%] bg-gradient-to-t from-[#f0f0ec] via-[#f0f0ec]/60 to-transparent" />
       </div>
 
 
@@ -198,9 +199,9 @@ export default function HomePage() {
       <div className="relative z-10">
 
         {/* ─── §3 HEADLINE + TAGLINE ─── */}
-        <section className="relative px-6 pt-20 pb-16 -mt-[45vh]"
+        <section className="relative px-6 pt-20 pb-16 -mt-[30vh]"
           style={{
-            background: 'linear-gradient(180deg, transparent 0%, #f0f0ec 35%)',
+            background: 'linear-gradient(180deg, transparent 0%, #f0f0ec 25%)',
           }}
         >
           <div className="max-w-4xl mx-auto text-center">
@@ -239,20 +240,29 @@ export default function HomePage() {
                 href="https://gentanala.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="lg-cta px-10 py-4 rounded-full text-white text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 w-full sm:w-auto flex items-center justify-center gap-3"
+                className="px-10 py-4 rounded-full text-zinc-800 text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 hover:scale-[1.03] w-full sm:w-auto flex items-center justify-center gap-3"
                 style={{
-                  background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+                  background: 'rgba(0, 0, 0, 0.08)',
+                  backdropFilter: 'blur(16px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+                  border: '1.5px solid rgba(255,255,255,0.40)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.04), inset 0 1px 2px rgba(255,255,255,0.50)',
                 }}
               >
-                <span style={{ position: 'relative', zIndex: 2 }} className="flex items-center gap-3">
-                  Buy NFC Watch <ExternalLink className="w-4 h-4" />
-                </span>
+                Buy NFC Watch <ExternalLink className="w-4 h-4" />
               </Link>
               <Link
                 href="/login"
-                className="lg-item px-10 py-4 rounded-full text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 w-full sm:w-auto text-zinc-700"
+                className="px-10 py-4 rounded-full text-zinc-800 text-[13px] font-bold uppercase tracking-widest transition-all active:scale-95 hover:scale-[1.03] w-full sm:w-auto text-center"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.04)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1.5px solid rgba(0,0,0,0.08)',
+                  boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.40)',
+                }}
               >
-                <span style={{ position: 'relative', zIndex: 2 }}>Sign In to Profile</span>
+                Sign In to Profile
               </Link>
             </motion.div>
           </div>
@@ -309,7 +319,7 @@ export default function HomePage() {
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row items-center gap-16">
 
-              {/* Phone mockup */}
+              {/* Live Phone Mockup — scrollable iframe */}
               <motion.div
                 initial={{ opacity: 0, x: -60 }}
                 whileInView={{ opacity: 1, x: 0 }}
@@ -317,46 +327,27 @@ export default function HomePage() {
                 transition={{ duration: 0.8 }}
                 className="md:w-1/2 flex justify-center"
               >
-                <div className="relative w-[280px] h-[560px]">
+                <div className="relative w-[280px] h-[580px]">
                   {/* Phone frame */}
-                  <div className="absolute inset-0 rounded-[40px] bg-zinc-900 shadow-[0_25px_60px_rgba(0,0,0,0.3)]"
-                    style={{
-                      border: '6px solid #222',
-                    }}
+                  <div className="absolute inset-0 rounded-[44px] bg-zinc-900 shadow-[0_25px_60px_rgba(0,0,0,0.3)] overflow-hidden"
+                    style={{ border: '8px solid #1a1a1a' }}
                   >
-                    {/* Notch */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[100px] h-[26px] bg-zinc-900 rounded-b-2xl z-20" />
+                    {/* Dynamic Island */}
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-[90px] h-[24px] bg-black rounded-full z-20" />
 
-                    {/* Screen content */}
-                    <div className="w-full h-full rounded-[34px] overflow-hidden bg-gradient-to-b from-zinc-800 to-zinc-950 p-4 pt-10">
-                      {/* Mini avatar */}
-                      <div className="flex flex-col items-center mb-4">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 mb-3 flex items-center justify-center text-white text-xl font-bold">
-                          G
-                        </div>
-                        <p className="text-white font-bold text-sm">@gentanala</p>
-                        <p className="text-white/50 text-xs mt-1">Digital Creator</p>
-                      </div>
-
-                      {/* Mini social row */}
-                      <div className="flex justify-center gap-2 mb-4">
-                        {[Instagram, Twitter, Share2].map((Icon, i) => (
-                          <div key={i} className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center">
-                            <Icon className="w-4 h-4 text-white/70" />
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Mini link items */}
-                      {['Portfolio Website', 'Book a Call', 'Latest Project'].map((label, i) => (
-                        <div key={i} className="w-full p-3 rounded-xl bg-white/5 border border-white/10 mb-2 flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                            <ExternalLink className="w-4 h-4 text-white/60" />
-                          </div>
-                          <span className="text-white/80 text-xs font-medium">{label}</span>
-                        </div>
-                      ))}
-                    </div>
+                    {/* Live iframe — scrollable */}
+                    <iframe
+                      src="https://biolink-pro-mu.vercel.app/tap/8cfc5775-897d-418f-8041-322925bbd23f"
+                      title="Gentanala Profile Demo"
+                      className="w-full h-full rounded-[36px] border-0"
+                      style={{
+                        pointerEvents: 'auto',
+                        transform: 'scale(1)',
+                        transformOrigin: 'top left',
+                      }}
+                      loading="lazy"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                    />
                   </div>
                 </div>
               </motion.div>
@@ -440,14 +431,16 @@ export default function HomePage() {
                 href="https://gentanala.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="lg-cta inline-flex items-center gap-3 px-12 py-5 rounded-full text-white text-[13px] font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                className="inline-flex items-center gap-3 px-12 py-5 rounded-full text-zinc-800 text-[13px] font-bold uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
                 style={{
-                  background: 'linear-gradient(135deg, #1a1a1a 0%, #333 100%)',
+                  background: 'rgba(0, 0, 0, 0.10)',
+                  backdropFilter: 'blur(16px) saturate(140%)',
+                  WebkitBackdropFilter: 'blur(16px) saturate(140%)',
+                  border: '1.5px solid rgba(255,255,255,0.45)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.04), inset 0 1px 3px rgba(255,255,255,0.50)',
                 }}
               >
-                <span style={{ position: 'relative', zIndex: 2 }} className="flex items-center gap-3">
-                  Start Your Journey <ArrowRight className="w-5 h-5" />
-                </span>
+                Start Your Journey <ArrowRight className="w-5 h-5" />
               </Link>
             </motion.div>
           </div>
