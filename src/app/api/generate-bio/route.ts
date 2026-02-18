@@ -26,13 +26,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Keywords are required' }, { status: 400 })
         }
 
-        // 3. Initialize Gemini with v1beta (required for Flash model)
+        // 3. Initialize Gemini (Standard SDK Usage)
         const genAI = new GoogleGenerativeAI(apiKey)
-        const model = genAI.getGenerativeModel({
-            model: 'gemini-1.5-flash'
-        }, {
-            apiVersion: 'v1beta'
-        })
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
         const prompt = `Lo adalah pakar personal branding Gentanala. Buat bio singkat (maks 200 karakter) yang elegan, profesional, tapi pake gaya bahasa lo-gue yang asik sesuai karakter Reza Rahman (Nje). Fokus ke inovasi dan visi.
 
