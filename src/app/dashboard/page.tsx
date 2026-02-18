@@ -20,7 +20,8 @@ import {
     Check,
     Leaf,
     Wind,
-    TreeDeciduous
+    TreeDeciduous,
+    Smartphone
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { downloadVCard } from '@/lib/vcard'
@@ -48,6 +49,7 @@ export default function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true)
 
     const [showClaimSuccess, setShowClaimSuccess] = useState(false)
+    const [showPWAHint, setShowPWAHint] = useState(false)
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
@@ -235,6 +237,16 @@ export default function DashboardPage() {
                     </h1>
                     <p className="text-zinc-500">
                         Kelola profil kartu nama digital Anda dari sini
+                    </p>
+                    <p className="text-xs text-zinc-400 mt-2 flex items-center gap-1.5">
+                        <Smartphone className="w-3.5 h-3.5 text-blue-500" />
+                        Akses lebih cepat & praktis?
+                        <button
+                            onClick={() => setShowPWAHint(true)}
+                            className="text-blue-600 font-bold hover:underline"
+                        >
+                            Pasang di HP (Android/iOS)
+                        </button>
                     </p>
                 </motion.div>
 
@@ -614,8 +626,8 @@ export default function DashboardPage() {
                     🔧 Dev Mode
                 </span>
             </div>
-            {/* PWA Save as App Hint */}
-            <PWAHint />
+            {/* PWA Save as App Hint Modal */}
+            <PWAHint isOpen={showPWAHint} onClose={() => setShowPWAHint(false)} />
         </div>
     )
 }
