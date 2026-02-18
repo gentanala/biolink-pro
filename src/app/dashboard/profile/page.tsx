@@ -277,6 +277,7 @@ export default function ProfileEditor() {
                 setShowAIModal(false)
                 setAiKeywords('')
             } else {
+                console.error('AI API Error Details:', data)
                 const errorMsg = data.error || 'Gagal buat bio, coba lagi ya.'
                 alert(`Error: ${errorMsg}`)
             }

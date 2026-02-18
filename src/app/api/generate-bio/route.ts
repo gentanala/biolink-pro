@@ -32,8 +32,21 @@ Hasilkan hanya teks bio saja, tanpa awalan atau akhiran.`
         console.log('Sending request to Gemini model...')
         const result = await model.generateContent(prompt)
         const response = await result.response
-        const text = response.text().trim()
+
+        // Handle potential safety blocks
+        let text = ''
+        try {
+            text = response.text().trim()
+        } catch (e: any) {
+            console.error('Error extracting text (possibly safety filter):', e.message)
+            return NextResponse.json({ error: 'AI memblokir konten ini karena alasan keamanan/kebijakan.' }, { status: 400 })
+        }
+
         console.log('Gemini Response success:', !!text)
+
+        if (!text) {
+            return NextResponse.json({ error: 'AI tidak menghasilkan teks apapun.' }, { status: 400 })
+        }
 
         return NextResponse.json({ bio: text })
     } catch (error: any) {
