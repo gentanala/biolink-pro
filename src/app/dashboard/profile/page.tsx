@@ -506,111 +506,113 @@ export default function ProfileEditor() {
                     </div>
                 </motion.section>
 
-                {/* AI Avatar Generator Section */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="glass rounded-3xl p-6 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 border-indigo-100"
-                >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-zinc-900">
-                        <Bot className="w-5 h-5 text-indigo-600" />
-                        AI Avatar Generator
-                    </h2>
+                {/* AI Avatar Generator Section (Hidden for now) */}
+                {process.env.NEXT_PUBLIC_ENABLE_AI_AVATAR === 'true' && (
+                    <motion.section
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="glass rounded-3xl p-6 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 border-indigo-100 mb-8"
+                    >
+                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-zinc-900">
+                            <Bot className="w-5 h-5 text-indigo-600" />
+                            AI Avatar Generator
+                        </h2>
 
-                    <div className="space-y-6">
-                        {/* Style Selector */}
-                        <div>
-                            <label className="block text-xs font-medium text-zinc-500 uppercase mb-3">Pilih Gaya</label>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {['professional', 'creative', 'noir', 'cyberpunk'].map((style) => (
-                                    <button
-                                        key={style}
-                                        type="button"
-                                        onClick={() => setAvatarStyle(style)}
-                                        className={`text-xs font-bold py-3 px-2 rounded-xl transition-all border ${avatarStyle === style
-                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105'
-                                            : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50'
-                                            }`}
-                                    >
-                                        {style.charAt(0).toUpperCase() + style.slice(1)}
-                                    </button>
-                                ))}
+                        <div className="space-y-6">
+                            {/* Style Selector */}
+                            <div>
+                                <label className="block text-xs font-medium text-zinc-500 uppercase mb-3">Pilih Gaya</label>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    {['professional', 'creative', 'noir', 'cyberpunk'].map((style) => (
+                                        <button
+                                            key={style}
+                                            type="button"
+                                            onClick={() => setAvatarStyle(style)}
+                                            className={`text-xs font-bold py-3 px-2 rounded-xl transition-all border ${avatarStyle === style
+                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105'
+                                                : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50'
+                                                }`}
+                                        >
+                                            {style.charAt(0).toUpperCase() + style.slice(1)}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Action Area */}
+                            <div className="flex flex-col items-center gap-4">
+                                {!generatedAvatarUrl ? (
+                                    <div className="w-full">
+                                        <button
+                                            type="button"
+                                            onClick={() => avatarInputRef.current?.click()}
+                                            disabled={isAvatarGenerating}
+                                            className="w-full py-8 border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 rounded-2xl flex flex-col items-center justify-center gap-2 group transition-all"
+                                        >
+                                            {isAvatarGenerating ? (
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                                                    <span className="text-sm font-medium text-indigo-600 animate-pulse">Sedang menggambar wajahmu... (15-30s)</span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                        <Sparkles className="w-6 h-6 text-indigo-600" />
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <p className="text-sm font-bold text-zinc-700">Upload Selfie & Generate</p>
+                                                        <p className="text-xs text-zinc-400">Pilih foto wajah yang jelas</p>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </button>
+                                        <input
+                                            ref={avatarInputRef}
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={handleAvatarGenerate}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="w-full space-y-4">
+                                        <div className="flex items-center gap-4 justify-center">
+                                            <div className="text-center space-y-2">
+                                                <p className="text-xs text-zinc-400 uppercase">Original</p>
+                                                <img src={originalAvatarUrl} alt="Original" className="w-24 h-24 rounded-2xl object-cover border border-zinc-200 opacity-75" />
+                                            </div>
+                                            <div className="flex items-center justify-center text-zinc-300">
+                                                <Wand2 className="w-5 h-5" />
+                                            </div>
+                                            <div className="text-center space-y-2">
+                                                <p className="text-xs text-indigo-600 font-bold uppercase">AI Result</p>
+                                                <img src={generatedAvatarUrl} alt="Generated" className="w-24 h-24 rounded-2xl object-cover border-2 border-indigo-500 shadow-lg" />
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={applyAiAvatar}
+                                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors"
+                                            >
+                                                Pakai Foto Ini
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setGeneratedAvatarUrl(''); setOriginalAvatarUrl('') }}
+                                                className="px-4 py-2.5 bg-white border border-zinc-200 text-zinc-600 font-bold rounded-xl text-sm hover:bg-zinc-50"
+                                            >
+                                                Ulang
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
-
-                        {/* Action Area */}
-                        <div className="flex flex-col items-center gap-4">
-                            {!generatedAvatarUrl ? (
-                                <div className="w-full">
-                                    <button
-                                        type="button"
-                                        onClick={() => avatarInputRef.current?.click()}
-                                        disabled={isAvatarGenerating}
-                                        className="w-full py-8 border-2 border-dashed border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 rounded-2xl flex flex-col items-center justify-center gap-2 group transition-all"
-                                    >
-                                        {isAvatarGenerating ? (
-                                            <div className="flex flex-col items-center gap-3">
-                                                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-                                                <span className="text-sm font-medium text-indigo-600 animate-pulse">Sedang menggambar wajahmu... (15-30s)</span>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                    <Sparkles className="w-6 h-6 text-indigo-600" />
-                                                </div>
-                                                <div className="text-center">
-                                                    <p className="text-sm font-bold text-zinc-700">Upload Selfie & Generate</p>
-                                                    <p className="text-xs text-zinc-400">Pilih foto wajah yang jelas</p>
-                                                </div>
-                                            </>
-                                        )}
-                                    </button>
-                                    <input
-                                        ref={avatarInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={handleAvatarGenerate}
-                                    />
-                                </div>
-                            ) : (
-                                <div className="w-full space-y-4">
-                                    <div className="flex items-center gap-4 justify-center">
-                                        <div className="text-center space-y-2">
-                                            <p className="text-xs text-zinc-400 uppercase">Original</p>
-                                            <img src={originalAvatarUrl} alt="Original" className="w-24 h-24 rounded-2xl object-cover border border-zinc-200 opacity-75" />
-                                        </div>
-                                        <div className="flex items-center justify-center text-zinc-300">
-                                            <Wand2 className="w-5 h-5" />
-                                        </div>
-                                        <div className="text-center space-y-2">
-                                            <p className="text-xs text-indigo-600 font-bold uppercase">AI Result</p>
-                                            <img src={generatedAvatarUrl} alt="Generated" className="w-24 h-24 rounded-2xl object-cover border-2 border-indigo-500 shadow-lg" />
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={applyAiAvatar}
-                                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors"
-                                        >
-                                            Pakai Foto Ini
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setGeneratedAvatarUrl(''); setOriginalAvatarUrl('') }}
-                                            className="px-4 py-2.5 bg-white border border-zinc-200 text-zinc-600 font-bold rounded-xl text-sm hover:bg-zinc-50"
-                                        >
-                                            Ulang
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </motion.section>
+                    </motion.section>
+                )}
 
                 {/* Welcome Word Section */}
                 <motion.section
