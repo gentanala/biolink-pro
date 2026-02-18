@@ -30,9 +30,9 @@ Keywords user: ${keywords}
 
 Hasilkan hanya teks bio saja, tanpa awalan atau akhiran.`
 
-        // Using Gemini Pro via direct REST API (v1beta) - Most stable model
+        // Using Gemini 3.0 Flash via direct REST API (v1beta) - Latest model per user request & research
         // Docs: https://ai.google.dev/api/rest/v1beta/models/generateContent
-        const baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
+        const baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.0-flash:generateContent'
         const url = `${baseUrl}?key=${apiKey}`
 
         const payload = {
