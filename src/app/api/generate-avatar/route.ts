@@ -1,10 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-// Feature Flag Check
-const ENABLE_AI_AVATAR = process.env.NEXT_PUBLIC_ENABLE_AI_AVATAR === 'true'
-
-// Style Presets with Hidden Prompts
 const STYLE_PRESETS: Record<string, string> = {
     'professional': 'Generate a professional ID photo, suit and tie, neutral grey background, studio lighting, hyperrealistic, 8k resolution, maintaining facial features of the reference image.',
     'creative': 'Generate a creative artistic portrait, colorful abstract background, modern art style, vibrant colors, maintaining facial features of the reference image.',
@@ -15,10 +11,13 @@ const STYLE_PRESETS: Record<string, string> = {
 export async function POST(req: Request) {
     console.log("--- AI AVATAR GENERATION START ---")
 
-    // 1. Safety Toggle Check
-    if (!ENABLE_AI_AVATAR) {
+    // 1. Safety Toggle Check - Moving inside handler for runtime evaluation
+    const isFeatureEnabled = process.env.NEXT_PUBLIC_ENABLE_AI_AVATAR === 'true'
+
+    if (!isFeatureEnabled) {
+        console.warn("AI Avatar attempted but feature flag is OFF");
         return NextResponse.json(
-            { error: 'AI Avatar generation is currently disabled.' },
+            { error: 'AI Avatar generation is currently disabled. Check Vercel Env Vars.' },
             { status: 403 }
         )
     }
