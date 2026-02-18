@@ -1,10 +1,8 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
-    console.log("CEK MODEL GEMINI PRO") // Debug marker requested by user
+    console.log("--- NATIVE FETCH GEMINI START (v2) ---")
     try {
-        // 1. Check API Key
         const apiKey = process.env.GOOGLE_GEMINI_API_KEY
         if (!apiKey) {
             console.error('API Key Error: GOOGLE_GEMINI_API_KEY is missing')
@@ -14,7 +12,6 @@ export async function POST(req: Request) {
             )
         }
 
-        // 2. Parse Body
         let keywords = ''
         try {
             const body = await req.json()
@@ -27,42 +24,52 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Keywords are required' }, { status: 400 })
         }
 
-        // 3. Initialize Gemini (Standard SDK Usage)
-        const genAI = new GoogleGenerativeAI(apiKey)
-        // Downgrade to gemini-pro for stability
-        const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
-
-        const prompt = `Lo adalah pakar personal branding Gentanala. Buat bio singkat (maks 200 karakter) yang elegan, profesional, tapi pake gaya bahasa lo-gue yang asik sesuai karakter Reza Rahman (Nje). Fokus ke inovasi dan visi.
+        const promptText = `Lo adalah pakar personal branding Gentanala. Buat bio singkat (maks 200 karakter) yang elegan, profesional, tapi pake gaya bahasa lo-gue yang asik sesuai karakter Reza Rahman (Nje). Fokus ke inovasi dan visi.
 
 Keywords user: ${keywords}
 
 Hasilkan hanya teks bio saja, tanpa awalan atau akhiran.`
 
-        console.log('--- AI Bio Request (v1beta) ---')
-        console.log('Model: gemini-1.5-flash')
-        console.log('Keywords:', keywords)
+        // Using Gemini 1.5 Flash via direct REST API (v1beta) - Cleanest approach
+        // Docs: https://ai.google.dev/api/rest/v1beta/models/generateContent
+        const baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
+        const url = `${baseUrl}?key=${apiKey}`
 
-        // 4. Generate Content with Safety Handling
-        try {
-            const result = await model.generateContent(prompt)
-            const response = await result.response
-            const text = response.text()
-
-            if (!text) {
-                throw new Error('Empty response from AI')
-            }
-
-            console.log('Gemini Success!')
-            // 5. Return Success JSON
-            return NextResponse.json({ bio: text.trim() })
-
-        } catch (genError: any) {
-            console.error('Gemini Generation Error Details:', genError)
-            return NextResponse.json(
-                { error: 'AI generation failed: ' + (genError.message || 'Unknown error') },
-                { status: 500 }
-            )
+        const payload = {
+            contents: [{
+                parts: [{ text: promptText }]
+            }]
         }
+
+        console.log('Sending Fetch Request to:', baseUrl)
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+            console.error('Gemini REST Error:', JSON.stringify(data, null, 2))
+            const errorMsg = data.error?.message || 'Unknown Gemini API Error'
+            return NextResponse.json({ error: `Gemini API Error: ${errorMsg}` }, { status: response.status })
+        }
+
+        // Parse response structure
+        // { candidates: [ { content: { parts: [ { text: "..." } ] } } ] }
+        const bio = data.candidates?.[0]?.content?.parts?.[0]?.text
+
+        if (!bio) {
+            console.error('Unexpected Response Structure:', JSON.stringify(data, null, 2))
+            return NextResponse.json({ error: 'AI processed but returned no text.' }, { status: 500 })
+        }
+
+        console.log('Gemini Success! Bio generated.')
+        return NextResponse.json({ bio: bio.trim() })
 
     } catch (error: any) {
         console.error('Server Handler Error:', error)
