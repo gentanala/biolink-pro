@@ -3,56 +3,65 @@ import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
     try {
+        // 1. Check API Key
         const apiKey = process.env.GOOGLE_GEMINI_API_KEY
-        console.log('--- AI Bio Generation Started ---')
-        console.log('API Key present:', !!apiKey)
-
         if (!apiKey) {
-            console.error('ERROR: GOOGLE_GEMINI_API_KEY is missing from environment variables')
-            return NextResponse.json({ error: 'Gemini API Key not found' }, { status: 500 })
+            console.error('API Key Error: GOOGLE_GEMINI_API_KEY is missing')
+            return NextResponse.json(
+                { error: 'Server configuration error: API Key missing' },
+                { status: 500 }
+            )
         }
 
-        const { keywords } = await req.json()
-        console.log('Keywords received:', keywords)
+        // 2. Parse Body
+        let keywords = ''
+        try {
+            const body = await req.json()
+            keywords = body.keywords
+        } catch (e) {
+            return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+        }
 
         if (!keywords) {
             return NextResponse.json({ error: 'Keywords are required' }, { status: 400 })
         }
 
+        // 3. Initialize Gemini
         const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
-        // ... prompt logic ...
         const prompt = `Lo adalah pakar personal branding Gentanala. Buat bio singkat (maks 200 karakter) yang elegan, profesional, tapi pake gaya bahasa lo-gue yang asik sesuai karakter Reza Rahman (Nje). Fokus ke inovasi dan visi.
 
 Keywords user: ${keywords}
 
 Hasilkan hanya teks bio saja, tanpa awalan atau akhiran.`
 
-        console.log('Sending request to Gemini model...')
-        const result = await model.generateContent(prompt)
-        const response = await result.response
-
-        // Handle potential safety blocks
-        let text = ''
+        // 4. Generate Content with Safety Handling
         try {
-            text = response.text().trim()
-        } catch (e: any) {
-            console.error('Error extracting text (possibly safety filter):', e.message)
-            return NextResponse.json({ error: 'AI memblokir konten ini karena alasan keamanan/kebijakan.' }, { status: 400 })
+            const result = await model.generateContent(prompt)
+            const response = await result.response
+            const text = response.text()
+
+            if (!text) {
+                throw new Error('Empty response from AI')
+            }
+
+            // 5. Return Success JSON
+            return NextResponse.json({ bio: text.trim() })
+
+        } catch (genError: any) {
+            console.error('Gemini Generation Error:', genError)
+            return NextResponse.json(
+                { error: 'AI generation failed: ' + (genError.message || 'Unknown error') },
+                { status: 500 }
+            )
         }
 
-        console.log('Gemini Response success:', !!text)
-
-        if (!text) {
-            return NextResponse.json({ error: 'AI tidak menghasilkan teks apapun.' }, { status: 400 })
-        }
-
-        return NextResponse.json({ bio: text })
     } catch (error: any) {
-        console.error('--- Gemini API Error Details ---')
-        console.error('Message:', error.message)
-        console.error('Stack:', error.stack)
-        return NextResponse.json({ error: 'Failed to generate bio' }, { status: 500 })
+        console.error('Server Handler Error:', error)
+        return NextResponse.json(
+            { error: 'Internal Server Error: ' + error.message },
+            { status: 500 }
+        )
     }
 }
