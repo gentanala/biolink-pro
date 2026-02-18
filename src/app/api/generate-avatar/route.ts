@@ -43,8 +43,9 @@ export async function POST(req: Request) {
         const timestamp = Date.now()
 
         // 3. Upload Original to Supabase (Backup)
+        // RLS requirement: userId must be the FIRST folder in the path
         const fileExt = file.name.split('.').pop() || 'jpg'
-        const originalPath = `originals/${userId}/${timestamp}.${fileExt}`
+        const originalPath = `${userId}/ai-avatar/originals/${timestamp}.${fileExt}`
 
         const { error: uploadError } = await supabase.storage
             .from('avatars')
@@ -124,7 +125,7 @@ export async function POST(req: Request) {
 
         // 7. Upload Generated to Supabase
         const generatedBuffer = Buffer.from(generatedBase64, 'base64')
-        const generatedPath = `generated/${userId}/${timestamp}_${styleId}.png`
+        const generatedPath = `${userId}/ai-avatar/generated/${timestamp}_${styleId}.png`
 
         const { error: genUploadError } = await supabase.storage
             .from('avatars')
