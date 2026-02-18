@@ -17,7 +17,9 @@ import {
     X,
     Image as ImageIcon,
     FileText,
-    Trash2
+    Trash2,
+    Sparkles,
+    Wand2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { uploadAvatar, uploadGalleryImage, deleteFile } from '@/lib/storage'
@@ -49,6 +51,10 @@ export default function ProfileEditor() {
         job_title: '',
         avatar_url: '',
     })
+
+    const [isGenerating, setIsGenerating] = useState(false)
+    const [showAIModal, setShowAIModal] = useState(false)
+    const [aiKeywords, setAiKeywords] = useState('')
 
     // Load initial data from Supabase (with localStorage fallback)
     useEffect(() => {
@@ -249,6 +255,36 @@ export default function ProfileEditor() {
     const removeFileItem = (id: string) => {
         const newFiles = formData.files.filter(item => item.id !== id)
         updateField('files', newFiles)
+    }
+
+    const generateAIBio = async () => {
+        if (!aiKeywords.trim()) {
+            alert('Masukan keyword dulu bro!')
+            return
+        }
+
+        setIsGenerating(true)
+        try {
+            const response = await fetch('/api/generate-bio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keywords: aiKeywords })
+            })
+
+            const data = await response.json()
+            if (data.bio) {
+                updateField('bio', data.bio)
+                setShowAIModal(false)
+                setAiKeywords('')
+            } else {
+                alert('Gagal buat bio, coba lagi ya.')
+            }
+        } catch (err) {
+            console.error(err)
+            alert('Ada masalah pas hubungi AI.')
+        } finally {
+            setIsGenerating(false)
+        }
     }
 
 
@@ -626,14 +662,67 @@ export default function ProfileEditor() {
                         </div>
 
                         <div>
-                            <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Bio Singkat</label>
-                            <textarea
-                                value={formData.bio}
-                                onChange={(e) => updateField('bio', e.target.value)}
-                                placeholder="Tuliskan bio singkat Anda..."
-                                rows={3}
-                                className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none resize-none"
-                            />
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider">Bio Singkat</label>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAIModal(true)}
+                                    className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-all border border-blue-100"
+                                >
+                                    <Sparkles className="w-3 h-3" />
+                                    Tulis Pake AI
+                                </button>
+                            </div>
+                            
+                            {showAIModal && (
+                                <motion.div 
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="mb-4 p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3"
+                                >
+                                    <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Apa yang pengen lo highlight?</p>
+                                    <input 
+                                        type="text"
+                                        value={aiKeywords}
+                                        onChange={(e) => setAiKeywords(e.target.value)}
+                                        placeholder="Misal: Arsitek, Founder Jam Tangan, Suka Golf"
+                                        className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
+                                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), generateAIBio())}
+                                    />
+                                    <div className="flex gap-2">
+                                        <button 
+                                            type="button"
+                                            onClick={generateAIBio}
+                                            disabled={isGenerating}
+                                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                                        >
+                                            {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                                            {isGenerating ? 'Lagi Mikir...' : 'Generate Bio'}
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setShowAIModal(false)}
+                                            className="px-4 py-2 bg-white border border-zinc-200 text-zinc-600 text-xs font-bold rounded-lg hover:bg-zinc-50 transition-colors"
+                                        >
+                                            Batal
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            <div className="relative">
+                                <textarea
+                                    value={formData.bio}
+                                    onChange={(e) => updateField('bio', e.target.value)}
+                                    placeholder="Tuliskan bio singkat Anda..."
+                                    rows={3}
+                                    maxLength={200}
+                                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none resize-none"
+                                />
+                                <div className="absolute bottom-3 right-3 text-[10px] font-mono text-zinc-400">
+                                    {formData.bio.length}/200
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </motion.section>
