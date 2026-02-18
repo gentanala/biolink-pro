@@ -131,16 +131,22 @@ export default function DashboardPage() {
                 localStorage.setItem('genhub_activated', 'true')
             }
 
-            // Load real analytics from Supabase theme JSON
-            const { data: analyticsData } = await supabase
-                .from('profiles')
-                .select('theme')
-                .eq('user_id', authUser.id)
-                .single()
+            // Load real analytics from analytics table
+            if (dbProfile) {
+                const { count: viewsCount } = await supabase
+                    .from('analytics')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('profile_id', dbProfile.id)
+                    .eq('event_type', 'view')
 
-            if (analyticsData?.theme) {
-                setViewCount(analyticsData.theme.view_count || 0)
-                setLinkClicks(analyticsData.theme.link_clicks || 0)
+                const { count: clicksCount } = await supabase
+                    .from('analytics')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('profile_id', dbProfile.id)
+                    .eq('event_type', 'click')
+
+                setViewCount(viewsCount || 0)
+                setLinkClicks(clicksCount || 0)
             }
             setIsLoading(false)
         }
