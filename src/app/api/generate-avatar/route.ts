@@ -65,41 +65,43 @@ export async function POST(req: Request) {
         const hiddenPrompt = STYLE_PRESETS[styleId] || STYLE_PRESETS['professional']
         const finalPrompt = `PROMPT: ${hiddenPrompt} | REFERENCE_IMAGE_INFLUENCE: Strong` // Experimental prompt engineering
 
-        // 5. Call Google Imagen 4 Fast API (Native Fetch)
+        // 5. Call Gemini 3 Flash API (Multimodal generateContent)
         const apiKey = process.env.GOOGLE_GEMINI_API_KEY
         if (!apiKey) {
             return NextResponse.json({ error: 'Server Config Error: API Key missing' }, { status: 500 })
         }
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey}` // Using imagen-3.0 as confirmed available for Image-to-Image in some contexts, or fallback to predict if compliant. 
-        // NOTE: Implementation Plan said imagen-4.0-fast check. 
-        // Based on "predict" method usage in plan. Let's try the verified endpoint structure.
-        // Actually, for Image-to-Image, Google often uses specific payloads.
-        // Let's stick to the implementation plan's URL but be ready to hotfix if model ID is slightly off.
-        // Re-reading plan: `imagen-4.0-fast-generate-001` was the target.
-        const targetModel = 'imagen-3.0-generate-001' // Safest bet given "fast" might be text-only optimization sometimes. Let's use 3.0 for better img2img adherence initially or 4.0 fast if confirmed.
-        // User asked for fast-generate. Let's use that but handle error.
-        const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict` // Fallback to 3.0 first as it has wider img2img support doc.
+        // Use gemini-3-flash-preview as requested by user
+        const modelId = 'gemini-3-flash-preview'
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`
 
-        // Construct Payload
+        const hiddenPrompt = STYLE_PRESETS[styleId] || STYLE_PRESETS['professional']
+        const finalPrompt = `Lo adalah AI Avatar Generator Gentanala. Gunakan foto selfie ini sebagai referensi utama (wajah, fitur, ekspresi). 
+Hasil akhirnya HARUS berupa satu gambar portrait saja yang sudah ter-apply style ini: ${hiddenPrompt}
+Pastikan kemiripan wajah (likeness) sangat tinggi dengan foto asli. Gaya bahasa lo-gue, tapi hasilnya gambar elegan.`
+
+        // Construct Gemini Multimodal Payload
         const payload = {
-            instances: [
-                {
-                    prompt: hiddenPrompt,
-                    image: {
-                        bytesBase64Encoded: base64Image
+            contents: [{
+                parts: [
+                    { text: finalPrompt },
+                    {
+                        inline_data: {
+                            mime_type: "image/jpeg",
+                            data: base64Image
+                        }
                     }
-                }
-            ],
-            parameters: {
-                sampleCount: 1,
-                aspectRatio: "1:1",
-                // specific parameters for img2img might vary
+                ]
+            }],
+            generationConfig: {
+                // Multimodal output models might need specific config or it might be automatic
+                // Some versions use 'response_modalities'
+                temperature: 0.7,
             }
         }
 
-        console.log(`Calling Imagen API: ${modelUrl}`)
-        const response = await fetch(`${modelUrl}?key=${apiKey}`, {
+        console.log(`Calling Gemini API: ${modelId}`)
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -110,13 +112,14 @@ export async function POST(req: Request) {
         const data = await response.json()
 
         if (!response.ok) {
-            console.error('Imagen API Error:', JSON.stringify(data, null, 2))
+            console.error('Gemini API Error:', JSON.stringify(data, null, 2))
             return NextResponse.json({ error: `AI Generation Error: ${data.error?.message || response.statusText}` }, { status: response.status })
         }
 
-        // 6. Process Response
-        // Expected: { predictions: [ { bytesBase64Encoded: "..." } ] }
-        const generatedBase64 = data.predictions?.[0]?.bytesBase64Encoded || data.predictions?.[0]?.mimeType ? data.predictions?.[0]?.bytesBase64Encoded : null
+        // 6. Process Response (Gemini Multimodal Output)
+        // Response format: { candidates: [ { content: { parts: [ { inline_data: { data: "...", mime_type: "..." } } ] } } ] }
+        const generatedPart = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inline_data)
+        const generatedBase64 = generatedPart?.inline_data?.data
 
         if (!generatedBase64) {
             console.error('Unexpected Response:', JSON.stringify(data, null, 2))
