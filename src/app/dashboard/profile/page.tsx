@@ -1,4 +1,6 @@
 'use client'
+// Triggering redeploy for AI Avatar feature
+
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
@@ -527,8 +529,8 @@ export default function ProfileEditor() {
                                         type="button"
                                         onClick={() => setAvatarStyle(style)}
                                         className={`text-xs font-bold py-3 px-2 rounded-xl transition-all border ${avatarStyle === style
-                                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105'
-                                                : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50'
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md transform scale-105'
+                                            : 'bg-white text-zinc-600 border-zinc-200 hover:border-indigo-300 hover:bg-indigo-50'
                                             }`}
                                     >
                                         {style.charAt(0).toUpperCase() + style.slice(1)}
