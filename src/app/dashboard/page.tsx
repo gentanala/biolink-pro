@@ -17,7 +17,10 @@ import {
     QrCode,
     Share2,
     Download,
-    Check
+    Check,
+    Leaf,
+    Wind,
+    TreeDeciduous
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { downloadVCard } from '@/lib/vcard'
@@ -287,6 +290,75 @@ export default function DashboardPage() {
                         </div>
                     </motion.div>
                 </div>
+
+                {/* Green Impact Section */}
+                <motion.section
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.35 }}
+                    className="mb-12 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent rounded-3xl p-6 border border-emerald-100/50"
+                >
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="bg-emerald-500 p-2 rounded-lg">
+                            <Leaf className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-zinc-900 leading-tight">Gentanala Green Impact</h2>
+                            <p className="text-emerald-700/70 text-sm font-medium">Kontribusi Anda terhadap lingkungan</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white shadow-sm hover:shadow-md transition-all group">
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                                    <BarChart3 className="w-5 h-5 text-emerald-600" />
+                                </div>
+                                <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Eco-Friendly</span>
+                            </div>
+                            <h4 className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1">Kertas Terselamatkan</h4>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-bold text-zinc-900">{viewCount.toLocaleString()}</span>
+                                <span className="text-zinc-400 text-sm font-medium">Lembar</span>
+                            </div>
+                            <p className="text-zinc-400 text-[10px] mt-2 italic">*1 View profil = 1 Kartu nama kertas diselamatkan</p>
+                        </div>
+
+                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white shadow-sm hover:shadow-md transition-all group">
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                    <Wind className="w-5 h-5 text-blue-600" />
+                                </div>
+                            </div>
+                            <h4 className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1">Emisi Karbon Dicegah</h4>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-bold text-zinc-900">
+                                    {viewCount * 10 >= 1000
+                                        ? (viewCount * 10 / 1000).toFixed(2)
+                                        : (viewCount * 10).toLocaleString()}
+                                </span>
+                                <span className="text-zinc-400 text-sm font-medium">
+                                    {viewCount * 10 >= 1000 ? 'kg' : 'gram'}
+                                </span>
+                            </div>
+                            <p className="text-zinc-400 text-[10px] mt-2 italic">*10gram CO2/kartu emisi produksi dicegah</p>
+                        </div>
+
+                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white shadow-sm hover:shadow-md transition-all group">
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+                                    <TreeDeciduous className="w-5 h-5 text-amber-600" />
+                                </div>
+                            </div>
+                            <h4 className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1">Pohon Dilindungi</h4>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-3xl font-bold text-zinc-900">{(viewCount / 10000).toFixed(4)}</span>
+                                <span className="text-zinc-400 text-sm font-medium">Pohon</span>
+                            </div>
+                            <p className="text-zinc-400 text-[10px] mt-2 italic">*10,000 kartu = 1 Pohon dewasa (Pulp source)</p>
+                        </div>
+                    </div>
+                </motion.section>
 
                 <div className="grid lg:grid-cols-2 gap-8">
                     {/* Profile Card */}
