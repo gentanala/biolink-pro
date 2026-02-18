@@ -56,14 +56,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Failed to upload original image' }, { status: 500 })
         }
 
-        // 4. Prepare for Imagen API
+        // 4. Prepare for Gemini API
         // Convert file to Base64
         const arrayBuffer = await file.arrayBuffer()
         const base64Image = Buffer.from(arrayBuffer).toString('base64')
-
-        // Get Hidden Prompt
-        const hiddenPrompt = STYLE_PRESETS[styleId] || STYLE_PRESETS['professional']
-        const finalPrompt = `PROMPT: ${hiddenPrompt} | REFERENCE_IMAGE_INFLUENCE: Strong` // Experimental prompt engineering
 
         // 5. Call Gemini 3 Flash API (Multimodal generateContent)
         const apiKey = process.env.GOOGLE_GEMINI_API_KEY
