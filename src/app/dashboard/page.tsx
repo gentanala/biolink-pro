@@ -31,6 +31,7 @@ interface Profile {
     bio: string
     email: string | null
     links: any[]
+    avatar_url?: string | null
 }
 
 export default function DashboardPage() {
@@ -71,7 +72,8 @@ export default function DashboardPage() {
                         display_name: parsedProfile.display_name || 'Gentanala Owner',
                         bio: parsedProfile.bio || '',
                         email: parsedProfile.email || parsedUser.email || null,
-                        links: parsedProfile.links || []
+                        links: parsedProfile.links || [],
+                        avatar_url: parsedProfile.avatar_url || null
                     })
                     setIsLoading(false)
                     return
@@ -98,7 +100,8 @@ export default function DashboardPage() {
                     display_name: dbProfile.display_name || 'Gentanala Owner',
                     bio: dbProfile.bio || '',
                     email: dbProfile.email || authUser.email || null,
-                    links: dbProfile.social_links || uiTheme.links || []
+                    links: dbProfile.social_links || uiTheme.links || [],
+                    avatar_url: dbProfile.avatar_url || null
                 }
                 setProfile(processedProfile)
 
@@ -123,7 +126,8 @@ export default function DashboardPage() {
                     display_name: newProfile?.display_name || 'User',
                     bio: newProfile?.bio || 'Gentanala Owner',
                     email: authUser.email || null,
-                    links: []
+                    links: [],
+                    avatar_url: newProfile?.avatar_url || null
                 }
                 setProfile(processedProfile)
                 localStorage.setItem('genhub_profile', JSON.stringify(processedProfile))
@@ -304,9 +308,17 @@ export default function DashboardPage() {
 
                         <div className="glass rounded-2xl p-6">
                             <div className="flex items-start gap-6">
-                                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
-                                    {profile.display_name?.[0]?.toUpperCase() || 'U'}
-                                </div>
+                                {profile.avatar_url ? (
+                                    <img
+                                        src={profile.avatar_url}
+                                        alt={profile.display_name}
+                                        className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-sm flex-shrink-0"
+                                    />
+                                ) : (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
+                                        {profile.display_name?.[0]?.toUpperCase() || 'U'}
+                                    </div>
+                                )}
                                 <div className="flex-1 min-w-0">
                                     <h3 className="text-xl font-semibold text-zinc-900">{profile.display_name || 'Set your name'}</h3>
                                     {profile.bio && (
