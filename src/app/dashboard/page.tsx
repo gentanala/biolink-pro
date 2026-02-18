@@ -25,6 +25,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react'
 import { downloadVCard } from '@/lib/vcard'
 import { createClient } from '@/lib/supabase/client'
+import { PWAHint } from '@/components/dashboard/PWAHint'
 
 interface Profile {
     id: string
@@ -613,6 +614,8 @@ export default function DashboardPage() {
                     🔧 Dev Mode
                 </span>
             </div>
+            {/* PWA Save as App Hint */}
+            <PWAHint />
         </div>
     )
 }

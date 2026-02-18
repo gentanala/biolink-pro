@@ -17,6 +17,15 @@ export const metadata: Metadata = {
   title: "Gentanala - Luxury Watches with Digital Identity",
   description: "Premium timepieces with embedded NFC technology. Each watch carries a unique digital identity.",
   keywords: ["luxury watches", "NFC watches", "digital identity", "phygital", "gentanala"],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "GenHub",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
