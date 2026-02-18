@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
+    console.log("CEK MODEL GEMINI PRO") // Debug marker requested by user
     try {
         // 1. Check API Key
         const apiKey = process.env.GOOGLE_GEMINI_API_KEY
@@ -28,7 +29,8 @@ export async function POST(req: Request) {
 
         // 3. Initialize Gemini (Standard SDK Usage)
         const genAI = new GoogleGenerativeAI(apiKey)
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+        // Downgrade to gemini-pro for stability
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
 
         const prompt = `Lo adalah pakar personal branding Gentanala. Buat bio singkat (maks 200 karakter) yang elegan, profesional, tapi pake gaya bahasa lo-gue yang asik sesuai karakter Reza Rahman (Nje). Fokus ke inovasi dan visi.
 
