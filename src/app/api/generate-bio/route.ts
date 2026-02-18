@@ -26,12 +26,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Keywords are required' }, { status: 400 })
         }
 
-        // 3. Initialize Gemini with Explicit v1 Version
+        // 3. Initialize Gemini with v1beta (required for Flash model)
         const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({
             model: 'gemini-1.5-flash'
         }, {
-            apiVersion: 'v1' // Force use of v1 API instead of v1beta
+            apiVersion: 'v1beta'
         })
 
         const prompt = `Lo adalah pakar personal branding Gentanala. Buat bio singkat (maks 200 karakter) yang elegan, profesional, tapi pake gaya bahasa lo-gue yang asik sesuai karakter Reza Rahman (Nje). Fokus ke inovasi dan visi.
@@ -39,6 +39,10 @@ export async function POST(req: Request) {
 Keywords user: ${keywords}
 
 Hasilkan hanya teks bio saja, tanpa awalan atau akhiran.`
+
+        console.log('--- AI Bio Request (v1beta) ---')
+        console.log('Model: gemini-1.5-flash')
+        console.log('Keywords:', keywords)
 
         // 4. Generate Content with Safety Handling
         try {
@@ -50,11 +54,12 @@ Hasilkan hanya teks bio saja, tanpa awalan atau akhiran.`
                 throw new Error('Empty response from AI')
             }
 
+            console.log('Gemini Success!')
             // 5. Return Success JSON
             return NextResponse.json({ bio: text.trim() })
 
         } catch (genError: any) {
-            console.error('Gemini Generation Error:', genError)
+            console.error('Gemini Generation Error Details:', genError)
             return NextResponse.json(
                 { error: 'AI generation failed: ' + (genError.message || 'Unknown error') },
                 { status: 500 }
