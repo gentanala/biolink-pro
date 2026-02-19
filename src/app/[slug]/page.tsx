@@ -83,16 +83,9 @@ export default function PublicProfile() {
                 return
             }
 
-            // Fallback to localStorage for dev preview
-            const storedProfile = localStorage.getItem('genhub_profile')
-            if (storedProfile) {
-                const p = JSON.parse(storedProfile)
-                if (p.slug === slug) {
-                    setProfile({ ...p, welcome_word: p.welcome_word || 'hello', primary_color: '#3B82F6' })
-                    setLoading(false)
-                    return
-                }
-            }
+            // DEV NOTE: We removed localStorage fallback here.
+            // Public pages should ONLY reflect what is in the database.
+            // If it's deleted in DB, it must 404 here, even for the owner.
 
             setLoading(false)
         }
