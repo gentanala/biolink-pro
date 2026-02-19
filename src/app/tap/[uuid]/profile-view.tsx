@@ -105,6 +105,11 @@ export function ProfileView({ serial }: ProfileViewProps) {
                     transition={{ delay: 0.2 }}
                     className="text-center mb-8"
                 >
+                    {serial.sync_enabled === false && (
+                        <div className="inline-block px-2 py-0.5 bg-zinc-800 text-zinc-400 text-[10px] uppercase tracking-widest rounded-full mb-3 border border-zinc-700">
+                            Independent Profile
+                        </div>
+                    )}
                     <h1 className="text-2xl font-bold mb-1">
                         {profile.display_name || 'Gentanala Owner'}
                     </h1>
