@@ -258,6 +258,16 @@ export default function ProfileEditor() {
             return
         }
 
+        // Check Limit for FREE Users
+        const localProfile = localStorage.getItem('genhub_profile')
+        const profileData = localProfile ? JSON.parse(localProfile) : null
+        const isFree = profileData?.tier === 'FREE'
+
+        if (isFree && formData.gallery.length >= 3) {
+            alert('User FREE hanya bisa upload maksimal 3 foto. Upgrade untuk unlimited!')
+            return
+        }
+
         try {
             const publicUrl = await uploadGalleryImage(file, userId)
             const newItem = {
