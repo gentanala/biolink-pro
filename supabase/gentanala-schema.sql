@@ -187,7 +187,16 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
         AND table_name = 'serial_numbers' 
         AND column_name = 'profile_id'
     ) THEN
-        ALTER TABLE public.serial_numbers ADD COLUMN profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+    END IF;
+
+    -- NEW: Independent/Sync Flag
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'serial_numbers' 
+        AND column_name = 'sync_enabled'
+    ) THEN
+        ALTER TABLE public.serial_numbers ADD COLUMN sync_enabled BOOLEAN DEFAULT TRUE;
     END IF;
 
     -- NEW: Company Branding Fields
