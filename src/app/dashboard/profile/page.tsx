@@ -144,8 +144,9 @@ export default function ProfileEditor() {
                 // Fallback to localStorage if Supabase query fails
                 const localProfile = localStorage.getItem('genhub_profile')
                 if (localProfile) {
-                    setFormData(prev => ({ ...prev, ...JSON.parse(localProfile) }))
-                    setUserTier('FREE') // FORCE FREE IN FALLBACK
+                    const parsed = JSON.parse(localProfile)
+                    setFormData(prev => ({ ...prev, ...parsed }))
+                    if (parsed.tier) setUserTier(parsed.tier.toUpperCase())
                 }
                 return
             }
@@ -167,7 +168,8 @@ export default function ProfileEditor() {
                     gallery: uiTheme.gallery || [],
                     files: uiTheme.files || [],
                     documents: profile.documents || [],
-                    social_links: profile.social_links || []
+                    social_links: profile.social_links || [],
+                    tier: profile.tier || 'FREE'
                 }
                 setFormData(loadedData)
                 // Normalize tier to uppercase to handle 'Free', 'free', 'FREE' consistently
@@ -492,7 +494,7 @@ export default function ProfileEditor() {
             }
 
             setIsSaved(true)
-            localStorage.setItem('genhub_profile', JSON.stringify({ ...formData, tier: userTier }))
+            localStorage.setItem('genhub_profile', JSON.stringify({ ...formData }))
             setTimeout(() => setIsSaved(false), 3000)
 
         } catch (err: any) {

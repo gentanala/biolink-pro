@@ -74,9 +74,10 @@ export default function LinkManager() {
         // Always sync to localStorage for preview
         const profileStr = localStorage.getItem('genhub_profile')
         if (profileStr) {
-            const profile = JSON.parse(profileStr)
-            profile.links = updatedLinks
-            localStorage.setItem('genhub_profile', JSON.stringify(profile))
+            const p = JSON.parse(profileStr)
+            p.links = updatedLinks
+            p.tier = tier // Ensure tier is preserved
+            localStorage.setItem('genhub_profile', JSON.stringify(p))
         }
 
         // Save to Supabase

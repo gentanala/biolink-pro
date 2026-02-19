@@ -80,6 +80,7 @@ export default function AppearancePage() {
                 const p = JSON.parse(profileStr)
                 if (p.theme_mode) setThemeMode(p.theme_mode)
                 if (p.image_filter) setImageFilter(p.image_filter)
+                if (p.tier) setUserTier(p.tier.toUpperCase())
             }
         }
 
