@@ -1325,12 +1325,35 @@ export default function AdminPage() {
                             </p>
 
                             <div className="space-y-3">
+                                {/* Option 1: Reset Content Only */}
                                 <button
                                     onClick={async () => {
                                         const res = await fetch('/api/admin/users/delete', {
                                             method: 'DELETE',
                                             headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ userId: userToDelete.user_id })
+                                            body: JSON.stringify({ userId: userToDelete.user_id, action: 'reset' })
+                                        })
+                                        const data = await res.json()
+                                        if (data.error) alert('Gagal reset: ' + data.error)
+                                        else {
+                                            alert('Isi akun berhasil di-reset bersih.')
+                                            setUserToDelete(null)
+                                            loadAllData()
+                                        }
+                                    }}
+                                    className="w-full py-4 bg-amber-100 text-amber-800 text-sm font-bold rounded-2xl hover:bg-amber-200 transition-all border border-amber-200 flex flex-col items-center gap-1"
+                                >
+                                    <span className="uppercase tracking-widest">RESET ISI AKUN</span>
+                                    <span className="text-[10px] font-normal opacity-80">(Hapus foto, bio, link - Akun tetap ada)</span>
+                                </button>
+
+                                {/* Option 2: Full Delete */}
+                                <button
+                                    onClick={async () => {
+                                        const res = await fetch('/api/admin/users/delete', {
+                                            method: 'DELETE',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ userId: userToDelete.user_id, action: 'delete' })
                                         })
                                         const data = await res.json()
 
@@ -1346,13 +1369,15 @@ export default function AdminPage() {
                                             loadAllData()
                                         }
                                     }}
-                                    className="w-full py-4 bg-red-600 text-white text-sm font-black rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-200 uppercase tracking-widest"
+                                    className="w-full py-4 bg-red-600 text-white text-sm font-black rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-200 flex flex-col items-center gap-1"
                                 >
-                                    IYA, HAPUS SEKARANG
+                                    <span className="uppercase tracking-widest">HAPUS PERMANEN</span>
+                                    <span className="text-[10px] font-normal opacity-80">(Hapus user & putuskan serial number)</span>
                                 </button>
+
                                 <button
                                     onClick={() => setUserToDelete(null)}
-                                    className="w-full py-4 bg-zinc-100 text-zinc-500 text-sm font-bold rounded-2xl hover:bg-zinc-200 transition-all uppercase tracking-widest"
+                                    className="w-full py-3 bg-zinc-100 text-zinc-500 text-sm font-bold rounded-2xl hover:bg-zinc-200 transition-all uppercase tracking-widest mt-2"
                                 >
                                     BATALKAN
                                 </button>
