@@ -70,7 +70,11 @@ export function UnclaimedView({ serial }: UnclaimedViewProps) {
 
                     if (signInData.user) userId = signInData.user.id
                 } else {
-                    alert('Signup failed: ' + signUpError.message)
+                    if (signUpError.message.toLowerCase().includes('rate limit')) {
+                        alert('Terlalu banyak percobaan daftar (Rate Limit Supabase). Mohon tunggu beberapa saat atau gunakan email lain.')
+                    } else {
+                        alert('Signup failed: ' + signUpError.message)
+                    }
                     setIsLoading(false)
                     return
                 }
