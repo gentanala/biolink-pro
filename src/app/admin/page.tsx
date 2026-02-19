@@ -58,6 +58,18 @@ type SortDir = 'asc' | 'desc'
 
 const ADMIN_PASSWORD = 'gentanala2024'
 
+// Helper to format relative date - Moved outside to keep component pure
+const formatRelative = (d: string | null) => {
+    if (!d) return '-'
+    const now = Date.now()
+    const diff = now - new Date(d).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'Just now'
+    if (mins < 60) return `${mins}m ago`
+    if (mins < 1440) return `${Math.floor(mins / 60)}h ago`
+    return `${Math.floor(mins / 1440)}d ago`
+}
+
 export default function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [password, setPassword] = useState('')
@@ -113,7 +125,7 @@ export default function AdminPage() {
 
         // 1. Fetch Serials & Profiles for Serials Tab
         const { data: serialData } = await supabase.from('serial_numbers').select('*').order('created_at', { ascending: false })
-        const { data: profileData } = await supabase.from('profiles').select('user_id, display_name, email, phone, theme, updated_at, tier, user_tag, company_id')
+        const { data: profileData } = await supabase.from('profiles').select('*') // Get everything
 
         const { data: companyData } = await supabase.from('companies').select('*').order('created_at', { ascending: false })
         const { data: tierData } = await supabase.from('tier_configs').select('*').order('tier', { ascending: true })
@@ -334,7 +346,11 @@ export default function AdminPage() {
     const toggleSelect = (id: string) => {
         setSelectedIds(prev => {
             const n = new Set(prev)
-            n.has(id) ? n.delete(id) : n.add(id)
+            if (n.has(id)) {
+                n.delete(id)
+            } else {
+                n.add(id)
+            }
             return n
         })
     }
@@ -387,19 +403,6 @@ export default function AdminPage() {
     const formatDate = (d: string | null) => {
         if (!d) return '-'
         return new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
-    }
-
-    const formatRelative = (d: string | null) => {
-        if (!d) return '-'
-        const diff = Date.now() - new Date(d).getTime()
-        const mins = Math.floor(diff / 60000)
-        if (mins < 1) return 'Just now'
-        if (mins < 60) return `${mins}m ago`
-        const hrs = Math.floor(mins / 60)
-        if (hrs < 24) return `${hrs}h ago`
-        const days = Math.floor(hrs / 24)
-        if (days < 7) return `${days}d ago`
-        return formatDate(d)
     }
 
     const SortIcon = ({ field }: { field: SortField }) => {
@@ -512,16 +515,23 @@ export default function AdminPage() {
                                         </span>
                                     </td>
                                     <td className="px-4 py-4">
-                                        <button
-                                            onClick={() => toggleSync(serial.id, serial.sync_enabled)}
-                                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border transition-all hover:shadow-sm uppercase tracking-wider ${serial.sync_enabled
-                                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                                                : 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100'
-                                                }`}
-                                            title={serial.sync_enabled ? "Linked to Master Branding" : "Independent Branding"}
-                                        >
-                                            {serial.sync_enabled ? 'Synced' : 'Independent'}
-                                        </button>
+                                        <div className="flex flex-col gap-1">
+                                            <button
+                                                onClick={() => toggleSync(serial.id, serial.sync_enabled)}
+                                                className={`inline-flex items-center w-fit px-2 py-0.5 rounded text-[10px] font-bold border transition-all hover:shadow-sm uppercase tracking-wider ${serial.sync_enabled
+                                                    ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                                    : 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100'
+                                                    }`}
+                                                title={serial.sync_enabled ? "Linked to Master Branding" : "Independent Branding"}
+                                            >
+                                                {serial.sync_enabled ? 'Synced' : 'Independent'}
+                                            </button>
+                                            {serial.sync_enabled && (serial.display_name || serial.email) && (
+                                                <span className="text-[9px] text-zinc-400 truncate max-w-[120px]" title={serial.display_name || serial.email || ''}>
+                                                    🔗 {serial.display_name || serial.email}
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-4 py-4">
                                         <div className="space-y-1">
@@ -730,6 +740,7 @@ export default function AdminPage() {
         )
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const renderUsersTable = () => (
         <div className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
@@ -1140,6 +1151,7 @@ export default function AdminPage() {
             </AnimatePresence>
 
             {/* Edit Company Modal */}
+            {/* Edit Company Modal */}
             <AnimatePresence>
                 {editCompany && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
@@ -1181,6 +1193,42 @@ export default function AdminPage() {
                                         placeholder="https://..."
                                     />
                                 </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Profile Avatar (B2B)</label>
+                                    <input
+                                        type="text"
+                                        value={editCompany.avatar_url || ''}
+                                        onChange={e => setEditCompany({ ...editCompany, avatar_url: e.target.value })}
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
+                                        placeholder="Alternative avatar for company-synced cards"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Company Bio</label>
+                                    <textarea
+                                        value={editCompany.bio || ''}
+                                        onChange={e => setEditCompany({ ...editCompany, bio: e.target.value })}
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none min-h-[80px]"
+                                        placeholder="Tell us about the company..."
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Social Links (JSON)</label>
+                                    <textarea
+                                        value={typeof editCompany.social_links === 'string' ? editCompany.social_links : JSON.stringify(editCompany.social_links || [], null, 2)}
+                                        onChange={e => {
+                                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                            try {
+                                                const parsed = JSON.parse(e.target.value)
+                                                setEditCompany({ ...editCompany, social_links: parsed })
+                                            } catch (err) {
+                                                setEditCompany({ ...editCompany, social_links: e.target.value })
+                                            }
+                                        }}
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono outline-none min-h-[120px]"
+                                        placeholder='[{"platform": "instagram", "url": "..."}]'
+                                    />
+                                </div>
                                 <div className="flex justify-end gap-2 mt-8">
                                     <button onClick={() => setEditCompany(null)} className="px-4 py-2 text-sm text-zinc-500 hover:bg-zinc-100 rounded-xl">Cancel</button>
                                     <button
@@ -1190,13 +1238,19 @@ export default function AdminPage() {
                                                 await supabase.from('companies').update({
                                                     name: editCompany.name,
                                                     website: editCompany.website,
-                                                    logo_url: editCompany.logo_url
+                                                    logo_url: editCompany.logo_url,
+                                                    bio: editCompany.bio,
+                                                    avatar_url: editCompany.avatar_url,
+                                                    social_links: typeof editCompany.social_links === 'string' ? JSON.parse(editCompany.social_links) : editCompany.social_links
                                                 }).eq('id', editCompany.id)
                                             } else {
                                                 await supabase.from('companies').insert({
                                                     name: editCompany.name,
                                                     website: editCompany.website,
-                                                    logo_url: editCompany.logo_url
+                                                    logo_url: editCompany.logo_url,
+                                                    bio: editCompany.bio,
+                                                    avatar_url: editCompany.avatar_url,
+                                                    social_links: typeof editCompany.social_links === 'string' ? JSON.parse(editCompany.social_links) : (editCompany.social_links || [])
                                                 })
                                             }
                                             setEditCompany(null)

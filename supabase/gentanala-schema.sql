@@ -152,8 +152,6 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders(status);
 -- 8. EXTEND PROFILES TABLE
 -- ===========================================
 -- Add social_links JSONB if not exists
-DO $$
-BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns 
         WHERE table_schema = 'public' 
@@ -170,6 +168,54 @@ BEGIN
         AND column_name = 'is_public'
     ) THEN
         ALTER TABLE public.profiles ADD COLUMN is_public BOOLEAN DEFAULT TRUE;
+    END IF;
+
+    -- NEW: Master Profile Flag
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'profiles' 
+        AND column_name = 'is_master'
+    ) THEN
+        ALTER TABLE public.profiles ADD COLUMN is_master BOOLEAN DEFAULT FALSE;
+    END IF;
+
+    -- NEW: Serial Profile Link
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'serial_numbers' 
+        AND column_name = 'profile_id'
+    ) THEN
+        ALTER TABLE public.serial_numbers ADD COLUMN profile_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+    END IF;
+
+    -- NEW: Company Branding Fields
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'companies' 
+        AND column_name = 'bio'
+    ) THEN
+        ALTER TABLE public.companies ADD COLUMN bio TEXT;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'companies' 
+        AND column_name = 'social_links'
+    ) THEN
+        ALTER TABLE public.companies ADD COLUMN social_links JSONB DEFAULT '[]'::JSONB;
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'companies' 
+        AND column_name = 'avatar_url'
+    ) THEN
+        ALTER TABLE public.companies ADD COLUMN avatar_url TEXT;
     END IF;
 END $$;
 

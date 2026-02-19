@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { UnclaimedView } from './unclaimed-view'
-import { ProfileView } from './profile-view'
 import { motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -32,6 +31,7 @@ const DEFAULT_PRODUCT = {
 
 export default function TapPage() {
     const params = useParams()
+    const router = useRouter()
     const uuid = params?.uuid as string
     const [serial, setSerial] = useState<any>(null)
     const [loading, setLoading] = useState(true)
@@ -41,22 +41,22 @@ export default function TapPage() {
     const shouldClaim = searchParams.get('claim') === 'true'
 
     useEffect(() => {
-        const cleanUuid = uuid?.trim()
-        if (!cleanUuid) {
-            setNotFound(true)
-            setLoading(false)
-            return
-        }
-
-        // Validate UUID format
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-        if (!uuidRegex.test(cleanUuid)) {
-            setNotFound(true)
-            setLoading(false)
-            return
-        }
-
         const checkAndClaim = async () => {
+            const cleanUuid = uuid?.trim()
+            if (!cleanUuid) {
+                setNotFound(true)
+                setLoading(false)
+                return
+            }
+
+            // Validate UUID format
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            if (!uuidRegex.test(cleanUuid)) {
+                setNotFound(true)
+                setLoading(false)
+                return
+            }
+
             const supabase = createClient()
 
             // 1. Query Supabase for this serial
@@ -78,48 +78,103 @@ export default function TapPage() {
                 console.log('Tap count incremented')
             })
 
-            // 3. If claimed, try to load owner profile and redirect
+            // 3. Handle Branding Sync & Profile Loading
             if (dbSerial.is_claimed && dbSerial.owner_id) {
-                // Fetch owner profile from Supabase
+                const isSynced = dbSerial.sync_enabled !== false
+
+                // Fetch owner profile as base
                 const { data: ownerProfile } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('user_id', dbSerial.owner_id)
                     .single()
 
-                if (ownerProfile?.slug) {
-                    // Redirect to owner's public profile
-                    window.location.href = `/${ownerProfile.slug}`
+                if (!ownerProfile) {
+                    console.warn('Owner profile not found for serial:', cleanUuid)
+                    setNotFound(true)
+                    setLoading(false)
                     return
                 }
 
-                // Fallback: check localStorage for profile
-                const localProfile = localStorage.getItem('genhub_profile')
-                if (localProfile) {
-                    const parsed = JSON.parse(localProfile)
-                    if (parsed.slug) {
-                        window.location.href = `/${parsed.slug}`
+                // CASE A: Independent Mode (Sync Stopped)
+                // Use a dedicated profile link if it exists
+                if (!isSynced && dbSerial.profile_id) {
+                    const { data: independentProfile } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', dbSerial.profile_id)
+                        .single()
+
+                    if (independentProfile) {
+                        setSerial({
+                            ...dbSerial,
+                            product: DEFAULT_PRODUCT,
+                            owner: independentProfile
+                        })
+                        setLoading(false)
                         return
                     }
                 }
+
+                // CASE B: Branding Sync Mode (B2B or Personal)
+                if (isSynced) {
+                    // B2B: Merge Company Branding if user is in a company
+                    if (ownerProfile.company_id) {
+                        const { data: company } = await supabase
+                            .from('companies')
+                            .select('*')
+                            .eq('id', ownerProfile.company_id)
+                            .single()
+
+                        if (company) {
+                            // MERGE LOGIC: Company theme/links + User name/title
+                            const mergedProfile = {
+                                ...ownerProfile,
+                                // Overwrite specific fields with company branding if defined
+                                bio: company.bio || ownerProfile.bio,
+                                avatar_url: company.avatar_url || ownerProfile.avatar_url,
+                                social_links: (company.social_links && company.social_links.length > 0)
+                                    ? company.social_links
+                                    : ownerProfile.social_links,
+                                theme: {
+                                    ...ownerProfile.theme,
+                                    primary: company.theme?.primary || ownerProfile.theme?.primary,
+                                    background: company.theme?.accent || ownerProfile.theme?.background
+                                }
+                            }
+
+                            setSerial({
+                                ...dbSerial,
+                                product: DEFAULT_PRODUCT,
+                                owner: mergedProfile
+                            })
+                            setLoading(false)
+                            return
+                        }
+                    }
+
+                    // Personal Sync Store: Redirect to primary slug (Existing behavior)
+                    if (ownerProfile.slug) {
+                        router.push(`/${ownerProfile.slug}`)
+                        return
+                    }
+                }
+
+                // Fallback: Just show the owner profile as-is
+                setSerial({
+                    ...dbSerial,
+                    product: DEFAULT_PRODUCT,
+                    owner: ownerProfile
+                })
+                setLoading(false)
+                return
             }
 
-            // 4. Build serial object for the view components
+            // 4. Build serial object for Unclaimed view
             const serialData = {
-                id: dbSerial.id,
-                serial_uuid: dbSerial.serial_uuid,
-                product_id: dbSerial.product_id,
-                variant_id: dbSerial.variant_id || null,
-                owner_id: dbSerial.owner_id || null,
-                is_claimed: dbSerial.is_claimed || false,
-                claimed_at: dbSerial.claimed_at,
-                activation_code: dbSerial.activation_code || null,
-                nfc_tap_count: (dbSerial.nfc_tap_count || 0) + 1,
-                last_tapped_at: new Date().toISOString(),
-                manufactured_at: dbSerial.manufactured_at,
-                created_at: dbSerial.created_at,
+                ...dbSerial,
                 product: DEFAULT_PRODUCT,
-                owner: undefined as any
+                owner: undefined
             }
 
             setSerial(serialData)
@@ -127,7 +182,7 @@ export default function TapPage() {
         }
 
         checkAndClaim()
-    }, [uuid, shouldClaim])
+    }, [uuid, shouldClaim, router])
 
     if (loading) {
         return (
@@ -155,7 +210,7 @@ export default function TapPage() {
                     <div className="text-6xl mb-6">🔍</div>
                     <h1 className="text-2xl font-bold text-white mb-4">Serial Not Found</h1>
                     <p className="text-zinc-400 mb-6">
-                        This serial number doesn't exist or hasn't been registered yet.
+                        This serial number doesn&apos;t exist or hasn&apos;t been registered yet.
                     </p>
                     <p className="text-sm text-zinc-500">
                         UUID: <code className="text-blue-400">{uuid}</code>
@@ -176,7 +231,7 @@ export default function TapPage() {
         // Auto-redirect to owner's profile
         const username = serial.owner.slug || serial.owner.username || serial.owner.user_id
         if (username) {
-            window.location.href = `/${username}`
+            router.push(`/${username}`)
             return (
                 <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
                     <motion.div

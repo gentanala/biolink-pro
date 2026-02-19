@@ -75,6 +75,7 @@ export interface SerialNumber {
     // PLG Fields
     sync_enabled: boolean;
     last_synced_at?: string | null;
+    profile_id?: string | null; // NEW: Link to a specific profile
     created_at: string;
 }
 
@@ -112,6 +113,7 @@ export interface Profile {
     tier: 'FREE' | 'PREMIUM' | 'B2B';
     user_tag?: 'GIFT' | 'DEMO' | 'INTERNAL' | null;
     company_id?: string | null;
+    is_master?: boolean; // NEW: Flag for Personal Master mode
     subscription_valid_until?: string | null;
     created_at: string;
     updated_at: string;
@@ -121,7 +123,10 @@ export interface Company {
     id: string;
     name: string;
     logo_url?: string | null;
+    avatar_url?: string | null; // NEW: For company profile
     website?: string | null;
+    bio?: string | null; // NEW: Company bio
+    social_links?: SocialLink[]; // NEW: Company social links
     theme?: {
         primary?: string;
         accent?: string;
