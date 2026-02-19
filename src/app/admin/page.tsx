@@ -654,8 +654,14 @@ export default function AdminPage() {
     }
 
     const toggleSync = async (serialId: string, currentStatus: boolean) => {
-        const supabase = createClient()
         const newStatus = !currentStatus
+        const message = newStatus
+            ? "Aktifkan Sinkronisasi? Kartu ini akan mengikuti branding profil utama."
+            : "Matikan Sinkronisasi? Kartu ini akan menjadi profil independen."
+
+        if (!window.confirm(message)) return
+
+        const supabase = createClient()
 
         // Optimistic update
         setSerials(serials.map(s =>
