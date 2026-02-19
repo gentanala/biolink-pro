@@ -23,36 +23,57 @@ const getAdminClient = () => {
 export async function DELETE(request: Request) {
     try {
         const { userId, action } = await request.json()
-        const performAction = action || 'delete' // Default to delete for backward compatibility
+        const performAction = action || 'delete'
 
         if (!userId) {
             return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
         }
 
-        // 1. Check for Service Role Key
-        console.log('--- DELETE/RESET USER API CALLED ---')
-        console.log('Request payload:', { userId, performAction })
+        console.log('--- DELETE/RESET USER API ---')
+        console.log('Payload:', { userId, performAction })
 
+        // 1. Init Admin Client
         let supabaseAdmin
         try {
             const hasKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY
-            console.log('Has Service Role Key:', hasKey)
-
-            if (!hasKey) {
-                console.error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing from process.env')
-                throw new Error('Missing Service Role Key')
-            }
-
+            if (!hasKey) throw new Error('Missing Service Role Key')
             supabaseAdmin = getAdminClient()
-            console.log('Supabase Admin Client initialized successfully')
         } catch (err) {
             console.error('Server configuration error:', err)
             return NextResponse.json({ error: 'Server misconfigured: Missing Service Role Key' }, { status: 500 })
         }
 
+        // 2. Validate User ID & Resolve correct Auth ID
+        let targetAuthId = userId
+
+        // Check if user exists in Auth
+        const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId)
+
+        if (authError || !authUser.user) {
+            console.log(`User ${userId} not found in Auth. Checking if it matches a Profile ID...`)
+
+            // Try to find if this UUID belongs to a profile
+            const { data: profile } = await supabaseAdmin
+                .from('profiles')
+                .select('user_id')
+                .eq('id', userId)
+                .single()
+
+            if (profile && profile.user_id) {
+                console.log(`FOUND: Input ID ${userId} was a Profile ID. Maps to Auth ID: ${profile.user_id}`)
+                targetAuthId = profile.user_id
+            } else {
+                console.warn(`ID ${userId} not found in Auth or Profiles.`)
+                // If we can't find the user, we can't delete them. 
+                // However, maybe they are already deleted?
+                // We proceed to cleanup serials just in case.
+            }
+        }
+
+        console.log(`Targeting Auth ID: ${targetAuthId}`)
+
         if (performAction === 'reset') {
-            // ACTION: RESET CONTENT (Keep User, Keep Serial)
-            // We empty the profile fields but keep the record
+            // ACTION: RESET CONTENT
             const { error: resetError } = await supabaseAdmin
                 .from('profiles')
                 .update({
@@ -63,19 +84,19 @@ export async function DELETE(request: Request) {
                     company: null,
                     job_title: null,
                     social_links: [],
-                    theme: {}, // Reset theme
-                    // We KEEP: display_name, slug, tier, email, user_id
+                    theme: {},
+                    updated_at: new Date().toISOString()
                 })
-                .eq('user_id', userId)
+                .eq('user_id', targetAuthId)
 
             if (resetError) return NextResponse.json({ error: resetError.message }, { status: 500 })
 
-            return NextResponse.json({ success: true, message: 'Profile content reset successfully' })
+            return NextResponse.json({ success: true, message: 'Profile reset successfully' })
 
         } else {
-            // ACTION: FULL DELETE (Unlink Serial, Delete User)
+            // ACTION: FULL DELETE
 
-            // 2. Cleanup serials BEFORE deleting user
+            // A. Cleanup serials first (Unlink)
             const { error: serialError } = await supabaseAdmin
                 .from('serial_numbers')
                 .update({
@@ -84,12 +105,20 @@ export async function DELETE(request: Request) {
                     claimed_at: null,
                     sync_enabled: true
                 })
-                .eq('owner_id', userId)
+                .eq('owner_id', targetAuthId)
 
             if (serialError) console.error('Error cleaning up serials:', serialError)
 
-            // 3. Delete user from auth.users
-            const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
+            // B. Explicitly delete Profile row (in case cascade fails)
+            const { error: profileDeleteError } = await supabaseAdmin
+                .from('profiles')
+                .delete()
+                .eq('user_id', targetAuthId)
+
+            if (profileDeleteError) console.error('Error deleting profile row:', profileDeleteError)
+
+            // C. Delete Auth User
+            const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(targetAuthId)
 
             if (deleteError) {
                 console.error('Error deleting user from Auth:', deleteError)
@@ -99,6 +128,7 @@ export async function DELETE(request: Request) {
                 }, { status: 500 })
             }
 
+            console.log('User deleted successfully from Auth and DB.')
             return NextResponse.json({ success: true, message: 'User deleted permanently' })
         }
 

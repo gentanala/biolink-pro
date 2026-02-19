@@ -1236,26 +1236,17 @@ export default function AdminPage() {
 
                                 {serials.find(s => s.id === deleteConfirm)?.is_claimed && (
                                     <button
-                                        onClick={async () => {
+                                        onClick={() => {
                                             const serial = serials.find(s => s.id === deleteConfirm)
                                             if (!serial?.user_id) return
 
-                                            if (!window.confirm(`HAPUS AKUN: ${serial.display_name}?\nSemua data profil, link, dan aset digital akan hilang selamanya.`)) return
-
-                                            const res = await fetch('/api/admin/users/delete', {
-                                                method: 'DELETE',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ userId: serial.user_id })
+                                            // Close this modal and open the User Deletion Modal (which has Reset/Delete options)
+                                            setDeleteConfirm(null)
+                                            setUserToDelete({
+                                                user_id: serial.user_id,
+                                                display_name: serial.display_name,
+                                                email: serial.email
                                             })
-                                            const data = await res.json()
-
-                                            if (data.error) {
-                                                alert('Gagal hapus akun: ' + data.error)
-                                            } else {
-                                                alert('Akun user berhasil dihapus.')
-                                                setDeleteConfirm(null)
-                                                loadAllData()
-                                            }
                                         }}
                                         className="w-full py-2.5 bg-red-600 text-white text-sm font-black rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20 mt-2"
                                     >
