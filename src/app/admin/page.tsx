@@ -654,13 +654,18 @@ export default function AdminPage() {
     }
 
     const toggleSync = async (serialId: string, currentStatus: boolean) => {
+        console.log('Toggling sync for:', serialId, 'Current status:', currentStatus)
         const newStatus = !currentStatus
         const message = newStatus
-            ? "Aktifkan Sinkronisasi? Kartu ini akan mengikuti branding profil utama."
-            : "Matikan Sinkronisasi? Kartu ini akan menjadi profil independen."
+            ? "KONFIRMASI: Aktifkan Sinkronisasi?\n\nKartu ini akan mengikuti branding profil utama (Master Profile). Data unik di kartu ini akan disembunyikan."
+            : "KONFIRMASI: Matikan Sinkronisasi?\n\nKartu ini akan menjadi profil independen. Anda bisa mengatur isi profil ini secara terpisah."
 
-        if (!window.confirm(message)) return
+        if (typeof window !== 'undefined' && !window.confirm(message)) {
+            console.log('Sync toggle cancelled by user')
+            return
+        }
 
+        console.log('Sync toggle confirmed, updating database...')
         const supabase = createClient()
 
         // Optimistic update
