@@ -181,17 +181,11 @@ export function UnclaimedView({ serial }: UnclaimedViewProps) {
                     className="relative mb-8"
                 >
                     <div className="aspect-square bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-3xl border border-zinc-800/50 backdrop-blur-sm overflow-hidden">
-                        {serial.product.featured_image ? (
-                            <img
-                                src={serial.product.featured_image}
-                                alt={serial.product.name}
-                                className="w-full h-full object-cover"
-                            />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                                <Watch className="w-32 h-32 text-zinc-700" />
-                            </div>
-                        )}
+                        <img
+                            src="https://damgyhadhnirwabekbvs.supabase.co/storage/v1/object/public/public-assets/7a9c1211-b7bf-4f1d-8da5-57c3ea8e9072/Image%2019-02-26%20at%2020.30.png"
+                            alt="Gentanala Product"
+                            className="w-full h-full object-cover"
+                        />
                     </div>
 
                     {/* Sparkle badge */}
@@ -217,16 +211,12 @@ export function UnclaimedView({ serial }: UnclaimedViewProps) {
                     </p>
 
                     <h1 className="text-3xl font-bold tracking-tight">
-                        {serial.product.name}
+                        Gentanala
                     </h1>
 
                     <p className="text-zinc-400 leading-relaxed">
-                        This timepiece carries a unique digital identity.
+                        This item carries a unique digital identity.
                         Login to claim ownership and unlock your personal profile.
-                    </p>
-
-                    <p className="text-2xl font-semibold text-amber-400">
-                        {formatPrice(serial.product.base_price)}
                     </p>
                 </motion.div>
 
