@@ -172,10 +172,7 @@ export default function ProfileEditor() {
                 setFormData(loadedData)
                 // Normalize tier to uppercase to handle 'Free', 'free', 'FREE' consistently
                 const detectedTier = (profile.tier || 'FREE').toUpperCase()
-                // DEBUG: Force FREE tier to verify UI
-                setUserTier('FREE')
-                console.log('Detected Tier:', detectedTier, 'Forced Tier: FREE')
-                // setUserTier(detectedTier) 
+                setUserTier(detectedTier)
                 // Sync to localStorage for the live preview bridge
                 localStorage.setItem('genhub_profile', JSON.stringify(loadedData))
             } else {
@@ -184,7 +181,7 @@ export default function ProfileEditor() {
                 if (profileStr) {
                     const parsed = JSON.parse(profileStr)
                     setFormData(parsed)
-                    setUserTier('FREE') // FORCE FREE FOR DEBUG
+                    setUserTier((parsed.tier || 'FREE').toUpperCase())
                 }
             }
         }
@@ -462,13 +459,8 @@ export default function ProfileEditor() {
                 updates.slug = formData.slug
             }
 
-            // Welcome Word & Theme restrictions
-            if (userTier === 'FREE') {
-                updates.welcome_word = 'Hello'
-                // Theme is handled in the theme object construction above
-            } else {
-                updates.welcome_word = formData.welcome_word
-            }
+            // Welcome Word & Theme restrictions are already handled in the 'theme' object construction above.
+            // We removed the redundant top-level assignment that caused schema cache errors.
 
             // Documents (Files) Restriction is handled in addFileLink, but safety check:
             if (userTier === 'FREE' && formData.files.length > 1) {
@@ -515,11 +507,6 @@ export default function ProfileEditor() {
     return (
         <div className="max-w-2xl mx-auto pb-20">
             <div className="mb-8 relative">
-                <div className="bg-red-500 text-white p-4 rounded-xl mb-4 font-bold text-center border-4 border-yellow-300">
-                    DEBUG MODE AKTIF <br />
-                    Status Tier: {userTier} <br />
-                    Force Free: ON
-                </div>
                 <h1 className="text-3xl font-bold mb-2 text-zinc-900">Editor Profil</h1>
                 <p className="text-zinc-500">Perubahan langsung terlihat di Live Preview →</p>
                 <div className="mt-2 text-[10px] text-zinc-400 font-mono bg-zinc-50 border border-zinc-100 inline-block px-2 py-1 rounded">

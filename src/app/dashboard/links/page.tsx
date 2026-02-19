@@ -62,10 +62,7 @@ export default function LinkManager() {
                     ? profile.social_links
                     : (profile.theme?.links || [])
                 setLinks(dbLinks)
-                const detectedTier = (profile.tier || 'FREE').toUpperCase()
-                setTier('FREE')
-                console.log('Links Page Tier:', detectedTier, 'Forced: FREE')
-                // setTier(detectedTier)
+                setTier((profile.tier || 'FREE').toUpperCase())
             }
         }
         fetchLinks()

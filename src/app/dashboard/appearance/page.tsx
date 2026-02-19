@@ -71,10 +71,7 @@ export default function AppearancePage() {
                     setThemeMode(t.theme_mode || 'dark')
                     setImageFilter(t.image_filter || 'normal')
                 }
-                const detectedTier = (profile.tier || 'FREE').toUpperCase()
-                setUserTier('FREE')
-                console.log('Appearance Page Tier:', detectedTier, 'Forced: FREE')
-                // setUserTier(detectedTier)
+                setUserTier((profile.tier || 'FREE').toUpperCase())
             }
 
             // Also check localStorage for any existing values
@@ -158,11 +155,6 @@ export default function AppearancePage() {
 
     return (
         <div className="max-w-2xl mx-auto">
-            <div className="bg-red-500 text-white p-4 rounded-xl mb-6 font-bold text-center border-4 border-yellow-300">
-                DEBUG MODE AKTIF <br />
-                Status Tier: {userTier} <br />
-                Force Free: ON
-            </div>
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2 text-zinc-900">Tampilan</h1>
                 <p className="text-zinc-500">Kustomisasi warna, tema, dan filter profil Anda. Perubahan langsung terlihat di Live Preview →</p>
