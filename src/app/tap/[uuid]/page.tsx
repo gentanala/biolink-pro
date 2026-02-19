@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { UnclaimedView } from './unclaimed-view'
+import { ProfileView } from './profile-view'
 import { motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -228,23 +229,28 @@ export default function TapPage() {
 
     // Render based on claim status
     if (serial.is_claimed && serial.owner) {
-        // Auto-redirect to owner's profile
-        const username = serial.owner.slug || serial.owner.username || serial.owner.user_id
-        if (username) {
-            router.push(`/${username}`)
-            return (
-                <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-center"
-                    >
-                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
-                        <p className="text-zinc-400">Redirecting to verified profile...</p>
-                    </motion.div>
-                </div>
-            )
+        // CASE: Sync Enabled - Auto-redirect to owner's master profile
+        if (serial.sync_enabled !== false) {
+            const username = serial.owner.slug || serial.owner.username || serial.owner.user_id
+            if (username) {
+                router.push(`/${username}`)
+                return (
+                    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="text-center"
+                        >
+                            <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
+                            <p className="text-zinc-400">Redirecting to verified profile...</p>
+                        </motion.div>
+                    </div>
+                )
+            }
         }
+
+        // CASE: Sync Disabled (Independent) - Show ProfileView Directly
+        return <ProfileView serial={serial} />
     }
 
     return <UnclaimedView serial={serial} />
