@@ -518,13 +518,13 @@ export default function AdminPage() {
                                         <div className="flex flex-col gap-1">
                                             <button
                                                 onClick={() => toggleSync(serial.id, serial.sync_enabled)}
-                                                className={`inline-flex items-center w-fit px-2 py-0.5 rounded text-[10px] font-bold border transition-all hover:shadow-sm uppercase tracking-wider ${serial.sync_enabled
+                                                className={`inline-flex items-center w-fit px-2 py-0.5 rounded text-[10px] font-bold border transition-all hover:shadow-sm uppercase tracking-wider ${serial.sync_enabled !== false
                                                     ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
                                                     : 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100'
                                                     }`}
-                                                title={serial.sync_enabled ? "Linked to Master Branding" : "Independent Branding"}
+                                                title={serial.sync_enabled !== false ? "Linked to Master Branding" : "Independent Branding"}
                                             >
-                                                {serial.sync_enabled ? 'Synced' : 'Independent'}
+                                                {serial.sync_enabled !== false ? 'Synced' : 'Independent'}
                                             </button>
                                             {serial.sync_enabled && (serial.display_name || serial.email) && (
                                                 <span className="text-[9px] text-zinc-400 truncate max-w-[120px]" title={serial.display_name || serial.email || ''}>
@@ -653,9 +653,11 @@ export default function AdminPage() {
         }
     }
 
-    const toggleSync = async (serialId: string, currentStatus: boolean) => {
-        console.log('Toggling sync for:', serialId, 'Current status:', currentStatus)
-        const newStatus = !currentStatus
+    const toggleSync = async (serialId: string, currentStatus: boolean | null | undefined) => {
+        const isCurrentlySynced = currentStatus !== false // Default to true if null/undefined
+        console.log('Toggling sync for:', serialId, 'Current DB status:', currentStatus, 'Interpreted as Synced:', isCurrentlySynced)
+
+        const newStatus = !isCurrentlySynced
         const message = newStatus
             ? "KONFIRMASI: Aktifkan Sinkronisasi?\n\nKartu ini akan mengikuti branding profil utama (Master Profile). Data unik di kartu ini akan disembunyikan."
             : "KONFIRMASI: Matikan Sinkronisasi?\n\nKartu ini akan menjadi profil independen. Anda bisa mengatur isi profil ini secara terpisah."
