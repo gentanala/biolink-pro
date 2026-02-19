@@ -81,14 +81,18 @@ export default function TapPage() {
 
             // 3. Handle Branding Sync & Profile Loading
             if (dbSerial.is_claimed && dbSerial.owner_id) {
-                const isSynced = dbSerial.sync_enabled !== false
-
-                // Fetch owner profile as base
                 const { data: ownerProfile } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('user_id', dbSerial.owner_id)
                     .single()
+
+                const isSynced = dbSerial.sync_enabled !== false
+                console.log('--- TAP DEBUG ---')
+                console.log('Serial UUID:', cleanUuid)
+                console.log('Sync Enabled (DB):', dbSerial.sync_enabled)
+                console.log('Is Synced (Calculated):', isSynced)
+                console.log('Owner Profile Slug:', ownerProfile?.slug)
 
                 if (!ownerProfile) {
                     console.warn('Owner profile not found for serial:', cleanUuid)
@@ -230,7 +234,8 @@ export default function TapPage() {
     // Render based on claim status
     if (serial.is_claimed && serial.owner) {
         // CASE: Sync Enabled - Auto-redirect to owner's master profile
-        if (serial.sync_enabled !== false) {
+        if (serial.sync_enabled === true || serial.sync_enabled === undefined || serial.sync_enabled === null) {
+            console.log('Sync Active - Attempting Redirect to:', serial.owner.slug)
             const username = serial.owner.slug || serial.owner.username || serial.owner.user_id
             if (username) {
                 router.push(`/${username}`)
