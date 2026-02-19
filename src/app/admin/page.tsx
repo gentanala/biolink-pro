@@ -1135,30 +1135,24 @@ export default function AdminPage() {
                                     </button>
                                     <button
                                         onClick={async () => {
-                                            const supabase = createClient()
-                                            // Debug log
-                                            console.log('Updating user:', editUser.user_id, 'Payload:', {
-                                                tier: editUser.tier,
-                                                user_tag: editUser.user_tag,
-                                                company_id: editUser.company_id || null
+                                            // Use API to bypass RLS
+                                            const res = await fetch('/api/admin/users/update', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    userId: editUser.user_id,
+                                                    tier: editUser.tier,
+                                                    user_tag: editUser.user_tag,
+                                                    company_id: editUser.company_id || null
+                                                })
                                             })
 
-                                            const { error: updateError } = await supabase.from('profiles').update({
-                                                tier: editUser.tier,
-                                                user_tag: editUser.user_tag,
-                                                company_id: editUser.company_id || null
-                                            }).eq('user_id', editUser.user_id)
+                                            const data = await res.json()
 
-                                            if (updateError) {
-                                                console.error('Update failed:', updateError)
-                                                alert('Failed to update: ' + updateError.message)
+                                            if (!res.ok) {
+                                                console.error('Update failed:', data.error)
+                                                alert('Failed to update: ' + (data.error || 'Unknown error'))
                                             } else {
-                                                if (editUser.tier === 'FREE') {
-                                                    // Auto-disable sync for free users
-                                                    await supabase.from('serial_numbers')
-                                                        .update({ sync_enabled: false })
-                                                        .eq('owner_id', editUser.user_id)
-                                                }
                                                 alert('User updated successfully')
                                                 await loadAllData()
                                                 setEditUser(null)
