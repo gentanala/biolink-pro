@@ -37,16 +37,10 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Server misconfigured: Missing Service Role Key' }, { status: 500 })
         }
 
-        // 2. Delete user from auth.users
-        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
-
-        if (deleteError) {
-            console.error('Error deleting user:', deleteError)
-            return NextResponse.json({ error: deleteError.message }, { status: 500 })
-        }
-
-        // 3. Cleanup serials
-        await supabaseAdmin
+        // 2. Cleanup serials BEFORE deleting user
+        // We do this first because ON DELETE SET NULL on the DB will clear owner_id 
+        // before we can reset is_claimed and claimed_at.
+        const { error: serialError } = await supabaseAdmin
             .from('serial_numbers')
             .update({
                 owner_id: null,
@@ -55,6 +49,22 @@ export async function DELETE(request: Request) {
                 sync_enabled: true
             })
             .eq('owner_id', userId)
+
+        if (serialError) {
+            console.error('Error cleaning up serials:', serialError)
+            // We continue anyway, as the user delete is more important
+        }
+
+        // 3. Delete user from auth.users
+        const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
+
+        if (deleteError) {
+            console.error('Error deleting user from Auth:', deleteError)
+            return NextResponse.json({
+                error: `Auth Delete Error: ${deleteError.message}`,
+                details: deleteError
+            }, { status: 500 })
+        }
 
         return NextResponse.json({ success: true })
 
