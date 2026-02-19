@@ -29,9 +29,21 @@ export async function DELETE(request: Request) {
         }
 
         // 1. Check for Service Role Key
+        console.log('--- DELETE USER API CALLED ---')
+        console.log('Request payload:', { userId })
+
         let supabaseAdmin
         try {
+            const hasKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY
+            console.log('Has Service Role Key:', hasKey)
+
+            if (!hasKey) {
+                console.error('CRITICAL: SUPABASE_SERVICE_ROLE_KEY is missing from process.env')
+                throw new Error('Missing Service Role Key')
+            }
+
             supabaseAdmin = getAdminClient()
+            console.log('Supabase Admin Client initialized successfully')
         } catch (err) {
             console.error('Server configuration error:', err)
             return NextResponse.json({ error: 'Server misconfigured: Missing Service Role Key' }, { status: 500 })

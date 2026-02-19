@@ -61,7 +61,8 @@ const ADMIN_PASSWORD = 'gentanala2024'
 export default function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [password, setPassword] = useState('')
-    const [activeTab, setActiveTab] = useState<'serials' | 'users' | 'companies' | 'features'>('features')
+    const [activeTab, setActiveTab] = useState<'serials' | 'users' | 'companies' | 'features'>('serials')
+    const [userToDelete, setUserToDelete] = useState<any | null>(null)
     const [tierConfigs, setTierConfigs] = useState<any[]>([])
     const [serials, setSerials] = useState<SerialWithProfile[]>([])
     const [users, setUsers] = useState<any[]>([])
@@ -703,6 +704,66 @@ export default function AdminPage() {
         )
     }
 
+    const renderUsersTable = () => (
+        <div className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+                <table className="w-full">
+                    <thead>
+                        <tr className="bg-white/40 border-b border-zinc-200/50">
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">User</th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Tier</th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Company</th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Last Active</th>
+                            <th className="text-right px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                        {loading ? (
+                            <tr><td colSpan={5} className="px-6 py-16 text-center text-zinc-400 font-medium">Loading users...</td></tr>
+                        ) : users.length === 0 ? (
+                            <tr><td colSpan={5} className="px-6 py-16 text-center text-zinc-400 font-medium">No users found</td></tr>
+                        ) : (
+                            users.filter(u =>
+                                !searchTerm ||
+                                u.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+                            ).map(user => (
+                                <tr key={user.user_id} className="hover:bg-white/40">
+                                    <td className="px-4 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-semibold text-zinc-900">{user.display_name || 'Anonymous'}</span>
+                                            <span className="text-xs text-zinc-500">{user.email}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${user.tier === 'PREMIUM' ? 'bg-purple-100 text-purple-700' :
+                                            user.tier === 'B2B' ? 'bg-blue-100 text-blue-700' :
+                                                'bg-zinc-100 text-zinc-600'
+                                            }`}>
+                                            {user.tier}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-4 text-sm text-zinc-600">{user.company_name || '-'}</td>
+                                    <td className="px-4 py-4 text-xs text-zinc-500">{formatRelative(user.updated_at)}</td>
+                                    <td className="px-4 py-4 text-right">
+                                        <div className="flex items-center gap-2 justify-end">
+                                            <button onClick={() => setEditUser(user)} className="p-2 hover:bg-blue-50 rounded-lg transition-colors text-blue-600" title="Edit Subscription">
+                                                <Shield className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => setUserToDelete(user)} className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-500" title="Delete Account">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    )
+
     const renderCompaniesTable = () => (
         <div className="space-y-4">
             <div className="flex justify-end">
@@ -737,6 +798,7 @@ export default function AdminPage() {
 
     const renderContent = () => {
         if (activeTab === 'serials') return renderSerialsTable()
+        if (activeTab === 'users') return renderUsersTable()
         if (activeTab === 'companies') return renderCompaniesTable()
         return null
     }
@@ -803,7 +865,7 @@ export default function AdminPage() {
             <div className="max-w-7xl mx-auto px-6 py-8">
                 {/* Tabs */}
                 <div className="flex items-center gap-1 p-1 bg-zinc-100/50 backdrop-blur-sm rounded-xl w-fit mb-8 border border-zinc-200/50">
-                    {['serials', 'companies', 'features'].map((tab) => (
+                    {['serials', 'users', 'companies', 'features'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -1120,6 +1182,181 @@ export default function AdminPage() {
                                         Save Company
                                     </button>
                                 </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Single Delete Confirmation Modal */}
+            <AnimatePresence>
+                {deleteConfirm && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                        >
+                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                                <AlertTriangle className="w-6 h-6 text-red-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-zinc-900 mb-2">Hapus Serial Number?</h3>
+                            <div className="space-y-4 mb-6">
+                                <p className="text-sm text-zinc-600">
+                                    Apakah Anda yakin ingin menghapus serial number ini?
+                                </p>
+                                {serials.find(s => s.id === deleteConfirm)?.is_claimed ? (
+                                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                                        <p className="text-xs font-bold text-amber-800 mb-1">⚠️ Terdeteksi User Terhubung</p>
+                                        <p className="text-[11px] text-amber-700 leading-relaxed">
+                                            Serial ini sudah diklaim oleh <strong>{serials.find(s => s.id === deleteConfirm)?.display_name}</strong>.
+                                            Anda bisa menghapus hanya data fisiknya saja, atau menghapus seluruh akun user tersebut.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-zinc-400 italic">Serial ini belum diklaim oleh siapapun.</p>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        onClick={() => setDeleteConfirm(null)}
+                                        className="px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-zinc-100 rounded-xl transition-colors"
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        onClick={() => deleteSerial(deleteConfirm)}
+                                        className="px-4 py-2 bg-zinc-100 text-zinc-700 text-sm font-bold rounded-xl hover:bg-zinc-200 transition-colors"
+                                    >
+                                        Hapus Serial Saja
+                                    </button>
+                                </div>
+
+                                {serials.find(s => s.id === deleteConfirm)?.is_claimed && (
+                                    <button
+                                        onClick={async () => {
+                                            const serial = serials.find(s => s.id === deleteConfirm)
+                                            if (!serial?.user_id) return
+
+                                            if (!window.confirm(`HAPUS AKUN: ${serial.display_name}?\nSemua data profil, link, dan aset digital akan hilang selamanya.`)) return
+
+                                            const res = await fetch('/api/admin/users/delete', {
+                                                method: 'DELETE',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ userId: serial.user_id })
+                                            })
+                                            const data = await res.json()
+
+                                            if (data.error) {
+                                                alert('Gagal hapus akun: ' + data.error)
+                                            } else {
+                                                alert('Akun user berhasil dihapus.')
+                                                setDeleteConfirm(null)
+                                                loadAllData()
+                                            }
+                                        }}
+                                        className="w-full py-2.5 bg-red-600 text-white text-sm font-black rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20 mt-2"
+                                    >
+                                        HAPUS AKUN USER & TOKEN
+                                    </button>
+                                )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Bulk Delete Confirmation Modal */}
+            <AnimatePresence>
+                {bulkDeleteConfirm && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                        >
+                            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                                <Trash2 className="w-6 h-6 text-red-600" />
+                            </div>
+                            <h3 className="text-lg font-bold text-zinc-900 mb-2">Hapus {selectedIds.size} Serial?</h3>
+                            <p className="text-sm text-zinc-600 mb-6">
+                                Anda akan menghapus masal {selectedIds.size} serial number. Tindakan ini permanen.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setBulkDeleteConfirm(false)}
+                                    className="px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-zinc-100 rounded-xl transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    onClick={bulkDelete}
+                                    className="px-6 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-600/20"
+                                >
+                                    Hapus Masal
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Direct User Deletion Modal */}
+            <AnimatePresence>
+                {userToDelete && (
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-zinc-100"
+                        >
+                            <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mb-6 mx-auto rotate-3">
+                                <Trash2 className="w-8 h-8 text-red-600 -rotate-3" />
+                            </div>
+
+                            <h3 className="text-xl font-black text-zinc-900 mb-2 text-center uppercase tracking-tight">Hapus Akun Permanent?</h3>
+                            <p className="text-sm text-zinc-500 mb-8 text-center leading-relaxed">
+                                Anda akan menghapus akun <strong>{userToDelete.display_name || userToDelete.email}</strong>.<br />
+                                <span className="text-red-500 font-bold mt-2 block">Seluruh profile, links, dan aset NFC akan terputus selamanya!</span>
+                            </p>
+
+                            <div className="space-y-3">
+                                <button
+                                    onClick={async () => {
+                                        const res = await fetch('/api/admin/users/delete', {
+                                            method: 'DELETE',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ userId: userToDelete.user_id })
+                                        })
+                                        const data = await res.json()
+
+                                        if (data.error) {
+                                            if (data.error.toLowerCase().includes('service role')) {
+                                                alert('ERROR KRITIKAL: SUPABASE_SERVICE_ROLE_KEY belum dipasang di environment server. Fitur hapus akun tidak bisa jalan tanpa key ini.')
+                                            } else {
+                                                alert('Gagal hapus akun: ' + data.error)
+                                            }
+                                        } else {
+                                            alert('Akun berhasil dihapus selamanya.')
+                                            setUserToDelete(null)
+                                            loadAllData()
+                                        }
+                                    }}
+                                    className="w-full py-4 bg-red-600 text-white text-sm font-black rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-200 uppercase tracking-widest"
+                                >
+                                    IYA, HAPUS SEKARANG
+                                </button>
+                                <button
+                                    onClick={() => setUserToDelete(null)}
+                                    className="w-full py-4 bg-zinc-100 text-zinc-500 text-sm font-bold rounded-2xl hover:bg-zinc-200 transition-all uppercase tracking-widest"
+                                >
+                                    BATALKAN
+                                </button>
                             </div>
                         </motion.div>
                     </div>
