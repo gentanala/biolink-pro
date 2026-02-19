@@ -992,6 +992,31 @@ export default function AdminPage() {
 
                                 <div className="flex justify-end gap-2 mt-8">
                                     <button
+                                        onClick={async () => {
+                                            if (!window.confirm('Are you sure you want to DELETE this user? This action cannot be undone.')) return
+
+                                            const res = await fetch('/api/admin/users/delete', {
+                                                method: 'DELETE',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ userId: editUser.user_id })
+                                            })
+
+                                            const data = await res.json()
+
+                                            if (data.error) {
+                                                alert('Failed to delete user: ' + data.error)
+                                            } else {
+                                                alert('User has been deleted successfully.')
+                                                setEditUser(null)
+                                                loadAllData()
+                                            }
+                                        }}
+                                        className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors mr-auto"
+                                    >
+                                        Delete User
+                                    </button>
+
+                                    <button
                                         onClick={() => setEditUser(null)}
                                         className="px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-zinc-100 rounded-xl transition-colors"
                                     >
