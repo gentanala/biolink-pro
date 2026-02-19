@@ -512,10 +512,16 @@ export default function AdminPage() {
                                         </span>
                                     </td>
                                     <td className="px-4 py-4">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${serial.sync_enabled !== false ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-red-50 text-red-700 border border-red-100'
-                                            }`}>
-                                            {serial.sync_enabled !== false ? 'Active' : 'Stopped'}
-                                        </span>
+                                        <button
+                                            onClick={() => toggleSync(serial.id, serial.sync_enabled)}
+                                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border transition-colors hover:shadow-sm ${serial.sync_enabled
+                                                ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                                                : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                                }`}
+                                            title="Click to Toggle Sync Status"
+                                        >
+                                            {serial.sync_enabled ? 'Active' : 'Stopped'}
+                                        </button>
                                     </td>
                                     <td className="px-4 py-4">
                                         <div className="space-y-1">
@@ -633,6 +639,26 @@ export default function AdminPage() {
 
         if (error) {
             alert('Failed to update feature: ' + error.message)
+            loadAllData() // Revert
+        }
+    }
+
+    const toggleSync = async (serialId: string, currentStatus: boolean) => {
+        const supabase = createClient()
+        const newStatus = !currentStatus
+
+        // Optimistic update
+        setSerials(serials.map(s =>
+            s.id === serialId ? { ...s, sync_enabled: newStatus } : s
+        ))
+
+        const { error } = await supabase
+            .from('serial_numbers')
+            .update({ sync_enabled: newStatus })
+            .eq('id', serialId)
+
+        if (error) {
+            alert('Failed to update sync status: ' + error.message)
             loadAllData() // Revert
         }
     }
