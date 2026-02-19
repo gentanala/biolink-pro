@@ -37,6 +37,13 @@ interface Profile {
     email: string | null
     links: any[]
     avatar_url?: string | null
+    // PLG
+    tier?: 'FREE' | 'PREMIUM' | 'B2B'
+    company_id?: string | null
+    company?: {
+        name: string
+        logo_url: string | null
+    }
 }
 
 export default function DashboardPage() {
@@ -79,7 +86,10 @@ export default function DashboardPage() {
                         bio: parsedProfile.bio || '',
                         email: parsedProfile.email || parsedUser.email || null,
                         links: parsedProfile.links || [],
-                        avatar_url: parsedProfile.avatar_url || null
+                        avatar_url: parsedProfile.avatar_url || null,
+                        tier: parsedProfile.tier || 'FREE',
+                        company_id: parsedProfile.company_id || null,
+                        company: parsedProfile.company || null
                     })
                     setIsLoading(false)
                     return
@@ -93,56 +103,17 @@ export default function DashboardPage() {
 
             const { data: dbProfile, error: profileError } = await supabase
                 .from('profiles')
-                .select('*')
+                .select('*, company:companies(name, logo_url)')
                 .eq('user_id', authUser.id)
                 .single()
 
             if (dbProfile) {
                 const uiTheme = dbProfile.theme || {}
-                const processedProfile: Profile = {
-                    id: dbProfile.id,
-                    user_id: dbProfile.user_id,
-                    slug: dbProfile.slug,
-                    display_name: dbProfile.display_name || 'Gentanala Owner',
-                    bio: dbProfile.bio || '',
-                    email: dbProfile.email || authUser.email || null,
-                    links: dbProfile.social_links || uiTheme.links || [],
-                    avatar_url: dbProfile.avatar_url || null
-                }
-                setProfile(processedProfile)
+                // ... (Update localStorage logic later if needed, but for now just set state)
+                localStorage.setItem('genhub_profile', JSON.stringify(dbProfile)) // Sync fresh data
+                setProfile(dbProfile as any)
 
-                localStorage.setItem('genhub_profile', JSON.stringify(processedProfile))
-                localStorage.setItem('genhub_user', JSON.stringify(authUser))
-                localStorage.setItem('genhub_activated', 'true')
-            } else {
-                const fallbackSlug = 'user-' + Date.now().toString().slice(-6)
-
-                const { data: newProfile } = await supabase.from('profiles').upsert({
-                    user_id: authUser.id,
-                    slug: fallbackSlug,
-                    display_name: 'User',
-                    bio: 'Gentanala Owner',
-                    email: authUser.email,
-                }, { onConflict: 'user_id' }).select().single()
-
-                const processedProfile: Profile = {
-                    id: newProfile?.id || authUser.id,
-                    user_id: authUser.id,
-                    slug: newProfile?.slug || fallbackSlug,
-                    display_name: newProfile?.display_name || 'User',
-                    bio: newProfile?.bio || 'Gentanala Owner',
-                    email: authUser.email || null,
-                    links: [],
-                    avatar_url: newProfile?.avatar_url || null
-                }
-                setProfile(processedProfile)
-                localStorage.setItem('genhub_profile', JSON.stringify(processedProfile))
-                localStorage.setItem('genhub_user', JSON.stringify(authUser))
-                localStorage.setItem('genhub_activated', 'true')
-            }
-
-            // Load real analytics from analytics table
-            if (dbProfile) {
+                // Analytics
                 const { count: viewsCount } = await supabase
                     .from('analytics')
                     .select('*', { count: 'exact', head: true })
@@ -157,7 +128,38 @@ export default function DashboardPage() {
 
                 setViewCount(viewsCount || 0)
                 setLinkClicks(clicksCount || 0)
+            } else {
+                const fallbackSlug = 'user-' + Date.now().toString().slice(-6)
+
+                const { data: newProfile } = await supabase.from('profiles').upsert({
+                    user_id: authUser.id,
+                    slug: fallbackSlug,
+                    display_name: 'User',
+                    bio: 'Gentanala Owner',
+                    email: authUser.email,
+                    tier: 'FREE', // Default tier for new profiles
+                }, { onConflict: 'user_id' }).select().single()
+
+                const processedProfile: Profile = {
+                    id: newProfile?.id || authUser.id,
+                    user_id: authUser.id,
+                    slug: newProfile?.slug || fallbackSlug,
+                    display_name: newProfile?.display_name || 'User',
+                    bio: newProfile?.bio || 'Gentanala Owner',
+                    email: authUser.email || null,
+                    links: [],
+                    avatar_url: newProfile?.avatar_url || null,
+                    tier: newProfile?.tier || 'FREE',
+                    company_id: newProfile?.company_id || null,
+                    company: newProfile?.company || null
+                }
+                setProfile(processedProfile)
+
+                localStorage.setItem('genhub_profile', JSON.stringify(processedProfile))
+                localStorage.setItem('genhub_user', JSON.stringify(authUser))
+                localStorage.setItem('genhub_activated', 'true')
             }
+
             setIsLoading(false)
         }
 
@@ -177,6 +179,8 @@ export default function DashboardPage() {
             </div>
         )
     }
+
+    const isB2B = profile.tier === 'B2B' && profile.company
 
     return (
         <div className="min-h-screen">
@@ -232,22 +236,44 @@ export default function DashboardPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="mb-8"
                 >
-                    <h1 className="text-3xl font-bold mb-2 text-zinc-900">
-                        Selamat datang, {profile.display_name}! 👋
-                    </h1>
-                    <p className="text-zinc-500">
-                        Kelola profil kartu nama digital Anda dari sini
-                    </p>
-                    <p className="text-xs text-zinc-400 mt-2 flex items-center gap-1.5">
-                        <Smartphone className="w-3.5 h-3.5 text-blue-500" />
-                        Akses lebih cepat & praktis?
-                        <button
-                            onClick={() => setShowPWAHint(true)}
-                            className="text-blue-600 font-bold hover:underline"
-                        >
-                            Pasang di HP (Android/iOS)
-                        </button>
-                    </p>
+                    {profile.tier === 'B2B' && profile.company ? (
+                        <div className="flex items-center gap-4 mb-2">
+                            {profile.company.logo_url ? (
+                                <img src={profile.company.logo_url} alt={profile.company.name} className="w-16 h-16 object-contain" />
+                            ) : (
+                                <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-xl">
+                                    {profile.company.name[0]}
+                                </div>
+                            )}
+                            <div>
+                                <h1 className="text-3xl font-bold text-zinc-900">
+                                    {profile.company.name} Dashboard
+                                </h1>
+                                <p className="text-zinc-500">
+                                    Welcome back, {profile.display_name}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <h1 className="text-3xl font-bold mb-2 text-zinc-900">
+                                Selamat datang, {profile.display_name}! 👋
+                            </h1>
+                            <p className="text-zinc-500">
+                                Kelola profil kartu nama digital Anda dari sini
+                            </p>
+                            <p className="text-xs text-zinc-400 mt-2 flex items-center gap-1.5">
+                                <Smartphone className="w-3.5 h-3.5 text-blue-500" />
+                                Akses lebih cepat & praktis?
+                                <button
+                                    onClick={() => setShowPWAHint(true)}
+                                    className="text-blue-600 font-bold hover:underline"
+                                >
+                                    Pasang di HP (Android/iOS)
+                                </button>
+                            </p>
+                        </>
+                    )}
                 </motion.div>
 
                 {/* Stats Cards */}

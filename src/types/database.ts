@@ -72,6 +72,9 @@ export interface SerialNumber {
     nfc_tap_count: number;
     last_tapped_at: string | null;
     manufactured_at: string | null;
+    // PLG Fields
+    sync_enabled: boolean;
+    last_synced_at?: string | null;
     created_at: string;
 }
 
@@ -105,6 +108,25 @@ export interface Profile {
     is_public: boolean;
     lead_capture_enabled: boolean;
     lead_capture_delay: number;
+    // PLG Fields
+    tier: 'FREE' | 'PREMIUM' | 'B2B';
+    user_tag?: 'GIFT' | 'DEMO' | 'INTERNAL' | null;
+    company_id?: string | null;
+    subscription_valid_until?: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Company {
+    id: string;
+    name: string;
+    logo_url?: string | null;
+    website?: string | null;
+    theme?: {
+        primary?: string;
+        accent?: string;
+    };
+    admin_id?: string | null;
     created_at: string;
     updated_at: string;
 }

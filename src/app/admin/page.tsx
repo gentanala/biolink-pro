@@ -44,6 +44,7 @@ interface SerialWithProfile {
     view_count: number
     link_clicks: number
     last_active: string | null
+    sync_enabled: boolean
 }
 
 type SortField = 'created_at' | 'display_name' | 'nfc_tap_count' | 'view_count' | 'last_active'
@@ -54,7 +55,10 @@ const ADMIN_PASSWORD = 'gentanala2024'
 export default function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [password, setPassword] = useState('')
+    const [activeTab, setActiveTab] = useState<'serials' | 'users' | 'companies'>('serials')
     const [serials, setSerials] = useState<SerialWithProfile[]>([])
+    const [users, setUsers] = useState<any[]>([])
+    const [companies, setCompanies] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
     const [generating, setGenerating] = useState(false)
     const [generateCount, setGenerateCount] = useState(1)
@@ -69,20 +73,19 @@ export default function AdminPage() {
     const [filterStatus, setFilterStatus] = useState<'all' | 'claimed' | 'unclaimed'>('all')
     const [qrDownloadData, setQrDownloadData] = useState<{ uuid: string; label: string; url: string } | null>(null)
 
+    // Edit Modal State
+    const [editUser, setEditUser] = useState<any | null>(null)
+    const [editCompany, setEditCompany] = useState<any | null>(null)
+
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const auth = sessionStorage.getItem('admin_auth')
             if (auth === 'true') {
                 setIsAuthenticated(true)
-                loadSerials()
+                loadAllData()
             }
             setSiteUrl(window.location.origin)
         }
-        const interval = setInterval(() => {
-            const auth = sessionStorage.getItem('admin_auth')
-            if (auth === 'true') loadSerials()
-        }, 15000)
-        return () => clearInterval(interval)
     }, [])
 
     const handleLogin = (e: React.FormEvent) => {
@@ -90,41 +93,35 @@ export default function AdminPage() {
         if (password === ADMIN_PASSWORD) {
             setIsAuthenticated(true)
             sessionStorage.setItem('admin_auth', 'true')
-            loadSerials()
+            loadAllData()
         } else {
             alert('Password salah!')
         }
     }
 
-    const loadSerials = async () => {
+    const loadAllData = async () => {
         setLoading(true)
         const supabase = createClient()
 
-        // Fetch serial numbers
-        const { data: serialData, error: sErr } = await supabase
-            .from('serial_numbers')
-            .select('*')
-            .order('created_at', { ascending: false })
+        // 1. Fetch Serials & Profiles for Serials Tab
+        const { data: serialData } = await supabase.from('serial_numbers').select('*').order('created_at', { ascending: false })
+        const { data: profileData } = await supabase.from('profiles').select('user_id, display_name, email, phone, theme, updated_at, tier, user_tag, company_id')
+        const { data: companyData } = await supabase.from('companies').select('*').order('created_at', { ascending: false })
 
-        if (sErr) {
-            console.error('Error loading serials:', sErr)
-            setLoading(false)
-            return
-        }
-
-        // Fetch all profiles for joining
-        const { data: profileData } = await supabase
-            .from('profiles')
-            .select('user_id, display_name, email, phone, theme, updated_at')
-
+        // Map Profiles
         const profileMap = new Map<string, any>()
         if (profileData) {
-            profileData.forEach((p: any) => {
-                profileMap.set(p.user_id, p)
-            })
+            profileData.forEach((p: any) => profileMap.set(p.user_id, p))
         }
 
-        const mapped: SerialWithProfile[] = (serialData || []).map((s: any) => {
+        // Map Companies
+        const companyMap = new Map<string, any>()
+        if (companyData) {
+            companyData.forEach((c: any) => companyMap.set(c.id, c))
+        }
+
+        // Process Serials
+        const mappedSerials: SerialWithProfile[] = (serialData || []).map((s: any) => {
             const profile = s.owner_id ? profileMap.get(s.owner_id) : null
             const theme = profile?.theme || {}
             return {
@@ -142,9 +139,19 @@ export default function AdminPage() {
                 view_count: theme.view_count || 0,
                 link_clicks: theme.link_clicks || 0,
                 last_active: profile?.updated_at || null,
+                sync_enabled: s.sync_enabled !== false // Default true
             }
         })
-        setSerials(mapped)
+
+        // Process Users (Profiles)
+        const mappedUsers = (profileData || []).map((p: any) => ({
+            ...p,
+            company_name: p.company_id ? companyMap.get(p.company_id)?.name : null
+        }))
+
+        setSerials(mappedSerials)
+        setUsers(mappedUsers)
+        setCompanies(companyData || [])
         setLoading(false)
     }
 
@@ -170,7 +177,7 @@ export default function AdminPage() {
         if (error) {
             alert('Gagal generate serial: ' + error.message)
         } else {
-            await loadSerials()
+            await loadAllData()
         }
         setGenerating(false)
     }
@@ -383,6 +390,261 @@ export default function AdminPage() {
         return sortDir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
     }
 
+    const renderSerialsTable = () => (
+        <div className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+                <table className="w-full">
+                    <thead>
+                        <tr className="bg-white/40 border-b border-zinc-200/50">
+                            <th className="px-4 py-4 text-left w-10">
+                                <input
+                                    type="checkbox"
+                                    checked={filteredAndSorted.length > 0 && selectedIds.size === filteredAndSorted.length}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 rounded border-zinc-300 accent-blue-600"
+                                />
+                            </th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">UUID</th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                                <button onClick={() => toggleSort('display_name')} className="flex items-center gap-1 hover:text-zinc-700">
+                                    Profil <SortIcon field="display_name" />
+                                </button>
+                            </th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Sync</th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                                <button onClick={() => toggleSort('nfc_tap_count')} className="flex items-center gap-1 hover:text-zinc-700">
+                                    Traffic <SortIcon field="nfc_tap_count" />
+                                </button>
+                            </th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                                <button onClick={() => toggleSort('last_active')} className="flex items-center gap-1 hover:text-zinc-700">
+                                    Last Active <SortIcon field="last_active" />
+                                </button>
+                            </th>
+                            <th className="px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                        {loading ? (
+                            <tr>
+                                <td colSpan={8} className="px-6 py-16 text-center text-zinc-400">
+                                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+                                    Loading...
+                                </td>
+                            </tr>
+                        ) : filteredAndSorted.length === 0 ? (
+                            <tr>
+                                <td colSpan={8} className="px-6 py-16 text-center text-zinc-400">
+                                    Tidak ada data ditemukan
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredAndSorted.map((serial) => (
+                                <tr key={serial.id} className={`transition-colors ${selectedIds.has(serial.id) ? 'bg-blue-50/50' : 'hover:bg-white/40'}`}>
+                                    <td className="px-4 py-4">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.has(serial.id)}
+                                            onChange={() => toggleSelect(serial.id)}
+                                            className="w-4 h-4 rounded border-zinc-300 accent-blue-600"
+                                        />
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <code className="text-[10px] text-blue-600 font-mono bg-blue-50 px-2 py-1 rounded-md border border-blue-100 inline-block w-fit">
+                                                {serial.serial_uuid.substring(0, 18)}...
+                                            </code>
+                                            <span className="text-[10px] text-zinc-400">
+                                                {formatDate(serial.created_at)}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        {serial.is_claimed && serial.display_name ? (
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <User className="w-3.5 h-3.5 text-zinc-400" />
+                                                    <span className="text-sm font-semibold text-zinc-900">{serial.display_name}</span>
+                                                </div>
+                                                {serial.email && (
+                                                    <div className="flex items-center gap-2">
+                                                        <Mail className="w-3 h-3 text-zinc-300" />
+                                                        <span className="text-xs text-zinc-500">{serial.email}</span>
+                                                    </div>
+                                                )}
+                                                {serial.whatsapp && (
+                                                    <div className="flex items-center gap-2">
+                                                        <Phone className="w-3 h-3 text-zinc-300" />
+                                                        <span className="text-xs text-zinc-500">{serial.whatsapp}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-zinc-400 italic">Belum diklaim</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${serial.is_claimed
+                                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                            }`}>
+                                            <span className={`w-1.5 h-1.5 rounded-full ${serial.is_claimed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                                            {serial.is_claimed ? 'Claimed' : 'Unclaimed'}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${serial.sync_enabled !== false ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-red-50 text-red-700 border border-red-100'
+                                            }`}>
+                                            {serial.sync_enabled !== false ? 'Active' : 'Stopped'}
+                                        </span>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2 text-xs">
+                                                <Eye className="w-3 h-3 text-purple-400" />
+                                                <span className="text-zinc-700">{serial.view_count} views</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs">
+                                                <Activity className="w-3 h-3 text-blue-400" />
+                                                <span className="text-zinc-700">{serial.nfc_tap_count} taps</span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-xs">
+                                                <span className="text-zinc-400">{serial.link_clicks} clicks</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="w-3.5 h-3.5 text-zinc-300" />
+                                            <span className="text-xs text-zinc-500">{formatRelative(serial.last_active)}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4">
+                                        <div className="flex items-center gap-1 justify-end">
+                                            <button
+                                                onClick={() => downloadQR(serial.serial_uuid, serial.display_name || undefined)}
+                                                className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="Download QR Code"
+                                            >
+                                                <QrCode className="w-4 h-4 text-blue-400" />
+                                            </button>
+                                            <button
+                                                onClick={() => copyToClipboard(`${siteUrl}/tap/${serial.serial_uuid}`, serial.id)}
+                                                className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
+                                                title="Copy NFC URL"
+                                            >
+                                                {copiedId === serial.id ? (
+                                                    <Check className="w-4 h-4 text-emerald-500" />
+                                                ) : (
+                                                    <Copy className="w-4 h-4 text-zinc-400" />
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={() => setDeleteConfirm(serial.id)}
+                                                className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Delete"
+                                            >
+                                                <Trash2 className="w-4 h-4 text-red-400" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+            </div>
+            {/* Table footer */}
+            <div className="px-6 py-3 bg-white/30 border-t border-zinc-100 text-xs text-zinc-500 flex items-center justify-between">
+                <span>Menampilkan {filteredAndSorted.length} dari {serials.length} serial</span>
+                <span>Sort: {sortField} ({sortDir})</span>
+            </div>
+        </div>
+    )
+
+    const renderUsersTable = () => (
+        <div className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden shadow-sm">
+            <table className="w-full">
+                <thead>
+                    <tr className="bg-white/40 border-b border-zinc-200/50">
+                        <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">User</th>
+                        <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Tier</th>
+                        <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Tag</th>
+                        <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Company</th>
+                        <th className="text-right px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Action</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                    {users.map(u => (
+                        <tr key={u.user_id} className="hover:bg-white/40">
+                            <td className="px-4 py-4">
+                                <div className="font-medium">{u.display_name || 'No Name'}</div>
+                                <div className="text-xs text-zinc-500">{u.email}</div>
+                            </td>
+                            <td className="px-4 py-4">
+                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${u.tier === 'PREMIUM' ? 'bg-purple-100 text-purple-700' :
+                                    u.tier === 'B2B' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-zinc-100 text-zinc-600'
+                                    }`}>
+                                    {u.tier || 'FREE'}
+                                </span>
+                            </td>
+                            <td className="px-4 py-4">
+                                {u.user_tag ? (
+                                    <span className="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-700">{u.user_tag}</span>
+                                ) : '-'}
+                            </td>
+                            <td className="px-4 py-4">{u.company_name || '-'}</td>
+                            <td className="px-4 py-4 text-right">
+                                <button onClick={() => setEditUser(u)} className="text-blue-600 hover:underline text-sm font-medium">Edit</button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    )
+
+    const renderCompaniesTable = () => (
+        <div className="space-y-4">
+            <div className="flex justify-end">
+                <button onClick={() => setEditCompany({})} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm shadow-blue-600/20">
+                    <Plus className="w-4 h-4" /> New Company
+                </button>
+            </div>
+            <div className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden shadow-sm">
+                <table className="w-full">
+                    <thead>
+                        <tr className="bg-white/40 border-b border-zinc-200/50">
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Name</th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Website</th>
+                            <th className="text-right px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                        {companies.map(c => (
+                            <tr key={c.id} className="hover:bg-white/40">
+                                <td className="px-4 py-4 font-medium">{c.name}</td>
+                                <td className="px-4 py-4 text-sm text-blue-600">{c.website}</td>
+                                <td className="px-4 py-4 text-right">
+                                    <button onClick={() => setEditCompany(c)} className="text-blue-600 hover:underline text-sm font-medium">Edit</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    )
+
+    const renderContent = () => {
+        if (activeTab === 'serials') return renderSerialsTable()
+        if (activeTab === 'users') return renderUsersTable()
+        if (activeTab === 'companies') return renderCompaniesTable()
+        return null
+    }
+
     // ─── Login Screen (Light Liquid Glass) ───
     if (!isAuthenticated) {
         return (
@@ -443,281 +705,296 @@ export default function AdminPage() {
             </header>
 
             <div className="max-w-7xl mx-auto px-6 py-8">
-                {/* Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    {[
-                        { icon: <Package className="w-6 h-6 text-blue-600" />, bg: 'bg-blue-500/10 border-blue-500/20', val: serials.length, label: 'Total Serials' },
-                        { icon: <Check className="w-6 h-6 text-emerald-600" />, bg: 'bg-emerald-500/10 border-emerald-500/20', val: serials.filter(s => s.is_claimed).length, label: 'Claimed' },
-                        { icon: <Eye className="w-6 h-6 text-purple-600" />, bg: 'bg-purple-500/10 border-purple-500/20', val: serials.reduce((a, s) => a + s.view_count, 0), label: 'Total Views' },
-                        { icon: <Activity className="w-6 h-6 text-amber-600" />, bg: 'bg-amber-500/10 border-amber-500/20', val: serials.reduce((a, s) => a + s.nfc_tap_count, 0), label: 'Total Taps' },
-                    ].map(stat => (
-                        <div key={stat.label} className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl p-6 shadow-sm">
-                            <div className="flex items-center gap-4">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${stat.bg}`}>
-                                    {stat.icon}
-                                </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-zinc-900">{stat.val}</p>
-                                    <p className="text-zinc-500 text-sm">{stat.label}</p>
-                                </div>
-                            </div>
-                        </div>
+                {/* Tabs */}
+                <div className="flex items-center gap-1 p-1 bg-zinc-100/50 backdrop-blur-sm rounded-xl w-fit mb-8 border border-zinc-200/50">
+                    {['serials', 'users', 'companies'].map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab as any)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab
+                                ? 'bg-white text-blue-600 shadow-sm'
+                                : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50'
+                                }`}
+                        >
+                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                        </button>
                     ))}
                 </div>
 
-                {/* Actions */}
-                <div className="flex flex-wrap gap-3 mb-6">
-                    <div className="flex items-center gap-2">
-                        <input
-                            type="number"
-                            min="1"
-                            max="100"
-                            value={generateCount}
-                            onChange={(e) => setGenerateCount(parseInt(e.target.value) || 1)}
-                            className="w-20 px-3 py-2.5 bg-white/50 backdrop-blur-sm border border-zinc-200 rounded-xl text-zinc-900 text-center focus:border-blue-500 focus:outline-none"
-                        />
-                        <button
-                            onClick={generateSerials}
-                            disabled={generating}
-                            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm disabled:opacity-50 font-medium"
-                        >
-                            {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                            Generate
-                        </button>
-                    </div>
-                    <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-zinc-200 hover:bg-white/80 text-zinc-700 rounded-xl transition-colors font-medium">
-                        <Download className="w-4 h-4" />
-                        Export CSV
-                    </button>
-                    <button onClick={loadSerials} className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-zinc-200 hover:bg-white/80 text-zinc-700 rounded-xl transition-colors font-medium">
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        Refresh
-                    </button>
+                {activeTab === 'serials' && (
+                    <>
+                        {/* Stats */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                            {[
+                                { icon: <Package className="w-6 h-6 text-blue-600" />, bg: 'bg-blue-500/10 border-blue-500/20', val: serials.length, label: 'Total Serials' },
+                                { icon: <Check className="w-6 h-6 text-emerald-600" />, bg: 'bg-emerald-500/10 border-emerald-500/20', val: serials.filter(s => s.is_claimed).length, label: 'Claimed' },
+                                { icon: <Eye className="w-6 h-6 text-purple-600" />, bg: 'bg-purple-500/10 border-purple-500/20', val: serials.reduce((a, s) => a + s.view_count, 0), label: 'Total Views' },
+                                { icon: <Activity className="w-6 h-6 text-amber-600" />, bg: 'bg-amber-500/10 border-amber-500/20', val: serials.reduce((a, s) => a + s.nfc_tap_count, 0), label: 'Total Taps' },
+                            ].map(stat => (
+                                <div key={stat.label} className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl p-6 shadow-sm">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${stat.bg}`}>
+                                            {stat.icon}
+                                        </div>
+                                        <div>
+                                            <p className="text-2xl font-bold text-zinc-900">{stat.val}</p>
+                                            <p className="text-zinc-500 text-sm">{stat.label}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
 
-                    {/* Bulk Actions */}
-                    {selectedIds.size > 0 && (
-                        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2 ml-auto">
-                            <span className="text-sm text-zinc-500 font-medium">{selectedIds.size} selected</span>
-                            <button onClick={() => setBulkDeleteConfirm(true)} className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 rounded-xl transition-colors font-medium">
-                                <Trash2 className="w-4 h-4" />
-                                Delete Selected
+                        {/* Actions */}
+                        <div className="flex flex-wrap gap-3 mb-6">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    value={generateCount}
+                                    onChange={(e) => setGenerateCount(parseInt(e.target.value) || 1)}
+                                    className="w-20 px-3 py-2.5 bg-white/50 backdrop-blur-sm border border-zinc-200 rounded-xl text-zinc-900 text-center focus:border-blue-500 focus:outline-none"
+                                />
+                                <button
+                                    onClick={generateSerials}
+                                    disabled={generating}
+                                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm disabled:opacity-50 font-medium"
+                                >
+                                    {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                    Generate
+                                </button>
+                            </div>
+                            <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-zinc-200 hover:bg-white/80 text-zinc-700 rounded-xl transition-colors font-medium">
+                                <Download className="w-4 h-4" />
+                                Export CSV
                             </button>
-                            <button onClick={() => setSelectedIds(new Set())} className="p-2.5 hover:bg-zinc-100 rounded-xl transition-colors">
-                                <X className="w-4 h-4 text-zinc-400" />
+                            <button onClick={loadAllData} className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-zinc-200 hover:bg-white/80 text-zinc-700 rounded-xl transition-colors font-medium">
+                                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                                Refresh
                             </button>
-                        </motion.div>
-                    )}
-                </div>
 
-                {/* Search + Filter */}
-                <div className="flex flex-col sm:flex-row gap-3 mb-6">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
-                        <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Cari UUID, nama, email, whatsapp..."
-                            className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-sm border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                        />
-                    </div>
-                    <div className="flex bg-white/60 backdrop-blur-sm border border-zinc-200 rounded-xl p-1 gap-1">
-                        {[
-                            { key: 'all' as const, label: 'Semua' },
-                            { key: 'claimed' as const, label: 'Claimed' },
-                            { key: 'unclaimed' as const, label: 'Unclaimed' },
-                        ].map(f => (
-                            <button
-                                key={f.key}
-                                onClick={() => setFilterStatus(f.key)}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filterStatus === f.key
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-zinc-500 hover:text-zinc-700 hover:bg-white/50'
-                                    }`}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                            {selectedIds.size > 0 && (
+                                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2 ml-auto">
+                                    <span className="text-sm text-zinc-500 font-medium">{selectedIds.size} selected</span>
+                                    <button onClick={() => setBulkDeleteConfirm(true)} className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 rounded-xl transition-colors font-medium">
+                                        <Trash2 className="w-4 h-4" />
+                                        Delete Selected
+                                    </button>
+                                    <button onClick={() => setSelectedIds(new Set())} className="p-2.5 hover:bg-zinc-100 rounded-xl transition-colors">
+                                        <X className="w-4 h-4 text-zinc-400" />
+                                    </button>
+                                </motion.div>
+                            )}
+                        </div>
 
-                {/* Table */}
-                <div className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden shadow-sm">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="bg-white/40 border-b border-zinc-200/50">
-                                    <th className="px-4 py-4 text-left w-10">
-                                        <input
-                                            type="checkbox"
-                                            checked={filteredAndSorted.length > 0 && selectedIds.size === filteredAndSorted.length}
-                                            onChange={toggleSelectAll}
-                                            className="w-4 h-4 rounded border-zinc-300 accent-blue-600"
-                                        />
-                                    </th>
-                                    <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">UUID</th>
-                                    <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                                        <button onClick={() => toggleSort('display_name')} className="flex items-center gap-1 hover:text-zinc-700">
-                                            Profil <SortIcon field="display_name" />
-                                        </button>
-                                    </th>
-                                    <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                                    <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                                        <button onClick={() => toggleSort('nfc_tap_count')} className="flex items-center gap-1 hover:text-zinc-700">
-                                            Traffic <SortIcon field="nfc_tap_count" />
-                                        </button>
-                                    </th>
-                                    <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                                        <button onClick={() => toggleSort('last_active')} className="flex items-center gap-1 hover:text-zinc-700">
-                                            Last Active <SortIcon field="last_active" />
-                                        </button>
-                                    </th>
-                                    <th className="px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-zinc-100">
-                                {loading ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-6 py-16 text-center text-zinc-400">
-                                            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
-                                            Loading...
-                                        </td>
-                                    </tr>
-                                ) : filteredAndSorted.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-6 py-16 text-center text-zinc-400">
-                                            Tidak ada data ditemukan
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    filteredAndSorted.map((serial) => (
-                                        <tr key={serial.id} className={`transition-colors ${selectedIds.has(serial.id) ? 'bg-blue-50/50' : 'hover:bg-white/40'}`}>
-                                            <td className="px-4 py-4">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedIds.has(serial.id)}
-                                                    onChange={() => toggleSelect(serial.id)}
-                                                    className="w-4 h-4 rounded border-zinc-300 accent-blue-600"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <div className="flex flex-col gap-1">
-                                                    <code className="text-[10px] text-blue-600 font-mono bg-blue-50 px-2 py-1 rounded-md border border-blue-100 inline-block w-fit">
-                                                        {serial.serial_uuid.substring(0, 18)}...
-                                                    </code>
-                                                    <span className="text-[10px] text-zinc-400">
-                                                        {formatDate(serial.created_at)}
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                {serial.is_claimed && serial.display_name ? (
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <User className="w-3.5 h-3.5 text-zinc-400" />
-                                                            <span className="text-sm font-semibold text-zinc-900">{serial.display_name}</span>
-                                                        </div>
-                                                        {serial.email && (
-                                                            <div className="flex items-center gap-2">
-                                                                <Mail className="w-3 h-3 text-zinc-300" />
-                                                                <span className="text-xs text-zinc-500">{serial.email}</span>
-                                                            </div>
-                                                        )}
-                                                        {serial.whatsapp && (
-                                                            <div className="flex items-center gap-2">
-                                                                <Phone className="w-3 h-3 text-zinc-300" />
-                                                                <span className="text-xs text-zinc-500">{serial.whatsapp}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-xs text-zinc-400 italic">Belum diklaim</span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${serial.is_claimed
-                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
-                                                    }`}>
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${serial.is_claimed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                                                    {serial.is_claimed ? 'Claimed' : 'Unclaimed'}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <Eye className="w-3 h-3 text-purple-400" />
-                                                        <span className="text-zinc-700">{serial.view_count} views</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <Activity className="w-3 h-3 text-blue-400" />
-                                                        <span className="text-zinc-700">{serial.nfc_tap_count} taps</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <span className="text-zinc-400">{serial.link_clicks} clicks</span>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <Clock className="w-3.5 h-3.5 text-zinc-300" />
-                                                    <span className="text-xs text-zinc-500">{formatRelative(serial.last_active)}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                <div className="flex items-center gap-1 justify-end">
-                                                    <button
-                                                        onClick={() => downloadQR(serial.serial_uuid, serial.display_name || undefined)}
-                                                        className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                                                        title="Download QR Code"
-                                                    >
-                                                        <QrCode className="w-4 h-4 text-blue-400" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => copyToClipboard(`${siteUrl}/tap/${serial.serial_uuid}`, serial.id)}
-                                                        className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
-                                                        title="Copy NFC URL"
-                                                    >
-                                                        {copiedId === serial.id ? (
-                                                            <Check className="w-4 h-4 text-emerald-500" />
-                                                        ) : (
-                                                            <Copy className="w-4 h-4 text-zinc-400" />
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setDeleteConfirm(serial.id)}
-                                                        className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="w-4 h-4 text-red-400" />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                    {/* Table footer */}
-                    <div className="px-6 py-3 bg-white/30 border-t border-zinc-100 text-xs text-zinc-500 flex items-center justify-between">
-                        <span>Menampilkan {filteredAndSorted.length} dari {serials.length} serial</span>
-                        <span>Sort: {sortField} ({sortDir})</span>
-                    </div>
-                </div>
+                        {/* Search + Filter */}
+                        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                                <input
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    placeholder="Cari UUID, nama, email..."
+                                    className="w-full pl-11 pr-4 py-2.5 bg-white/50 backdrop-blur-sm border border-zinc-200 rounded-xl focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-zinc-900 placeholder-zinc-400"
+                                />
+                            </div>
+                            <div className="flex bg-white/50 backdrop-blur-sm border border-zinc-200 rounded-xl p-1">
+                                {['all', 'claimed', 'unclaimed'].map((status) => (
+                                    <button
+                                        key={status}
+                                        onClick={() => setFilterStatus(status as any)}
+                                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${filterStatus === status
+                                            ? 'bg-white text-blue-600 shadow-sm'
+                                            : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100/50'
+                                            }`}
+                                    >
+                                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
 
-                {/* Instructions */}
-                <div className="mt-8 bg-blue-50/60 backdrop-blur-sm border border-blue-200/50 rounded-2xl p-6">
-                    <h3 className="font-semibold text-blue-700 mb-3">📋 Cara Pakai:</h3>
-                    <ol className="text-sm text-zinc-600 space-y-2 list-decimal list-inside">
-                        <li>Klik <strong>&quot;Generate&quot;</strong> untuk membuat UUID baru</li>
-                        <li>Klik <strong>&quot;Export CSV&quot;</strong> untuk download daftar</li>
-                        <li>Kirim file CSV ke vendor NFC untuk di-program ke chip</li>
-                        <li>Vendor akan program setiap chip dengan URL: <code className="text-blue-600 bg-blue-50 px-1 rounded">{'domain'}/tap/[uuid]</code></li>
-                        <li>Saat customer scan, mereka akan diarahkan ke halaman claim</li>
-                    </ol>
-                </div>
+                {renderContent()}
+
+                {activeTab === 'serials' && (
+                    <div className="mt-8 bg-blue-50/60 backdrop-blur-sm border border-blue-200/50 rounded-2xl p-6">
+                        <h3 className="font-semibold text-blue-700 mb-3">📋 Cara Pakai:</h3>
+                        <ol className="text-sm text-zinc-600 space-y-2 list-decimal list-inside">
+                            <li>Klik <strong>&quot;Generate&quot;</strong> untuk membuat UUID baru</li>
+                            <li>Klik <strong>&quot;Export CSV&quot;</strong> untuk download daftar</li>
+                            <li>Kirim file CSV ke vendor NFC untuk di-program ke chip</li>
+                            <li>Vendor akan program setiap chip dengan URL: <code className="text-blue-600 bg-blue-50 px-1 rounded">{'domain'}/tap/[uuid]</code></li>
+                            <li>Saat customer scan, mereka akan diarahkan ke halaman claim</li>
+                        </ol>
+                    </div>
+                )}
             </div>
+
+            {/* Edit User Modal */}
+            <AnimatePresence>
+                {editUser && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl"
+                        >
+                            <h3 className="text-lg font-bold mb-4">Edit User</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700">Tier</label>
+                                    <select
+                                        value={editUser.tier || 'FREE'}
+                                        onChange={e => setEditUser({ ...editUser, tier: e.target.value })}
+                                        className="w-full mt-1 p-2 border rounded-lg"
+                                    >
+                                        <option value="FREE">Free</option>
+                                        <option value="PREMIUM">Premium</option>
+                                        <option value="B2B">B2B</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700">Tag</label>
+                                    <select
+                                        value={editUser.user_tag || ''}
+                                        onChange={e => setEditUser({ ...editUser, user_tag: e.target.value || null })}
+                                        className="w-full mt-1 p-2 border rounded-lg"
+                                    >
+                                        <option value="">None</option>
+                                        <option value="GIFT">Gift</option>
+                                        <option value="DEMO">Demo</option>
+                                        <option value="INTERNAL">Internal</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700">Company</label>
+                                    <select
+                                        value={editUser.company_id || ''}
+                                        onChange={e => setEditUser({ ...editUser, company_id: e.target.value || null })}
+                                        className="w-full mt-1 p-2 border rounded-lg"
+                                    >
+                                        <option value="">None</option>
+                                        {companies.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="flex justify-end gap-2 mt-6">
+                                    <button onClick={() => setEditUser(null)} className="px-4 py-2 text-zinc-500 hover:bg-zinc-100 rounded-lg">Cancel</button>
+                                    <button
+                                        onClick={async () => {
+                                            const supabase = createClient()
+                                            const { error } = await supabase.from('profiles').update({
+                                                tier: editUser.tier,
+                                                user_tag: editUser.user_tag,
+                                                company_id: editUser.company_id || null
+                                            }).eq('user_id', editUser.user_id)
+
+                                            if (error) {
+                                                alert(error.message)
+                                            } else {
+                                                if (editUser.tier === 'FREE') {
+                                                    const { error: syncError } = await supabase
+                                                        .from('serial_numbers')
+                                                        .update({ sync_enabled: false })
+                                                        .eq('owner_id', editUser.user_id)
+                                                    if (syncError) console.error('Failed to disable sync:', syncError)
+                                                }
+                                                setEditUser(null)
+                                                loadAllData()
+                                            }
+                                        }}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    >
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Edit Company Modal */}
+            <AnimatePresence>
+                {editCompany && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl"
+                        >
+                            <h3 className="text-lg font-bold mb-4">{editCompany.id ? 'Edit Company' : 'New Company'}</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700">Name</label>
+                                    <input
+                                        type="text"
+                                        value={editCompany.name || ''}
+                                        onChange={e => setEditCompany({ ...editCompany, name: e.target.value })}
+                                        className="w-full mt-1 p-2 border rounded-lg"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700">Website</label>
+                                    <input
+                                        type="text"
+                                        value={editCompany.website || ''}
+                                        onChange={e => setEditCompany({ ...editCompany, website: e.target.value })}
+                                        className="w-full mt-1 p-2 border rounded-lg"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-zinc-700">Logo URL</label>
+                                    <input
+                                        type="text"
+                                        value={editCompany.logo_url || ''}
+                                        onChange={e => setEditCompany({ ...editCompany, logo_url: e.target.value })}
+                                        className="w-full mt-1 p-2 border rounded-lg"
+                                    />
+                                </div>
+                                <div className="flex justify-end gap-2 mt-6">
+                                    <button onClick={() => setEditCompany(null)} className="px-4 py-2 text-zinc-500 hover:bg-zinc-100 rounded-lg">Cancel</button>
+                                    <button
+                                        onClick={async () => {
+                                            const supabase = createClient()
+                                            const payload = {
+                                                name: editCompany.name,
+                                                website: editCompany.website,
+                                                logo_url: editCompany.logo_url
+                                            }
+
+                                            let error
+                                            if (editCompany.id) {
+                                                const res = await supabase.from('companies').update(payload).eq('id', editCompany.id)
+                                                error = res.error
+                                            } else {
+                                                const res = await supabase.from('companies').insert([payload])
+                                                error = res.error
+                                            }
+
+                                            if (error) alert(error.message)
+                                            else {
+                                                setEditCompany(null)
+                                                loadAllData()
+                                            }
+                                        }}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    >
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Delete Confirmation Modal */}
             <AnimatePresence>

@@ -39,6 +39,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     email TEXT,
     company TEXT,
     job_title TEXT,
+    -- PLG Columns
+    tier TEXT DEFAULT 'FREE' CHECK (tier IN ('FREE', 'PREMIUM', 'B2B')),
+    user_tag TEXT CHECK (user_tag IN ('GIFT', 'DEMO', 'INTERNAL')),
+    company_id UUID REFERENCES public.companies(id) ON DELETE SET NULL,
+    subscription_valid_until TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -53,6 +58,35 @@ CREATE TABLE IF NOT EXISTS public.links (
     icon TEXT DEFAULT 'link',
     is_active BOOLEAN DEFAULT TRUE,
     display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. SERIAL_NUMBERS TABLE (Physical Cards)
+-- Tracks NFC cards and their link to products/profiles
+CREATE TABLE IF NOT EXISTS public.serial_numbers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    serial_uuid UUID NOT NULL UNIQUE,
+    product_id UUID,
+    is_claimed BOOLEAN DEFAULT FALSE,
+    claimed_at TIMESTAMPTZ,
+    owner_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    nfc_tap_count INTEGER DEFAULT 0,
+    -- PLG Columns
+    sync_enabled BOOLEAN DEFAULT TRUE,
+    last_synced_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. COMPANIES TABLE (New for PLG)
+-- B2B Entity Data
+CREATE TABLE IF NOT EXISTS public.companies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    logo_url TEXT,
+    website TEXT,
+    theme JSONB DEFAULT '{"primary": "#0F172A", "accent": "#3B82F6"}'::jsonb,
+    admin_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -201,3 +235,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON public.profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_links_profile_id ON public.links(profile_id);
 CREATE INDEX IF NOT EXISTS idx_links_display_order ON public.links(display_order);
 CREATE INDEX IF NOT EXISTS idx_activation_codes_code ON public.activation_codes(code);
+
+-- PLG Indexes
+CREATE INDEX IF NOT EXISTS idx_profiles_tier ON public.profiles(tier);
+CREATE INDEX IF NOT EXISTS idx_profiles_company_id ON public.profiles(company_id);
