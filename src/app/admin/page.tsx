@@ -61,7 +61,7 @@ const ADMIN_PASSWORD = 'gentanala2024'
 export default function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [password, setPassword] = useState('')
-    const [activeTab, setActiveTab] = useState<'serials' | 'users' | 'companies' | 'features'>('serials')
+    const [activeTab, setActiveTab] = useState<'profiles' | 'companies' | 'features'>('profiles')
     const [userToDelete, setUserToDelete] = useState<any | null>(null)
     const [tierConfigs, setTierConfigs] = useState<any[]>([])
     const [serials, setSerials] = useState<SerialWithProfile[]>([])
@@ -797,8 +797,7 @@ export default function AdminPage() {
     )
 
     const renderContent = () => {
-        if (activeTab === 'serials') return renderSerialsTable()
-        if (activeTab === 'users') return renderUsersTable()
+        if (activeTab === 'profiles') return renderSerialsTable()
         if (activeTab === 'companies') return renderCompaniesTable()
         return null
     }
@@ -865,7 +864,7 @@ export default function AdminPage() {
             <div className="max-w-7xl mx-auto px-6 py-8">
                 {/* Tabs */}
                 <div className="flex items-center gap-1 p-1 bg-zinc-100/50 backdrop-blur-sm rounded-xl w-fit mb-8 border border-zinc-200/50">
-                    {['serials', 'users', 'companies', 'features'].map((tab) => (
+                    {['profiles', 'companies', 'features'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -879,7 +878,7 @@ export default function AdminPage() {
                     ))}
                 </div>
 
-                {activeTab === 'serials' && (
+                {activeTab === 'profiles' && (
                     <>
                         {/* Stats */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -980,7 +979,7 @@ export default function AdminPage() {
 
                 {activeTab === 'features' && renderFeaturesTable()}
 
-                {activeTab === 'serials' && (
+                {activeTab === 'profiles' && (
                     <div className="mt-8 bg-blue-50/60 backdrop-blur-sm border border-blue-200/50 rounded-2xl p-6">
                         <h3 className="font-semibold text-blue-700 mb-3">📋 Cara Pakai:</h3>
                         <ol className="text-sm text-zinc-600 space-y-2 list-decimal list-inside">
