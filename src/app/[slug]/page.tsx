@@ -107,6 +107,9 @@ export default function PublicProfile() {
         // Check if lead capture is enabled for this profile
         const leadCaptureEnabled = profile.lead_capture_enabled || false
 
+        // REVISION: Only allow lead capture for non-FREE users
+        if (profile.tier === 'FREE') return
+
         // Check if user has already submitted a lead for this profile
         const hasSubmitted = localStorage.getItem(`has_submitted_lead_${profile.id}`)
 

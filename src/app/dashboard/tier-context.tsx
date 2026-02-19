@@ -44,12 +44,24 @@ export function TierProvider({ children }: { children: React.ReactNode }) {
                     // 2. Get profile tier
                     const { data: profile } = await supabase
                         .from('profiles')
-                        .select('tier')
+                        .select('tier, subscription_valid_until')
                         .eq('user_id', user.id)
                         .single()
 
                     if (profile?.tier) {
-                        setTier(profile.tier as Tier)
+                        let currentTier = profile.tier as Tier
+
+                        // Check for expiration if not B2B (B2B usually permanent or managed differently)
+                        if (currentTier === 'PREMIUM' && profile.subscription_valid_until) {
+                            const expiry = new Date(profile.subscription_valid_until)
+                            if (expiry < new Date()) {
+                                currentTier = 'FREE'
+                                // Optional: Update DB to reflect downgrade? 
+                                // For now just client-side downgrade is safer/faster
+                            }
+                        }
+
+                        setTier(currentTier)
                     }
                 }
 

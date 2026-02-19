@@ -53,6 +53,9 @@ export async function GET(request: Request) {
                                 display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
                                 bio: 'Gentanala Owner',
                                 email: user.email,
+                                tier: 'PREMIUM',
+                                subscription_valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 Days Trial
+                                lead_capture_enabled: true
                             })
                     }
 

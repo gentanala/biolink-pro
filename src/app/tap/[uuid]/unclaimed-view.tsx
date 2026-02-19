@@ -39,84 +39,116 @@ export function UnclaimedView({ serial }: UnclaimedViewProps) {
         setIsLoading(true)
 
         const userEmail = email
-        let userId = 'local-' + Date.now().toString()
+        let userId = ''
+        const supabase = createClient()
 
-        // Best-effort Supabase auth — NEVER blocks the flow
         try {
-            const supabase = createClient()
-            const { data: signUpData } = await supabase.auth.signUp({ email, password })
-            if (signUpData?.user?.id) userId = signUpData.user.id
+            // 1. Try to Sign Up
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        is_activated: true // Auto-activate for claim flow
+                    }
+                }
+            })
 
-            // Try immediate sign in (may fail if email confirmation is on — that's OK)
-            try {
-                const { data: signInData } = await supabase.auth.signInWithPassword({ email, password })
-                if (signInData?.user?.id) userId = signInData.user.id
-            } catch { /* OK */ }
-        } catch (err) {
-            console.warn('Supabase auth skipped:', err)
-        }
+            if (signUpError) {
+                // If user exists, try to Sign In
+                if (signUpError.message.includes('already registered') || signUpError.status === 400) { // Check status too
+                    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                        email,
+                        password
+                    })
 
-        // === CLAIM SERIAL IN SUPABASE ===
-        try {
-            const supabase = createClient()
+                    if (signInError) {
+                        alert('Login failed: ' + signInError.message)
+                        setIsLoading(false)
+                        return
+                    }
+
+                    if (signInData.user) userId = signInData.user.id
+                } else {
+                    alert('Signup failed: ' + signUpError.message)
+                    setIsLoading(false)
+                    return
+                }
+            } else if (signUpData.user) {
+                userId = signUpData.user.id
+            }
+
+            if (!userId) {
+                alert('Authentication failed. Please try again.')
+                setIsLoading(false)
+                return
+            }
+
+            // 2. Claim Serial
             const { error: claimError } = await supabase
                 .from('serial_numbers')
                 .update({
                     is_claimed: true,
-                    owner_id: userId.startsWith('local-') ? null : userId,
+                    owner_id: userId,
                     claimed_at: new Date().toISOString(),
                 })
                 .eq('serial_uuid', serial.serial_uuid)
 
             if (claimError) {
-                console.warn('Supabase claim error (continuing anyway):', claimError)
+                console.error('Claim error:', claimError)
+                alert('Failed to claim serial number. Please contact support.')
+                setIsLoading(false)
+                return
             }
 
-            // Auto-activate user (skip activation code step)
-            if (!userId.startsWith('local-')) {
-                await supabase
-                    .from('users')
-                    .update({ is_activated: true, activated_at: new Date().toISOString() })
-                    .eq('id', userId)
+            // 3. Create or Update Profile with PREMIUM Trial
+            const slug = userEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') + '-' + Date.now().toString().slice(-4)
+            const trialEndsAt = new Date()
+            trialEndsAt.setDate(trialEndsAt.getDate() + 30) // 30 Days Trial
 
-                // Create a basic profile in Supabase
-                const slug = userEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') + '-' + Date.now().toString().slice(-4)
-                await supabase
-                    .from('profiles')
-                    .insert({
-                        user_id: userId,
-                        slug: slug,
-                        display_name: userEmail.split('@')[0],
-                        bio: 'Gentanala Owner',
-                        email: userEmail,
-                    })
-                    .then(({ error }) => {
-                        if (error) console.warn('Profile creation error (may already exist):', error)
-                    })
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .upsert({
+                    user_id: userId,
+                    slug: slug,
+                    display_name: userEmail.split('@')[0],
+                    bio: 'Gentanala Owner',
+                    email: userEmail,
+                    tier: 'PREMIUM', // Grant Premium
+                    subscription_valid_until: trialEndsAt.toISOString(), // Set Expiry
+                    lead_capture_enabled: true // Enable features by default
+                }, { onConflict: 'user_id' })
+
+            if (profileError) {
+                console.error('Profile creation error:', profileError)
+                // Continue anyway, profile might exist
             }
-        } catch (err) {
-            console.warn('Supabase claim skipped:', err)
-        }
 
-        // === ALWAYS RUNS: Create local profile (dashboard fallback) ===
-        const slug = 'user-' + Date.now().toString().slice(-6)
-        const profile = {
-            id: userId,
-            user_id: userId,
-            slug: slug,
-            display_name: 'User',
-            bio: 'Gentanala Owner',
-            avatar_url: null,
-            theme: { primary: '#3B82F6', background: '#0F172A', style: 'default' },
-            links: [],
-            email: userEmail,
-        }
-        localStorage.setItem('genhub_profile', JSON.stringify(profile))
-        localStorage.setItem('genhub_user', JSON.stringify({ id: userId, email: userEmail }))
-        localStorage.setItem('genhub_activated', 'true')
+            // 4. Set Local Storage for immediate Dashboard access (Optimistic)
+            const profile = {
+                id: userId,
+                user_id: userId,
+                slug: slug,
+                display_name: userEmail.split('@')[0],
+                bio: 'Gentanala Owner',
+                avatar_url: null,
+                theme: { primary: '#3B82F6', background: '#0F172A', style: 'default' },
+                links: [],
+                email: userEmail,
+                tier: 'PREMIUM'
+            }
+            localStorage.setItem('genhub_profile', JSON.stringify(profile))
+            localStorage.setItem('genhub_user', JSON.stringify({ id: userId, email: userEmail }))
+            localStorage.setItem('genhub_activated', 'true')
 
-        // === ALWAYS RUNS: Go to dashboard ===
-        window.location.href = '/dashboard?claim_success=true'
+            // 5. Redirect to Dashboard
+            window.location.href = '/dashboard?claim_success=true'
+
+        } catch (err: any) {
+            console.error('Unexpected error:', err)
+            alert('An unexpected error occurred: ' + (err.message || err))
+            setIsLoading(false)
+        }
     }
 
     const formatPrice = (price: number) => {

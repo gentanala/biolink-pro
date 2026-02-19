@@ -31,6 +31,7 @@ function CompanyGuard({ children }: { children: React.ReactNode }) {
 }
 
 import CompanyShell from '@/components/company/CompanyShell'
+import PWAHandler from '@/components/pwa/PWAHandler'
 
 export default function CompanyLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -41,6 +42,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
                 <CompanyShell>
                     {children}
                 </CompanyShell>
+                <PWAHandler />
             </CompanyGuard>
         </CompanyProvider>
     )
