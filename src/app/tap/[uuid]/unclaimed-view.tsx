@@ -180,11 +180,11 @@ export function UnclaimedView({ serial }: UnclaimedViewProps) {
                     transition={{ duration: 0.8, delay: 0.2 }}
                     className="relative mb-8"
                 >
-                    <div className="aspect-square bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-3xl border border-zinc-800/50 backdrop-blur-sm overflow-hidden">
+                    <div className="w-full bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 rounded-3xl border border-zinc-800/50 backdrop-blur-sm overflow-hidden">
                         <img
                             src="https://damgyhadhnirwabekbvs.supabase.co/storage/v1/object/public/public-assets/7a9c1211-b7bf-4f1d-8da5-57c3ea8e9072/Image%2019-02-26%20at%2020.30.png"
                             alt="Gentanala Product"
-                            className="w-full h-full object-cover"
+                            className="w-full h-auto shadow-2xl"
                         />
                     </div>
 
