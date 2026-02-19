@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 
-type BucketName = 'avatars' | 'gallery' | 'files'
+type BucketName = 'avatars' | 'gallery' | 'files' | 'logos'
 
 /**
  * Upload a file to Supabase Storage
@@ -69,6 +69,16 @@ export async function uploadGalleryImage(file: File, userId: string): Promise<st
  */
 export async function uploadDocument(file: File, userId: string): Promise<string> {
     return uploadFile(file, 'files', userId)
+}
+
+/**
+ * Upload a company logo
+ */
+export async function uploadLogo(file: File, companyId: string): Promise<string> {
+    // For logos, we use companyId instead of userId as the folder
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
+    const filename = `logo-${Date.now()}.${ext}`
+    return uploadFile(file, 'logos', companyId, filename)
 }
 
 /**

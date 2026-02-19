@@ -45,6 +45,12 @@ interface SerialWithProfile {
     link_clicks: number
     last_active: string | null
     sync_enabled: boolean
+    // Full user metadata
+    tier: string | null
+    user_tag: string | null
+    company_id: string | null
+    company_name: string | null
+    user_id: string | null
 }
 
 type SortField = 'created_at' | 'display_name' | 'nfc_tap_count' | 'view_count' | 'last_active'
@@ -55,7 +61,8 @@ const ADMIN_PASSWORD = 'gentanala2024'
 export default function AdminPage() {
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [password, setPassword] = useState('')
-    const [activeTab, setActiveTab] = useState<'serials' | 'users' | 'companies'>('serials')
+    const [activeTab, setActiveTab] = useState<'serials' | 'users' | 'companies' | 'features'>('features')
+    const [tierConfigs, setTierConfigs] = useState<any[]>([])
     const [serials, setSerials] = useState<SerialWithProfile[]>([])
     const [users, setUsers] = useState<any[]>([])
     const [companies, setCompanies] = useState<any[]>([])
@@ -106,7 +113,9 @@ export default function AdminPage() {
         // 1. Fetch Serials & Profiles for Serials Tab
         const { data: serialData } = await supabase.from('serial_numbers').select('*').order('created_at', { ascending: false })
         const { data: profileData } = await supabase.from('profiles').select('user_id, display_name, email, phone, theme, updated_at, tier, user_tag, company_id')
+
         const { data: companyData } = await supabase.from('companies').select('*').order('created_at', { ascending: false })
+        const { data: tierData } = await supabase.from('tier_configs').select('*').order('tier', { ascending: true })
 
         // Map Profiles
         const profileMap = new Map<string, any>()
@@ -139,7 +148,12 @@ export default function AdminPage() {
                 view_count: theme.view_count || 0,
                 link_clicks: theme.link_clicks || 0,
                 last_active: profile?.updated_at || null,
-                sync_enabled: s.sync_enabled !== false // Default true
+                sync_enabled: s.sync_enabled !== false,
+                tier: profile?.tier || 'FREE',
+                user_tag: profile?.user_tag || null,
+                company_id: profile?.company_id || null,
+                company_name: profile?.company_id ? companyMap.get(profile.company_id)?.name : null,
+                user_id: s.owner_id || null
             }
         })
 
@@ -151,7 +165,9 @@ export default function AdminPage() {
 
         setSerials(mappedSerials)
         setUsers(mappedUsers)
+
         setCompanies(companyData || [])
+        setTierConfigs(tierData || [])
         setLoading(false)
     }
 
@@ -422,6 +438,7 @@ export default function AdminPage() {
                                     Last Active <SortIcon field="last_active" />
                                 </button>
                             </th>
+                            <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Subscription</th>
                             <th className="px-4 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Actions</th>
                         </tr>
                     </thead>
@@ -521,6 +538,38 @@ export default function AdminPage() {
                                         </div>
                                     </td>
                                     <td className="px-4 py-4">
+                                        {serial.is_claimed ? (
+                                            <div className="flex flex-col gap-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${serial.tier === 'PREMIUM' ? 'bg-purple-100 text-purple-700' :
+                                                        serial.tier === 'B2B' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-zinc-100 text-zinc-600'
+                                                        }`}>
+                                                        {serial.tier}
+                                                    </span>
+                                                    {serial.user_tag && (
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 font-medium">
+                                                            {serial.user_tag}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {serial.company_name && (
+                                                    <span className="text-[10px] text-zinc-400 truncate max-w-[100px]" title={serial.company_name}>
+                                                        🏢 {serial.company_name}
+                                                    </span>
+                                                )}
+                                                <button
+                                                    onClick={() => setEditUser(serial)}
+                                                    className="text-[10px] text-blue-600 font-medium hover:underline w-fit"
+                                                >
+                                                    Manage Sub
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <span className="text-[10px] text-zinc-300">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-4">
                                         <div className="flex items-center gap-1 justify-end">
                                             <button
                                                 onClick={() => downloadQR(serial.serial_uuid, serial.display_name || undefined)}
@@ -563,48 +612,96 @@ export default function AdminPage() {
         </div>
     )
 
-    const renderUsersTable = () => (
-        <div className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden shadow-sm">
-            <table className="w-full">
-                <thead>
-                    <tr className="bg-white/40 border-b border-zinc-200/50">
-                        <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">User</th>
-                        <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Tier</th>
-                        <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Tag</th>
-                        <th className="text-left px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Company</th>
-                        <th className="text-right px-4 py-4 text-xs font-semibold text-zinc-500 uppercase">Action</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                    {users.map(u => (
-                        <tr key={u.user_id} className="hover:bg-white/40">
-                            <td className="px-4 py-4">
-                                <div className="font-medium">{u.display_name || 'No Name'}</div>
-                                <div className="text-xs text-zinc-500">{u.email}</div>
-                            </td>
-                            <td className="px-4 py-4">
-                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${u.tier === 'PREMIUM' ? 'bg-purple-100 text-purple-700' :
-                                    u.tier === 'B2B' ? 'bg-blue-100 text-blue-700' :
-                                        'bg-zinc-100 text-zinc-600'
-                                    }`}>
-                                    {u.tier || 'FREE'}
-                                </span>
-                            </td>
-                            <td className="px-4 py-4">
-                                {u.user_tag ? (
-                                    <span className="px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-700">{u.user_tag}</span>
-                                ) : '-'}
-                            </td>
-                            <td className="px-4 py-4">{u.company_name || '-'}</td>
-                            <td className="px-4 py-4 text-right">
-                                <button onClick={() => setEditUser(u)} className="text-blue-600 hover:underline text-sm font-medium">Edit</button>
-                            </td>
+    const toggleFeature = async (tier: string, featureKey: string, currentValue: boolean) => {
+        const supabase = createClient()
+        const config = tierConfigs.find(t => t.tier === tier)
+        if (!config) return
+
+        const newFeatures = { ...config.features, [featureKey]: !currentValue }
+
+        // Optimistic UI update
+        const updatedConfigs = tierConfigs.map(t =>
+            t.tier === tier ? { ...t, features: newFeatures } : t
+        )
+        setTierConfigs(updatedConfigs)
+
+        const { error } = await supabase
+            .from('tier_configs')
+            .update({ features: newFeatures })
+            .eq('tier', tier)
+
+        if (error) {
+            alert('Failed to update feature: ' + error.message)
+            loadAllData() // Revert
+        }
+    }
+
+    const renderFeaturesTable = () => {
+        const featureKeys = [
+            { key: 'basic_features', label: 'Basic Links & Info', description: 'Standard link-in-bio features' },
+            { key: 'social_impact', label: 'Social Impact (Green)', description: 'Display green impact stats' },
+            { key: 'ai_content', label: 'AI Bio & Avatar', description: 'Generate bio and avatar with AI' },
+            { key: 'ai_bot', label: 'AI Digital Rep', description: 'Automated AI representative' },
+            { key: 'analytics_leads', label: 'Analytics & Leads', description: 'Deep analytics and lead capture form' },
+            { key: 'sync', label: 'Multi-Profile Sync', description: 'Sync content across multiple assets' },
+            { key: 'custom_branding', label: 'Custom Branding', description: 'Logo & Uniform Theme management' },
+            { key: 'company_dashboard', label: 'Company Dashboard', description: 'Dedicated dashboard for B2B' },
+            { key: 'asset_management', label: 'Asset Management', description: 'Transfer assets to employees' }
+        ]
+
+        // Ensure we always have the 3 columns even if DB is empty
+        const tiers = ['FREE', 'PREMIUM', 'B2B']
+
+        return (
+            <div className="bg-white/50 backdrop-blur-xl border border-white/50 rounded-2xl overflow-hidden shadow-sm">
+                <table className="w-full">
+                    <thead>
+                        <tr className="bg-white/40 border-b border-zinc-200/50">
+                            <th className="text-left px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider w-1/3">Feature</th>
+                            {tiers.map(tier => (
+                                <th key={tier} className="text-center px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                                    <span className={`px-2 py-1 rounded-full ${tier === 'PREMIUM' ? 'bg-purple-100 text-purple-700' :
+                                        tier === 'B2B' ? 'bg-blue-100 text-blue-700' :
+                                            'bg-zinc-100 text-zinc-600'
+                                        }`}>
+                                        {tier}
+                                    </span>
+                                </th>
+                            ))}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    )
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                        {featureKeys.map((feature) => (
+                            <tr key={feature.key} className="hover:bg-white/40 transition-colors">
+                                <td className="px-6 py-4">
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-zinc-900">{feature.label}</span>
+                                        <span className="text-xs text-zinc-500">{feature.description}</span>
+                                    </div>
+                                </td>
+                                {tiers.map(tier => {
+                                    const config = tierConfigs.find(t => t.tier === tier)
+                                    const isEnabled = config?.features?.[feature.key] || false
+                                    return (
+                                        <td key={`${tier}-${feature.key}`} className="px-6 py-4 text-center">
+                                            <button
+                                                onClick={() => toggleFeature(tier, feature.key, isEnabled)}
+                                                className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out ${isEnabled ? 'bg-blue-600' : 'bg-zinc-200'
+                                                    }`}
+                                            >
+                                                <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${isEnabled ? 'translate-x-6' : 'translate-x-0'
+                                                    }`} />
+                                            </button>
+                                        </td>
+                                    )
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        )
+    }
 
     const renderCompaniesTable = () => (
         <div className="space-y-4">
@@ -640,7 +737,6 @@ export default function AdminPage() {
 
     const renderContent = () => {
         if (activeTab === 'serials') return renderSerialsTable()
-        if (activeTab === 'users') return renderUsersTable()
         if (activeTab === 'companies') return renderCompaniesTable()
         return null
     }
@@ -702,12 +798,12 @@ export default function AdminPage() {
                         Logout
                     </button>
                 </div>
-            </header>
+            </header >
 
             <div className="max-w-7xl mx-auto px-6 py-8">
                 {/* Tabs */}
                 <div className="flex items-center gap-1 p-1 bg-zinc-100/50 backdrop-blur-sm rounded-xl w-fit mb-8 border border-zinc-200/50">
-                    {['serials', 'users', 'companies'].map((tab) => (
+                    {['serials', 'companies', 'features'].map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -820,6 +916,8 @@ export default function AdminPage() {
 
                 {renderContent()}
 
+                {activeTab === 'features' && renderFeaturesTable()}
+
                 {activeTab === 'serials' && (
                     <div className="mt-8 bg-blue-50/60 backdrop-blur-sm border border-blue-200/50 rounded-2xl p-6">
                         <h3 className="font-semibold text-blue-700 mb-3">📋 Cara Pakai:</h3>
@@ -842,16 +940,23 @@ export default function AdminPage() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl"
+                            className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl focus:outline-none"
                         >
-                            <h3 className="text-lg font-bold mb-4">Edit User</h3>
+                            <h3 className="text-lg font-bold mb-4">Manage Subscription</h3>
                             <div className="space-y-4">
+                                {editUser.display_name && (
+                                    <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 mb-2">
+                                        <p className="text-xs text-zinc-500 uppercase font-semibold">User</p>
+                                        <p className="text-sm font-bold text-zinc-900">{editUser.display_name}</p>
+                                        <p className="text-xs text-zinc-500">{editUser.email}</p>
+                                    </div>
+                                )}
                                 <div>
-                                    <label className="text-sm font-medium text-zinc-700">Tier</label>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Tier</label>
                                     <select
                                         value={editUser.tier || 'FREE'}
                                         onChange={e => setEditUser({ ...editUser, tier: e.target.value })}
-                                        className="w-full mt-1 p-2 border rounded-lg"
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                                     >
                                         <option value="FREE">Free</option>
                                         <option value="PREMIUM">Premium</option>
@@ -859,11 +964,11 @@ export default function AdminPage() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium text-zinc-700">Tag</label>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Tag</label>
                                     <select
                                         value={editUser.user_tag || ''}
                                         onChange={e => setEditUser({ ...editUser, user_tag: e.target.value || null })}
-                                        className="w-full mt-1 p-2 border rounded-lg"
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                                     >
                                         <option value="">None</option>
                                         <option value="GIFT">Gift</option>
@@ -872,11 +977,11 @@ export default function AdminPage() {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium text-zinc-700">Company</label>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Company (B2B Only)</label>
                                     <select
                                         value={editUser.company_id || ''}
                                         onChange={e => setEditUser({ ...editUser, company_id: e.target.value || null })}
-                                        className="w-full mt-1 p-2 border rounded-lg"
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                                     >
                                         <option value="">None</option>
                                         {companies.map(c => (
@@ -884,8 +989,14 @@ export default function AdminPage() {
                                         ))}
                                     </select>
                                 </div>
-                                <div className="flex justify-end gap-2 mt-6">
-                                    <button onClick={() => setEditUser(null)} className="px-4 py-2 text-zinc-500 hover:bg-zinc-100 rounded-lg">Cancel</button>
+
+                                <div className="flex justify-end gap-2 mt-8">
+                                    <button
+                                        onClick={() => setEditUser(null)}
+                                        className="px-4 py-2 text-sm font-medium text-zinc-500 hover:bg-zinc-100 rounded-xl transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
                                     <button
                                         onClick={async () => {
                                             const supabase = createClient()
@@ -896,20 +1007,16 @@ export default function AdminPage() {
                                             }).eq('user_id', editUser.user_id)
 
                                             if (error) {
-                                                alert(error.message)
+                                                alert('Failed to update: ' + error.message)
                                             } else {
                                                 if (editUser.tier === 'FREE') {
-                                                    const { error: syncError } = await supabase
-                                                        .from('serial_numbers')
-                                                        .update({ sync_enabled: false })
-                                                        .eq('owner_id', editUser.user_id)
-                                                    if (syncError) console.error('Failed to disable sync:', syncError)
+                                                    await supabase.from('serial_numbers').update({ sync_enabled: false }).eq('owner_id', editUser.user_id)
                                                 }
                                                 setEditUser(null)
                                                 loadAllData()
                                             }
                                         }}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                        className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 shadow-sm shadow-blue-600/20 transition-all"
                                     >
                                         Save Changes
                                     </button>
@@ -933,61 +1040,59 @@ export default function AdminPage() {
                             <h3 className="text-lg font-bold mb-4">{editCompany.id ? 'Edit Company' : 'New Company'}</h3>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="text-sm font-medium text-zinc-700">Name</label>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Company Name</label>
                                     <input
                                         type="text"
                                         value={editCompany.name || ''}
                                         onChange={e => setEditCompany({ ...editCompany, name: e.target.value })}
-                                        className="w-full mt-1 p-2 border rounded-lg"
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
+                                        placeholder="e.g. PT. Gentanala Jaya"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium text-zinc-700">Website</label>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Website</label>
                                     <input
                                         type="text"
                                         value={editCompany.website || ''}
                                         onChange={e => setEditCompany({ ...editCompany, website: e.target.value })}
-                                        className="w-full mt-1 p-2 border rounded-lg"
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
+                                        placeholder="https://company.com"
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-sm font-medium text-zinc-700">Logo URL</label>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Logo URL</label>
                                     <input
                                         type="text"
                                         value={editCompany.logo_url || ''}
                                         onChange={e => setEditCompany({ ...editCompany, logo_url: e.target.value })}
-                                        className="w-full mt-1 p-2 border rounded-lg"
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
+                                        placeholder="https://..."
                                     />
                                 </div>
-                                <div className="flex justify-end gap-2 mt-6">
-                                    <button onClick={() => setEditCompany(null)} className="px-4 py-2 text-zinc-500 hover:bg-zinc-100 rounded-lg">Cancel</button>
+                                <div className="flex justify-end gap-2 mt-8">
+                                    <button onClick={() => setEditCompany(null)} className="px-4 py-2 text-sm text-zinc-500 hover:bg-zinc-100 rounded-xl">Cancel</button>
                                     <button
                                         onClick={async () => {
                                             const supabase = createClient()
-                                            const payload = {
-                                                name: editCompany.name,
-                                                website: editCompany.website,
-                                                logo_url: editCompany.logo_url
-                                            }
-
-                                            let error
                                             if (editCompany.id) {
-                                                const res = await supabase.from('companies').update(payload).eq('id', editCompany.id)
-                                                error = res.error
+                                                await supabase.from('companies').update({
+                                                    name: editCompany.name,
+                                                    website: editCompany.website,
+                                                    logo_url: editCompany.logo_url
+                                                }).eq('id', editCompany.id)
                                             } else {
-                                                const res = await supabase.from('companies').insert([payload])
-                                                error = res.error
+                                                await supabase.from('companies').insert({
+                                                    name: editCompany.name,
+                                                    website: editCompany.website,
+                                                    logo_url: editCompany.logo_url
+                                                })
                                             }
-
-                                            if (error) alert(error.message)
-                                            else {
-                                                setEditCompany(null)
-                                                loadAllData()
-                                            }
+                                            setEditCompany(null)
+                                            loadAllData()
                                         }}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                        className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-sm shadow-blue-600/20"
                                     >
-                                        Save Changes
+                                        Save Company
                                     </button>
                                 </div>
                             </div>
@@ -996,78 +1101,6 @@ export default function AdminPage() {
                 )}
             </AnimatePresence>
 
-            {/* Delete Confirmation Modal */}
-            <AnimatePresence>
-                {deleteConfirm && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)}>
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white/90 backdrop-blur-2xl border border-white/50 rounded-2xl p-6 max-w-sm w-full shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center border border-red-200">
-                                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                                </div>
-                                <h3 className="text-lg font-bold text-zinc-900">Hapus Serial?</h3>
-                            </div>
-                            <p className="text-sm text-zinc-500 mb-6">Apakah Anda yakin ingin menghapus serial ini? Tindakan ini tidak bisa dibatalkan.</p>
-                            <div className="flex gap-3">
-                                <button onClick={() => setDeleteConfirm(null)} className="flex-1 py-2.5 px-4 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium rounded-xl transition-colors">
-                                    Batal
-                                </button>
-                                <button onClick={() => deleteSerial(deleteConfirm)} className="flex-1 py-2.5 px-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-colors shadow-sm">
-                                    Ya, Hapus
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Bulk Delete Confirmation */}
-            <AnimatePresence>
-                {bulkDeleteConfirm && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm" onClick={() => setBulkDeleteConfirm(false)}>
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white/90 backdrop-blur-2xl border border-white/50 rounded-2xl p-6 max-w-sm w-full shadow-xl"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center border border-red-200">
-                                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                                </div>
-                                <h3 className="text-lg font-bold text-zinc-900">Hapus {selectedIds.size} Serial?</h3>
-                            </div>
-                            <p className="text-sm text-zinc-500 mb-6">Apakah Anda yakin ingin menghapus {selectedIds.size} serial yang dipilih? Tindakan ini tidak bisa dibatalkan.</p>
-                            <div className="flex gap-3">
-                                <button onClick={() => setBulkDeleteConfirm(false)} className="flex-1 py-2.5 px-4 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium rounded-xl transition-colors">
-                                    Batal
-                                </button>
-                                <button onClick={bulkDelete} className="flex-1 py-2.5 px-4 bg-red-500 hover:bg-red-600 text-white font-medium rounded-xl transition-colors shadow-sm">
-                                    Ya, Hapus Semua
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-            {/* Hidden QR Renderer for Download */}
-            {qrDownloadData && (
-                <div id="qr-download-svg" className="fixed -left-[9999px] top-0" aria-hidden="true">
-                    <QRCodeSVG
-                        value={qrDownloadData.url}
-                        size={340}
-                        level="H"
-                        includeMargin={false}
-                    />
-                </div>
-            )}
         </div>
     )
 }

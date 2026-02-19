@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/lib/cart-context";
+import PWAHandler from "@/components/pwa/PWAHandler";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-white text-zinc-900`}>
         <CartProvider>
           {children}
+          <PWAHandler />
         </CartProvider>
       </body>
     </html>
