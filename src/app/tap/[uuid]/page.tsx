@@ -36,7 +36,6 @@ export default function TapPage() {
     const [serial, setSerial] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [notFound, setNotFound] = useState(false)
-    const [isStopped, setIsStopped] = useState(false)
 
     const searchParams = useSearchParams()
     const shouldClaim = searchParams.get('claim') === 'true'
@@ -70,13 +69,6 @@ export default function TapPage() {
             if (error || !dbSerial) {
                 console.log('Serial not found in Supabase:', cleanUuid)
                 setNotFound(true)
-                setLoading(false)
-                return
-            }
-
-            // CHECK: Sync Enabled
-            if (dbSerial.sync_enabled === false) {
-                setIsStopped(true)
                 setLoading(false)
                 return
             }
@@ -147,29 +139,6 @@ export default function TapPage() {
                 >
                     <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-4" />
                     <p className="text-zinc-400">Loading...</p>
-                </motion.div>
-            </div>
-        )
-    }
-
-    if (isStopped) {
-        return (
-            <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center max-w-md p-8 bg-zinc-900 rounded-3xl border border-zinc-800"
-                >
-                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <div className="w-8 h-8 text-red-500">⛔</div>
-                    </div>
-                    <h1 className="text-2xl font-bold text-white mb-2">Card Disabled</h1>
-                    <p className="text-zinc-400 mb-6">
-                        Kartu ini dinonaktifkan sementara oleh admin atau pemilik.
-                    </p>
-                    <p className="text-xs text-zinc-600 font-mono">
-                        Serial: {uuid?.substring(0, 8)}...
-                    </p>
                 </motion.div>
             </div>
         )

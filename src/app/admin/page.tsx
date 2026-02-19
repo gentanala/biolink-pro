@@ -514,13 +514,13 @@ export default function AdminPage() {
                                     <td className="px-4 py-4">
                                         <button
                                             onClick={() => toggleSync(serial.id, serial.sync_enabled)}
-                                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border transition-colors hover:shadow-sm ${serial.sync_enabled
+                                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border transition-all hover:shadow-sm uppercase tracking-wider ${serial.sync_enabled
                                                 ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
-                                                : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                                                : 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:bg-zinc-100'
                                                 }`}
-                                            title="Click to Toggle Sync Status"
+                                            title={serial.sync_enabled ? "Linked to Master Branding" : "Independent Branding"}
                                         >
-                                            {serial.sync_enabled ? 'Active' : 'Stopped'}
+                                            {serial.sync_enabled ? 'Synced' : 'Independent'}
                                         </button>
                                     </td>
                                     <td className="px-4 py-4">
