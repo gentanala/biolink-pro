@@ -377,6 +377,20 @@ export default function ProfileEditor() {
             const { data: { user } } = await supabase.auth.getUser()
 
             if (user) {
+                // Check if slug is taken by another user
+                const { data: existingUser } = await supabase
+                    .from('profiles')
+                    .select('user_id')
+                    .eq('slug', formData.slug)
+                    .neq('user_id', user.id)
+                    .single()
+
+                if (existingUser) {
+                    setError('Custom URL ini sudah dipakai orang lain. Ganti yang lain ya!')
+                    setIsLoading(false)
+                    return
+                }
+
                 // Save to Supabase if we have a real session
                 const { error: updateError } = await supabase
                     .from('profiles')
@@ -871,6 +885,77 @@ export default function ProfileEditor() {
                     )}
                 </button>
             </form>
+
+            {/* Danger Zone */}
+            <div className="mt-12 pt-8 border-t border-red-100">
+                <h3 className="text-lg font-bold text-red-600 mb-2">Danger Zone</h3>
+                <p className="text-sm text-zinc-500 mb-4">
+                    Hati-hati, aksi di bawah ini tidak bisa dibatalkan.
+                </p>
+
+                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-center justify-between">
+                    <div>
+                        <h4 className="font-bold text-red-900">Reset Device / Jual Kartu</h4>
+                        <p className="text-xs text-red-700 mt-1">
+                            Unlink semua kartu NFC dari akun ini. Data profil di kartu akan hilang.<br />
+                            Gunakan ini jika Anda ingin menjual/memberikan kartu ke orang lain.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            if (!confirm('YAKIN MAU RESET? \n\nSemua kartu NFC yang terhubung dengan akun ini akan diputus (Unlink). Kartu akan jadi kosong dan bisa diklaim orang lain.\n\nData profil Anda di akun ini juga akan di-reset ke default.')) return
+
+                            const magicWord = prompt('Ketik "RESET" untuk konfirmasi:')
+                            if (magicWord !== 'RESET') {
+                                alert('Konfirmasi salah. Batal.')
+                                return
+                            }
+
+                            setIsLoading(true)
+                            try {
+                                const { data: { user } } = await supabase.auth.getUser()
+                                if (!user) return
+
+                                // 1. Unlink all serials
+                                await supabase
+                                    .from('serial_numbers')
+                                    .update({
+                                        owner_id: null,
+                                        is_claimed: false,
+                                        sync_enabled: true, // Reset to default
+                                        profile_id: null
+                                    })
+                                    .eq('owner_id', user.id)
+
+                                // 2. Reset Profile Data
+                                await supabase
+                                    .from('profiles')
+                                    .update({
+                                        bio: '',
+                                        avatar_url: '',
+                                        social_links: [],
+                                        theme: {},
+                                        slug: `reset-${Date.now()}`, // Temporary slug to free up the old one
+                                        display_name: 'User Reset'
+                                    })
+                                    .eq('user_id', user.id)
+
+                                alert('Akun berhasil di-reset. Kartu sudah aman untuk dipindahtangankan.')
+                                window.location.reload()
+                            } catch (err) {
+                                console.error(err)
+                                alert('Gagal reset akun. Hubungi admin.')
+                            } finally {
+                                setIsLoading(false)
+                            }
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                    >
+                        Reset Akun & Unlink
+                    </button>
+                </div>
+            </div>
         </div>
     )
 }

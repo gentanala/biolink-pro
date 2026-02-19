@@ -1136,20 +1136,32 @@ export default function AdminPage() {
                                     <button
                                         onClick={async () => {
                                             const supabase = createClient()
-                                            const { error } = await supabase.from('profiles').update({
+                                            // Debug log
+                                            console.log('Updating user:', editUser.user_id, 'Payload:', {
+                                                tier: editUser.tier,
+                                                user_tag: editUser.user_tag,
+                                                company_id: editUser.company_id || null
+                                            })
+
+                                            const { error: updateError } = await supabase.from('profiles').update({
                                                 tier: editUser.tier,
                                                 user_tag: editUser.user_tag,
                                                 company_id: editUser.company_id || null
                                             }).eq('user_id', editUser.user_id)
 
-                                            if (error) {
-                                                alert('Failed to update: ' + error.message)
+                                            if (updateError) {
+                                                console.error('Update failed:', updateError)
+                                                alert('Failed to update: ' + updateError.message)
                                             } else {
                                                 if (editUser.tier === 'FREE') {
-                                                    await supabase.from('serial_numbers').update({ sync_enabled: false }).eq('owner_id', editUser.user_id)
+                                                    // Auto-disable sync for free users
+                                                    await supabase.from('serial_numbers')
+                                                        .update({ sync_enabled: false })
+                                                        .eq('owner_id', editUser.user_id)
                                                 }
+                                                alert('User updated successfully')
+                                                await loadAllData()
                                                 setEditUser(null)
-                                                loadAllData()
                                             }
                                         }}
                                         className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 shadow-sm shadow-blue-600/20 transition-all"
