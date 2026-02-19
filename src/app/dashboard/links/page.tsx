@@ -41,6 +41,7 @@ export default function LinkManager() {
     const [isAdding, setIsAdding] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
     const [userId, setUserId] = useState<string | null>(null)
+    const [tier, setTier] = useState<string>('FREE')
     const [newLink, setNewLink] = useState({ title: '', url: '', icon: 'globe' })
 
     useEffect(() => {
@@ -51,7 +52,7 @@ export default function LinkManager() {
 
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('social_links, theme')
+                .select('social_links, theme, tier')
                 .eq('user_id', user.id)
                 .single()
 
@@ -61,6 +62,10 @@ export default function LinkManager() {
                     ? profile.social_links
                     : (profile.theme?.links || [])
                 setLinks(dbLinks)
+                const detectedTier = (profile.tier || 'FREE').toUpperCase()
+                setTier('FREE')
+                console.log('Links Page Tier:', detectedTier, 'Forced: FREE')
+                // setTier(detectedTier)
             }
         }
         fetchLinks()
@@ -97,6 +102,11 @@ export default function LinkManager() {
         e.preventDefault()
         if (!newLink.title || !newLink.url) return
 
+        if (tier === 'FREE' && links.length >= 3) {
+            alert('Versi FREE hanya boleh maksimal 3 link. Upgrade yuk!')
+            return
+        }
+
         const link: Link = {
             id: 'link-' + Date.now(),
             title: newLink.title,
@@ -130,6 +140,11 @@ export default function LinkManager() {
                 <div>
                     <h1 className="text-3xl font-bold mb-2 text-zinc-900">Kelola Link</h1>
                     <p className="text-zinc-500">Tambahkan dan atur link sosial media Anda</p>
+                    {tier === 'FREE' && (
+                        <p className="text-xs text-amber-600 mt-2 font-medium bg-amber-50 inline-block px-2 py-0.5 rounded-lg border border-amber-100">
+                            Free Tier: {links.length}/3 Link Terpakai
+                        </p>
+                    )}
                 </div>
                 <button
                     onClick={() => setIsAdding(true)}

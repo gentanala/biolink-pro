@@ -323,8 +323,20 @@ export default function DashboardPage() {
                                 <BarChart3 className="w-6 h-6 text-green-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-bold text-zinc-900">{linkClicks}</p>
-                                <p className="text-zinc-500 text-sm">Link Clicks</p>
+                                {profile.tier === 'FREE' ? (
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-2xl font-bold text-zinc-300 blur-sm select-none">123</span>
+                                            <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded border border-zinc-200">PREMIUM</span>
+                                        </div>
+                                        <p className="text-zinc-400 text-xs">Link Clicks (Hidden)</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p className="text-2xl font-bold text-zinc-900">{linkClicks}</p>
+                                        <p className="text-zinc-500 text-sm">Link Clicks</p>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </motion.div>

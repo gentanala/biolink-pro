@@ -35,6 +35,7 @@ export default function AppearancePage() {
     const [themeMode, setThemeMode] = useState('dark')
     const [imageFilter, setImageFilter] = useState('normal')
     const [leadCaptureEnabled, setLeadCaptureEnabled] = useState(false)
+    const [userTier, setUserTier] = useState<string>('FREE')
 
     // Sync to localStorage immediately for live preview
     const syncToPreview = useCallback((mode: string, filter: string, color?: string) => {
@@ -59,15 +60,21 @@ export default function AppearancePage() {
 
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('theme')
+                .select('theme, tier')
                 .eq('user_id', user.id)
                 .single()
 
-            if (profile?.theme) {
-                const t = profile.theme
-                setPrimaryColor(t.primary || '#3B82F6')
-                setThemeMode(t.theme_mode || 'dark')
-                setImageFilter(t.image_filter || 'normal')
+            if (profile) {
+                if (profile.theme) {
+                    const t = profile.theme
+                    setPrimaryColor(t.primary || '#3B82F6')
+                    setThemeMode(t.theme_mode || 'dark')
+                    setImageFilter(t.image_filter || 'normal')
+                }
+                const detectedTier = (profile.tier || 'FREE').toUpperCase()
+                setUserTier('FREE')
+                console.log('Appearance Page Tier:', detectedTier, 'Forced: FREE')
+                // setUserTier(detectedTier)
             }
 
             // Also check localStorage for any existing values
@@ -122,9 +129,9 @@ export default function AppearancePage() {
         // Merge appearance settings into existing theme
         const updatedTheme = {
             ...existingTheme,
-            primary: primaryColor,
-            theme_mode: themeMode,
-            image_filter: imageFilter,
+            primary: userTier === 'FREE' ? '#3B82F6' : primaryColor,
+            theme_mode: userTier === 'FREE' ? 'light' : themeMode,
+            image_filter: userTier === 'FREE' ? 'normal' : imageFilter,
         }
 
         const { error } = await supabase
@@ -151,6 +158,11 @@ export default function AppearancePage() {
 
     return (
         <div className="max-w-2xl mx-auto">
+            <div className="bg-red-500 text-white p-4 rounded-xl mb-6 font-bold text-center border-4 border-yellow-300">
+                DEBUG MODE AKTIF <br />
+                Status Tier: {userTier} <br />
+                Force Free: ON
+            </div>
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2 text-zinc-900">Tampilan</h1>
                 <p className="text-zinc-500">Kustomisasi warna, tema, dan filter profil Anda. Perubahan langsung terlihat di Live Preview →</p>
@@ -177,9 +189,10 @@ export default function AppearancePage() {
                     <div className="grid grid-cols-3 bg-zinc-100 p-1 rounded-xl border border-zinc-200 gap-1">
                         <button
                             onClick={() => handleThemeModeChange('dark')}
+                            disabled={userTier === 'FREE'}
                             className={`py-3 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'dark'
                                 ? 'bg-zinc-800 text-white shadow-sm'
-                                : 'text-zinc-400 hover:text-zinc-600'
+                                : userTier === 'FREE' ? 'text-zinc-300 cursor-not-allowed hidden' : 'text-zinc-400 hover:text-zinc-600'
                                 }`}
                         >
                             <Moon className="w-4 h-4" />
@@ -197,14 +210,20 @@ export default function AppearancePage() {
                         </button>
                         <button
                             onClick={() => handleThemeModeChange('liquid_glass')}
+                            disabled={userTier === 'FREE'}
                             className={`py-3 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'liquid_glass'
                                 ? 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 shadow-sm border border-cyan-200'
-                                : 'text-zinc-400 hover:text-zinc-600'
+                                : userTier === 'FREE' ? 'text-zinc-300 cursor-not-allowed hidden' : 'text-zinc-400 hover:text-zinc-600'
                                 }`}
                         >
                             <Sparkles className="w-4 h-4" />
-                            Glass
+                            {userTier === 'FREE' ? <div className="flex items-center gap-1">Glass <span className="text-[10px] bg-amber-100 text-amber-600 px-1 rounded">PRO</span></div> : 'Glass'}
                         </button>
+                        {userTier === 'FREE' && (
+                            <div className="flex items-center justify-center text-xs text-amber-600 font-medium bg-amber-50 rounded-lg border border-amber-100 col-span-2">
+                                Upgrade to unlock Dark & Glass
+                            </div>
+                        )}
                     </div>
 
                     {themeMode === 'liquid_glass' && (
@@ -224,7 +243,7 @@ export default function AppearancePage() {
                         <h2 className="text-lg font-semibold text-zinc-900">Filter Foto</h2>
                     </div>
 
-                    <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200">
+                    <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200 relative overflow-hidden">
                         <button
                             onClick={() => handleImageFilterChange('normal')}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'normal'
@@ -236,12 +255,13 @@ export default function AppearancePage() {
                         </button>
                         <button
                             onClick={() => handleImageFilterChange('grayscale')}
+                            disabled={userTier === 'FREE'}
                             className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'grayscale'
                                 ? 'bg-white text-zinc-900 shadow-sm'
-                                : 'text-zinc-400 hover:text-zinc-600'
+                                : userTier === 'FREE' ? 'text-zinc-300 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-600'
                                 }`}
                         >
-                            B&W
+                            {userTier === 'FREE' ? <span className="flex items-center gap-1 justify-center">B&W <span className="text-[10px] bg-amber-100 text-amber-600 px-1 rounded">PRO</span></span> : 'B&W'}
                         </button>
                     </div>
                 </motion.section>
@@ -264,13 +284,25 @@ export default function AppearancePage() {
                             <button
                                 key={color.value}
                                 onClick={() => handleColorChange(color.value)}
+                                disabled={userTier === 'FREE' && color.value !== '#3B82F6'}
                                 className={`w-full aspect-square rounded-2xl flex items-center justify-center transition-all ring-offset-4 ring-offset-white ${color.class
-                                    } ${primaryColor === color.value ? 'ring-2 ring-zinc-900 scale-110' : 'hover:scale-105'}`}
+                                    } ${primaryColor === color.value ? 'ring-2 ring-zinc-900 scale-110' : 'hover:scale-105'} ${userTier === 'FREE' && color.value !== '#3B82F6' ? 'opacity-20 cursor-not-allowed grayscale' : ''
+                                    }`}
                             >
                                 {primaryColor === color.value && <Check className="w-5 h-5 text-white" />}
+                                {userTier === 'FREE' && color.value !== '#3B82F6' && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+
+                                    </div>
+                                )}
                             </button>
                         ))}
                     </div>
+                    {userTier === 'FREE' && (
+                        <p className="text-xs text-amber-600 mt-4 text-center bg-amber-50 py-2 rounded-lg border border-amber-100">
+                            Upgrade ke Premium untuk membuka semua warna!
+                        </p>
+                    )}
                 </motion.section>
 
 
