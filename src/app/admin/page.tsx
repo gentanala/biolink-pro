@@ -1403,7 +1403,17 @@ export default function AdminPage() {
                             <h3 className="text-xl font-black text-zinc-900 mb-2 text-center uppercase tracking-tight">Hapus Akun Permanent?</h3>
                             <p className="text-sm text-zinc-500 mb-8 text-center leading-relaxed">
                                 Anda akan menghapus akun <strong>{userToDelete.display_name || userToDelete.email}</strong>.<br />
-                                <span className="text-red-500 font-bold mt-2 block">Seluruh profile, links, dan aset NFC akan terputus selamanya!</span>
+                                {(() => {
+                                    const linkedCount = serials.filter(s => s.owner_id === userToDelete.user_id).length;
+                                    if (linkedCount > 1) {
+                                        return (
+                                            <span className="bg-red-50 text-red-600 font-bold px-3 py-1 rounded-lg mt-3 block border border-red-100">
+                                                ⚠️ PERINGATAN: User ini memiliki {linkedCount} serial/kartu yang tertaut! Menghapus user akan memutuskan SEMUA kartu tersebut.
+                                            </span>
+                                        );
+                                    }
+                                    return <span className="text-red-500 font-bold mt-2 block">Seluruh profile, links, dan aset NFC akan terputus selamanya!</span>;
+                                })()}
                             </p>
 
                             <div className="space-y-3">

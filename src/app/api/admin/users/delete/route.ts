@@ -79,8 +79,6 @@ export async function DELETE(request: Request) {
                 .update({
                     bio: null,
                     avatar_url: null,
-                    phone: null,
-                    whatsapp: null,
                     company: null,
                     job_title: null,
                     social_links: [],
