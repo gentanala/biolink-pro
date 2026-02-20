@@ -354,7 +354,7 @@ export default function HomePage() {
                     {/* Live iframe — scaled to match inner frame */}
                     <div className="w-full h-full" style={{ overflow: 'hidden' }}>
                       <iframe
-                        src="https://biolink-pro-mu.vercel.app/tap/8cfc5775-897d-418f-8041-322925bbd23f"
+                        src="/rezanje"
                         title="Gentanala Profile Demo"
                         className="border-0"
                         style={{
