@@ -441,7 +441,6 @@ export default function ProfileEditor() {
                 bio: formData.bio,
                 company: formData.company,
                 job_title: formData.job_title,
-                whatsapp: formData.whatsapp,
                 // Construct basic theme object if needed by DB, or flattened fields
                 // DB expects 'theme' jsonb.
                 theme: {
