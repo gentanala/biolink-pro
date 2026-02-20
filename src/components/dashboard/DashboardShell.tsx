@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import PhonePreview from '@/components/dashboard/PhonePreview'
 import { useTier } from '@/app/dashboard/tier-context'
+import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Beranda' },
@@ -38,7 +39,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         if (profileStr) setProfile(JSON.parse(profileStr))
     }, [])
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        const supabase = createClient()
+        await supabase.auth.signOut()
+
         localStorage.removeItem('genhub_user')
         localStorage.removeItem('genhub_activated')
         localStorage.removeItem('genhub_profile')
