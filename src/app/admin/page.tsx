@@ -65,7 +65,7 @@ interface SerialWithProfile {
 type SortField = 'created_at' | 'display_name' | 'nfc_tap_count' | 'view_count' | 'last_active'
 type SortDir = 'asc' | 'desc'
 
-const ADMIN_PASSWORD = 'gentanala2024'
+
 
 // Helper to format relative date - Moved outside to keep component pure
 const formatRelative = (d: string | null) => {
@@ -884,9 +884,61 @@ export default function AdminPage() {
         </div>
     )
 
+    if (!authCheckComplete) {
+        return (
+            <div className="min-h-screen bg-[#f0f0ec] flex items-center justify-center p-4">
+                <div className="flex flex-col items-center gap-4">
+                    <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+                    <p className="text-sm font-medium text-zinc-500">Memverifikasi akses...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (!adminRole) {
+        return (
+            <div className="min-h-screen bg-[#f0f0ec] flex flex-col items-center justify-center p-4">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white/70 backdrop-blur-2xl border border-white p-10 rounded-[2.5rem] max-w-sm w-full shadow-2xl shadow-zinc-200/50 text-center"
+                >
+                    <div className="w-20 h-20 bg-rose-50 rounded-3xl flex items-center justify-center mx-auto mb-8 rotate-3">
+                        <ShieldAlert className="w-10 h-10 text-rose-500 -rotate-3" />
+                    </div>
+                    <h1 className="text-3xl font-black text-zinc-900 mb-3 tracking-tight">Akses Khusus</h1>
+                    <p className="text-zinc-500 font-medium mb-10 leading-relaxed text-sm">
+                        Halaman ini dilindungi. Silakan login menggunakan akun email Administrator (Super Admin atau B2B Admin).
+                    </p>
+                    <div className="space-y-3">
+                        <Link
+                            href="/login"
+                            className="flex items-center justify-center gap-3 w-full py-4 bg-blue-600 text-white rounded-2xl font-bold transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 active:scale-95"
+                        >
+                            <User className="w-4 h-4" /> Masuk sebagai Admin
+                        </Link>
+                        <Link
+                            href="/"
+                            className="flex items-center justify-center w-full py-3 text-sm font-bold text-zinc-400 hover:text-zinc-600 transition-colors"
+                        >
+                            Kembali ke Beranda
+                        </Link>
+                    </div>
+
+                    <div className="mt-8 pt-8 border-t border-zinc-100">
+                        <p className="text-[10px] text-zinc-400 leading-relaxed">
+                            <strong>CATATAN:</strong> Kami telah memperbarui sistem keamanan. Sekarang tidak lagi menggunakan satu password bersama, melainkan login menggunakan email pribadi Anda masing-masing yang sudah terdaftar.
+                        </p>
+                    </div>
+                </motion.div>
+            </div>
+        )
+    }
+
     const renderContent = () => {
         if (activeTab === 'profiles') return renderSerialsTable()
         if (activeTab === 'companies') return renderCompaniesTable()
+        if (activeTab === 'features') return renderFeaturesTable()
         return null
     }
 
