@@ -7,24 +7,33 @@ import {
     Plus,
     Download,
     RefreshCw,
-    Check,
-    Copy,
-    Trash2,
-    Eye,
+    Loader2,
     Search,
-    Package,
-    AlertTriangle,
+    LogOut,
+    CheckCircle2,
+    X,
+    AlertCircle,
+    ArrowUpDown,
     ChevronUp,
     ChevronDown,
-    ArrowUpDown,
-    X,
+    QrCode,
+    Trash2,
+    Edit2,
+    Link as LinkIcon,
+    ExternalLink,
+    ShieldAlert,
     User,
     Mail,
     Phone,
     Clock,
     Activity,
-    QrCode
+    Eye,
+    Check,
+    Copy,
+    Package,
+    AlertTriangle
 } from 'lucide-react'
+import Link from 'next/link' // Added Link import
 import { createClient } from '@/lib/supabase/client'
 import { QRCodeSVG } from 'qrcode.react'
 
@@ -71,8 +80,10 @@ const formatRelative = (d: string | null) => {
 }
 
 export default function AdminPage() {
-    const [isAuthenticated, setIsAuthenticated] = useState(false)
-    const [password, setPassword] = useState('')
+    const [adminRole, setAdminRole] = useState<'super_admin' | 'company_admin' | null>(null)
+    const [adminCompanyId, setAdminCompanyId] = useState<string | null>(null)
+    const [authCheckComplete, setAuthCheckComplete] = useState(false)
+
     const [activeTab, setActiveTab] = useState<'profiles' | 'companies' | 'features'>('profiles')
     const [userToDelete, setUserToDelete] = useState<any | null>(null)
     const [tierConfigs, setTierConfigs] = useState<any[]>([])
@@ -85,8 +96,6 @@ export default function AdminPage() {
     const [searchTerm, setSearchTerm] = useState('')
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [siteUrl, setSiteUrl] = useState('')
-    const [sortField, setSortField] = useState<SortField>('created_at')
-    const [sortDir, setSortDir] = useState<SortDir>('desc')
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
     const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
@@ -99,35 +108,60 @@ export default function AdminPage() {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            const auth = sessionStorage.getItem('admin_auth')
-            if (auth === 'true') {
-                setIsAuthenticated(true)
-                loadAllData()
-            }
             setSiteUrl(window.location.origin)
+            checkAuth()
         }
     }, [])
 
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault()
-        if (password === ADMIN_PASSWORD) {
-            setIsAuthenticated(true)
-            sessionStorage.setItem('admin_auth', 'true')
-            loadAllData()
-        } else {
-            alert('Password salah!')
+    const checkAuth = async () => {
+        const supabase = createClient()
+        const { data: { session } } = await supabase.auth.getSession()
+
+        if (session?.user) {
+            // Check role in profiles
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('role, company_id')
+                .eq('user_id', session.user.id)
+                .single()
+
+            if (profile && (profile.role === 'super_admin' || profile.role === 'company_admin')) {
+                setAdminRole(profile.role)
+                setAdminCompanyId(profile.company_id)
+                loadAllData(profile.role, profile.company_id)
+            }
         }
+        setAuthCheckComplete(true)
     }
 
-    const loadAllData = async () => {
+    const handleLogoutAdmin = async () => {
+        const supabase = createClient()
+        await supabase.auth.signOut()
+        window.location.href = '/login'
+    }
+
+    const loadAllData = async (role: 'super_admin' | 'company_admin', companyId: string | null) => {
         setLoading(true)
         const supabase = createClient()
 
-        // 1. Fetch Serials & Profiles for Serials Tab
-        const { data: serialData } = await supabase.from('serial_numbers').select('*').order('created_at', { ascending: false })
-        const { data: profileData } = await supabase.from('profiles').select('*') // Get everything
+        // Variables for queries
+        let serialQuery = supabase.from('serial_numbers').select('*').order('created_at', { ascending: false })
+        let profileQuery = supabase.from('profiles').select('*')
+        let companyQuery = supabase.from('companies').select('*').order('created_at', { ascending: false })
 
-        const { data: companyData } = await supabase.from('companies').select('*').order('created_at', { ascending: false })
+        if (role === 'company_admin' && companyId) {
+            companyQuery = companyQuery.eq('id', companyId)
+            profileQuery = profileQuery.eq('company_id', companyId)
+            // serial_numbers owner_id needs to be filtered by profiles, which we'll do in array filter below since Supabase RLS handles the raw query.
+        }
+
+        // 1. Fetch Serials & Profiles for Serials Tab
+        // If company_admin, RLS might handle it, but we can also be explicit here just in case.
+        // Actually, RLS handles it automatically based on the user's role and company_id!
+        const { data: serialData } = await serialQuery
+        const { data: profileData } = await profileQuery
+
+        const { data: companyData } = await companyQuery
         const { data: tierData } = await supabase.from('tier_configs').select('*').order('tier', { ascending: true })
 
         // Map Profiles
@@ -204,9 +238,10 @@ export default function AdminPage() {
         }
         const { error } = await supabase.from('serial_numbers').insert(newRows)
         if (error) {
-            alert('Gagal generate serial: ' + error.message)
+            alert('Gagal save: ' + error.message)
         } else {
-            await loadAllData()
+            if (adminRole) await loadAllData(adminRole, adminCompanyId)
+            setEditUser(null)
         }
         setGenerating(false)
     }
@@ -374,6 +409,9 @@ export default function AdminPage() {
     }, [serials, filterStatus, searchTerm])
 
     // Sort
+    const [sortField, setSortField] = useState<SortField>('created_at')
+    const [sortDir, setSortDir] = useState<SortDir>('desc')
+
     const filteredAndSorted = useMemo(() => {
         const sorted = [...filtered]
         sorted.sort((a, b) => {
@@ -649,7 +687,7 @@ export default function AdminPage() {
 
         if (error) {
             alert('Failed to update feature: ' + error.message)
-            loadAllData() // Revert
+            loadAllData(adminRole!, adminCompanyId) // Revert
         }
     }
 
@@ -682,7 +720,7 @@ export default function AdminPage() {
 
         if (error) {
             alert('Failed to update sync status: ' + error.message)
-            loadAllData() // Revert
+            loadAllData(adminRole!, adminCompanyId) // Revert
         }
     }
 
@@ -852,44 +890,6 @@ export default function AdminPage() {
         return null
     }
 
-    // ─── Login Screen (Light Liquid Glass) ───
-    if (!isAuthenticated) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-zinc-100 via-blue-50 to-zinc-100 flex items-center justify-center p-4">
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="w-full max-w-sm"
-                >
-                    <div className="bg-white/60 backdrop-blur-2xl border border-white/60 rounded-3xl p-8 shadow-xl shadow-zinc-200/50">
-                        <div className="text-center mb-8">
-                            <div className="w-16 h-16 bg-blue-500/10 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/20">
-                                <Shield className="w-8 h-8 text-blue-600" />
-                            </div>
-                            <h1 className="text-xl font-bold text-zinc-900">Admin Access</h1>
-                            <p className="text-zinc-500 text-sm mt-2">Enter password to continue</p>
-                        </div>
-                        <form onSubmit={handleLogin} className="space-y-4">
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Password"
-                                className="w-full px-4 py-3 bg-white/50 backdrop-blur-sm border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                            />
-                            <button
-                                type="submit"
-                                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-blue-600/30"
-                            >
-                                Login
-                            </button>
-                        </form>
-                    </div>
-                </motion.div>
-            </div>
-        )
-    }
-
     // ─── Admin Dashboard (Light Liquid Glass) ───
     return (
         <div className="min-h-screen bg-gradient-to-br from-zinc-100 via-blue-50/50 to-zinc-100 text-zinc-900">
@@ -900,32 +900,36 @@ export default function AdminPage() {
                         <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                             <Shield className="w-4 h-4 text-white" />
                         </div>
-                        <span className="font-bold text-lg text-zinc-900">Gentanala Admin</span>
+                        <span className="font-bold text-lg text-zinc-900">Gentanala {adminRole === 'super_admin' ? 'Super Admin' : 'Company Admin'}</span>
                     </div>
-                    <button
-                        onClick={() => { sessionStorage.removeItem('admin_auth'); setIsAuthenticated(false) }}
-                        className="text-zinc-500 hover:text-zinc-900 text-sm font-medium px-4 py-2 rounded-lg hover:bg-zinc-100/80 transition-colors"
-                    >
-                        Logout
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={handleLogoutAdmin}
+                            className="text-sm font-semibold text-zinc-500 hover:text-rose-500 transition-colors flex items-center gap-2"
+                        >
+                            <LogOut className="w-4 h-4" /> Keluar
+                        </button>
+                    </div>
                 </div>
-            </header >
+            </header>
 
             <div className="max-w-7xl mx-auto px-6 py-8">
                 {/* Tabs */}
                 <div className="flex items-center gap-1 p-1 bg-zinc-100/50 backdrop-blur-sm rounded-xl w-fit mb-8 border border-zinc-200/50">
-                    {['profiles', 'companies', 'features'].map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab as any)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab
-                                ? 'bg-white text-blue-600 shadow-sm'
-                                : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50'
-                                }`}
-                        >
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                        </button>
-                    ))}
+                    {['profiles', 'companies', 'features']
+                        .filter(tab => adminRole === 'super_admin' || tab === 'profiles')
+                        .map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab as any)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab
+                                    ? 'bg-white text-blue-600 shadow-sm'
+                                    : 'text-zinc-500 hover:text-zinc-700 hover:bg-zinc-200/50'
+                                    }`}
+                            >
+                                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            </button>
+                        ))}
                 </div>
 
                 {activeTab === 'profiles' && (
@@ -954,34 +958,36 @@ export default function AdminPage() {
 
                         {/* Actions */}
                         <div className="flex flex-wrap gap-3 mb-6">
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="100"
-                                    value={generateCount}
-                                    onChange={(e) => setGenerateCount(parseInt(e.target.value) || 1)}
-                                    className="w-20 px-3 py-2.5 bg-white/50 backdrop-blur-sm border border-zinc-200 rounded-xl text-zinc-900 text-center focus:border-blue-500 focus:outline-none"
-                                />
-                                <button
-                                    onClick={generateSerials}
-                                    disabled={generating}
-                                    className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm disabled:opacity-50 font-medium"
-                                >
-                                    {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                                    Generate
-                                </button>
-                            </div>
+                            {adminRole === 'super_admin' && (
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        value={generateCount}
+                                        onChange={(e) => setGenerateCount(parseInt(e.target.value) || 1)}
+                                        className="w-20 px-3 py-2.5 bg-white/50 backdrop-blur-sm border border-zinc-200 rounded-xl text-zinc-900 text-center focus:border-blue-500 focus:outline-none"
+                                    />
+                                    <button
+                                        onClick={generateSerials}
+                                        disabled={generating}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm disabled:opacity-50 font-medium"
+                                    >
+                                        {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                        Generate
+                                    </button>
+                                </div>
+                            )}
                             <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-zinc-200 hover:bg-white/80 text-zinc-700 rounded-xl transition-colors font-medium">
                                 <Download className="w-4 h-4" />
                                 Export CSV
                             </button>
-                            <button onClick={loadAllData} className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-zinc-200 hover:bg-white/80 text-zinc-700 rounded-xl transition-colors font-medium">
+                            <button onClick={() => adminRole && loadAllData(adminRole, adminCompanyId)} className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-zinc-200 hover:bg-white/80 text-zinc-700 rounded-xl transition-colors font-medium">
                                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                                 Refresh
                             </button>
 
-                            {selectedIds.size > 0 && (
+                            {selectedIds.size > 0 && adminRole === 'super_admin' && (
                                 <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-2 ml-auto">
                                     <span className="text-sm text-zinc-500 font-medium">{selectedIds.size} selected</span>
                                     <button onClick={() => setBulkDeleteConfirm(true)} className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 hover:bg-red-100 text-red-600 rounded-xl transition-colors font-medium">
@@ -1087,45 +1093,49 @@ export default function AdminPage() {
                                         <option value="INTERNAL">Internal</option>
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Company (B2B Only)</label>
-                                    <select
-                                        value={editUser.company_id || ''}
-                                        onChange={e => setEditUser({ ...editUser, company_id: e.target.value || null })}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                                    >
-                                        <option value="">None</option>
-                                        {companies.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                {adminRole === 'super_admin' && (
+                                    <div>
+                                        <label className="text-xs font-semibold text-zinc-500 uppercase">Company (B2B Only)</label>
+                                        <select
+                                            value={editUser.company_id || ''}
+                                            onChange={e => setEditUser({ ...editUser, company_id: e.target.value || null })}
+                                            className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                                        >
+                                            <option value="">None</option>
+                                            {companies.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 <div className="flex justify-end gap-2 mt-8">
-                                    <button
-                                        onClick={async () => {
-                                            if (!window.confirm('Are you sure you want to DELETE this user? This action cannot be undone.')) return
+                                    {adminRole === 'super_admin' && (
+                                        <button
+                                            onClick={async () => {
+                                                if (!window.confirm('Are you sure you want to DELETE this user? This action cannot be undone.')) return
 
-                                            const res = await fetch('/api/admin/users/delete', {
-                                                method: 'DELETE',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ userId: editUser.user_id })
-                                            })
+                                                const res = await fetch('/api/admin/users/delete', {
+                                                    method: 'DELETE',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ userId: editUser.user_id })
+                                                })
 
-                                            const data = await res.json()
+                                                const data = await res.json()
 
-                                            if (data.error) {
-                                                alert('Failed to delete user: ' + data.error)
-                                            } else {
-                                                alert('User has been deleted successfully.')
-                                                setEditUser(null)
-                                                loadAllData()
-                                            }
-                                        }}
-                                        className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors mr-auto"
-                                    >
-                                        Delete User
-                                    </button>
+                                                if (data.error) {
+                                                    alert('Failed to delete user: ' + data.error)
+                                                } else {
+                                                    alert('User has been deleted successfully.')
+                                                    setEditUser(null)
+                                                    if (adminRole) await loadAllData(adminRole, adminCompanyId)
+                                                }
+                                            }}
+                                            className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors mr-auto"
+                                        >
+                                            Delete User
+                                        </button>
+                                    )}
 
                                     <button
                                         onClick={() => setEditUser(null)}
@@ -1154,7 +1164,7 @@ export default function AdminPage() {
                                                 alert('Failed to update: ' + (data.error || 'Unknown error'))
                                             } else {
                                                 alert('User updated successfully')
-                                                await loadAllData()
+                                                if (adminRole) await loadAllData(adminRole, adminCompanyId)
                                                 setEditUser(null)
                                             }
                                         }}
@@ -1273,7 +1283,7 @@ export default function AdminPage() {
                                                 })
                                             }
                                             setEditCompany(null)
-                                            loadAllData()
+                                            if (adminRole) await loadAllData(adminRole, adminCompanyId)
                                         }}
                                         className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-sm shadow-blue-600/20"
                                     >
@@ -1438,7 +1448,7 @@ export default function AdminPage() {
                                         else {
                                             alert('Isi akun berhasil di-reset bersih.')
                                             setUserToDelete(null)
-                                            loadAllData()
+                                            if (adminRole) await loadAllData(adminRole, adminCompanyId)
                                         }
                                     }}
                                     className="w-full py-4 bg-amber-100 text-amber-800 text-sm font-bold rounded-2xl hover:bg-amber-200 transition-all border border-amber-200 flex flex-col items-center gap-1"
@@ -1466,7 +1476,7 @@ export default function AdminPage() {
                                         } else {
                                             alert('Akun berhasil dihapus selamanya.')
                                             setUserToDelete(null)
-                                            loadAllData()
+                                            if (adminRole) await loadAllData(adminRole, adminCompanyId)
                                         }
                                     }}
                                     className="w-full py-4 bg-red-600 text-white text-sm font-black rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-200 flex flex-col items-center gap-1"
@@ -1487,6 +1497,6 @@ export default function AdminPage() {
                 )}
             </AnimatePresence>
 
-        </div>
+        </div >
     )
 }

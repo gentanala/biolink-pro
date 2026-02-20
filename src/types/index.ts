@@ -28,7 +28,9 @@ export interface Profile {
     theme: ProfileTheme
     phone: string | null
     email: string | null
-    company: string | null
+    company: string | null // nama perusahaan teks (opsional)
+    company_id: string | null // ID referensi ke tabel companies
+    role: 'super_admin' | 'company_admin' | 'user'
     job_title: string | null
     created_at: string
     updated_at: string
