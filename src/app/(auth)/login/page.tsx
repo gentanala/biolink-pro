@@ -48,17 +48,19 @@ function LoginContent() {
             return
         }
 
-        router.push('/dashboard')
+        const nextUrl = searchParams.get('next') || '/dashboard'
+        router.push(nextUrl)
     }
 
     async function handleGoogleLogin() {
         setIsGoogleLoading(true)
         setError('')
 
+        const nextUrl = searchParams.get('next') || '/dashboard'
         const { error: authError } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`,
+                redirectTo: `${window.location.origin}/auth/callback?next=${nextUrl}`,
             },
         })
 

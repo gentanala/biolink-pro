@@ -71,10 +71,12 @@ export async function middleware(request: NextRequest) {
 
         // Logged in
         if (user) {
-            // Redirect from login/register to dashboard
+            // Redirect from login/register to dashboard or next parameter
             if (pathname === '/login' || pathname === '/register') {
                 const url = request.nextUrl.clone()
-                url.pathname = '/dashboard'
+                const nextUrl = url.searchParams.get('next')
+                url.pathname = nextUrl || '/dashboard'
+                url.searchParams.delete('next')
                 return NextResponse.redirect(url)
             }
 

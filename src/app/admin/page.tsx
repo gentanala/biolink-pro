@@ -912,7 +912,7 @@ export default function AdminPage() {
                     </p>
                     <div className="space-y-3">
                         <Link
-                            href="/login"
+                            href="/login?next=/admin"
                             className="flex items-center justify-center gap-3 w-full py-4 bg-blue-600 text-white rounded-2xl font-bold transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 active:scale-95"
                         >
                             <User className="w-4 h-4" /> Masuk sebagai Admin
