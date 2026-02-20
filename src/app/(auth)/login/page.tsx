@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Loader2, ArrowRight, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -21,6 +21,10 @@ function LoginContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const supabase = createClient()
+
+    // Determine if this is an admin login flow
+    const nextUrlParam = searchParams.get('next')
+    const isAdminLogin = nextUrlParam === '/admin'
 
     // Show error from callback (e.g., unclaimed Google login)
     const callbackError = searchParams.get('error')
@@ -118,19 +122,25 @@ function LoginContent() {
             >
                 <div className="text-center mb-10">
                     <Link href="/" className="inline-block mb-6">
-                        <img
-                            src="/logo.png"
-                            alt="Gentanala Logo"
-                            className="h-12 w-auto object-contain mx-auto"
-                        />
+                        {isAdminLogin ? (
+                            <div className="w-16 h-16 bg-blue-50 border border-blue-100 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+                                <Shield className="w-8 h-8 text-blue-600" />
+                            </div>
+                        ) : (
+                            <img
+                                src="/logo.png"
+                                alt="Gentanala Logo"
+                                className="h-12 w-auto object-contain mx-auto"
+                            />
+                        )}
                     </Link>
                     <h1 className="text-3xl font-bold text-zinc-900">
-                        {forgotMode ? 'Reset Password' : 'Sign In'}
+                        {forgotMode ? 'Reset Password' : (isAdminLogin ? 'Admin Sign In' : 'Sign In')}
                     </h1>
                     <p className="text-zinc-400 mt-2 text-sm font-medium">
                         {forgotMode
                             ? 'Masukkan email untuk reset password'
-                            : 'Lanjutkan ke profil digital Anda'}
+                            : (isAdminLogin ? 'Login khusus Administrator' : 'Lanjutkan ke profil digital Anda')}
                     </p>
                 </div>
 
