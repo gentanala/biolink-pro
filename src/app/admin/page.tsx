@@ -271,6 +271,18 @@ export default function AdminPage() {
         setBulkDeleteConfirm(false)
     }
 
+    const deleteCompany = async (id: string) => {
+        if (!window.confirm('Apakah Anda yakin ingin menghapus perusahaan ini beserta datanya? (Pastikan tidak ada user/serial yang masih menyantol)')) return
+        const supabase = createClient()
+        const { error } = await supabase.from('companies').delete().eq('id', id)
+        if (error) {
+            alert('Gagal menghapus perusahaan: ' + error.message)
+        } else {
+            setCompanies(prev => prev.filter(c => c.id !== id))
+            alert('Perusahaan berhasil dihapus.')
+        }
+    }
+
     const copyToClipboard = (text: string, id: string) => {
         navigator.clipboard.writeText(text)
         setCopiedId(id)
@@ -644,13 +656,15 @@ export default function AdminPage() {
                                                     <Copy className="w-4 h-4 text-zinc-400" />
                                                 )}
                                             </button>
-                                            <button
-                                                onClick={() => setDeleteConfirm(serial.id)}
-                                                className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Delete"
-                                            >
-                                                <Trash2 className="w-4 h-4 text-red-400" />
-                                            </button>
+                                            {adminRole === 'super_admin' && (
+                                                <button
+                                                    onClick={() => setDeleteConfirm(serial.id)}
+                                                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="Delete"
+                                                >
+                                                    <Trash2 className="w-4 h-4 text-red-400" />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -874,7 +888,8 @@ export default function AdminPage() {
                                 <td className="px-4 py-4 font-medium">{c.name}</td>
                                 <td className="px-4 py-4 text-sm text-blue-600">{c.website}</td>
                                 <td className="px-4 py-4 text-right">
-                                    <button onClick={() => setEditCompany(c)} className="text-blue-600 hover:underline text-sm font-medium">Edit</button>
+                                    <button onClick={() => setEditCompany(c)} className="text-blue-600 hover:underline text-sm font-medium mr-4">Edit</button>
+                                    <button onClick={() => deleteCompany(c.id)} className="text-red-500 hover:underline text-sm font-medium">Delete</button>
                                 </td>
                             </tr>
                         ))}
@@ -1120,31 +1135,35 @@ export default function AdminPage() {
                                         <p className="text-xs text-zinc-500">{editUser.email}</p>
                                     </div>
                                 )}
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Tier</label>
-                                    <select
-                                        value={editUser.tier || 'FREE'}
-                                        onChange={e => setEditUser({ ...editUser, tier: e.target.value })}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                                    >
-                                        <option value="FREE">Free</option>
-                                        <option value="PREMIUM">Premium</option>
-                                        <option value="B2B">B2B</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Tag</label>
-                                    <select
-                                        value={editUser.user_tag || ''}
-                                        onChange={e => setEditUser({ ...editUser, user_tag: e.target.value || null })}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                                    >
-                                        <option value="">None</option>
-                                        <option value="GIFT">Gift</option>
-                                        <option value="DEMO">Demo</option>
-                                        <option value="INTERNAL">Internal</option>
-                                    </select>
-                                </div>
+                                {adminRole === 'super_admin' && (
+                                    <>
+                                        <div>
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase">Tier</label>
+                                            <select
+                                                value={editUser.tier || 'FREE'}
+                                                onChange={e => setEditUser({ ...editUser, tier: e.target.value })}
+                                                className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                                            >
+                                                <option value="FREE">Free</option>
+                                                <option value="PREMIUM">Premium</option>
+                                                <option value="B2B">B2B</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase">Tag</label>
+                                            <select
+                                                value={editUser.user_tag || ''}
+                                                onChange={e => setEditUser({ ...editUser, user_tag: e.target.value || null })}
+                                                className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                                            >
+                                                <option value="">None</option>
+                                                <option value="GIFT">Gift</option>
+                                                <option value="DEMO">Demo</option>
+                                                <option value="INTERNAL">Internal</option>
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
                                 {adminRole === 'super_admin' && (
                                     <div>
                                         <label className="text-xs font-semibold text-zinc-500 uppercase">Company (B2B Only)</label>
@@ -1186,6 +1205,37 @@ export default function AdminPage() {
                                             className="px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors mr-auto"
                                         >
                                             Delete User
+                                        </button>
+                                    )}
+
+                                    {editUser?.is_claimed && (
+                                        <button
+                                            onClick={async () => {
+                                                if (!window.confirm('Reset profil ini? Data bio, link, tampilan akan dikosongkan dan kaitan dengan kartu fisik akan dilepas (kartu menjadi Unclaimed). Akun login staff tetap ada namun kosong. Lanjutkan?')) return
+
+                                                const res = await fetch('/api/admin/users/reset', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        userId: editUser.user_id,
+                                                        requestorCompanyId: adminCompanyId,
+                                                        requestorRole: adminRole
+                                                    })
+                                                })
+
+                                                const data = await res.json()
+
+                                                if (!res.ok) {
+                                                    alert('Gagal mereset profil: ' + (data.error || 'Unknown error'))
+                                                } else {
+                                                    alert('Profil berhasil direset dan kartu dilepaskan.')
+                                                    setEditUser(null)
+                                                    if (adminRole) await loadAllData(adminRole, adminCompanyId)
+                                                }
+                                            }}
+                                            className="px-4 py-2 text-sm font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-xl transition-colors mr-auto ml-2"
+                                        >
+                                            Reset Profil
                                         </button>
                                     )}
 
@@ -1255,6 +1305,17 @@ export default function AdminPage() {
                                     />
                                 </div>
                                 <div>
+                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Company Admin Email</label>
+                                    <input
+                                        type="email"
+                                        value={editCompany.admin_email || ''}
+                                        onChange={e => setEditCompany({ ...editCompany, admin_email: e.target.value })}
+                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
+                                        placeholder="e.g. hrd@abadi.com"
+                                    />
+                                    <p className="text-[10px] text-zinc-400 mt-1">Isi email jika ingin menugaskan akun (harus sudah terdaftar). Kosongkan jika tidak ada perubahan.</p>
+                                </div>
+                                <div>
                                     <label className="text-xs font-semibold text-zinc-500 uppercase">Website</label>
                                     <input
                                         type="text"
@@ -1315,25 +1376,54 @@ export default function AdminPage() {
                                     <button
                                         onClick={async () => {
                                             const supabase = createClient()
-                                            if (editCompany.id) {
-                                                await supabase.from('companies').update({
+                                            let companyId = editCompany.id
+
+                                            if (companyId) {
+                                                const { error: updateError } = await supabase.from('companies').update({
                                                     name: editCompany.name,
                                                     website: editCompany.website,
                                                     logo_url: editCompany.logo_url,
                                                     bio: editCompany.bio,
                                                     avatar_url: editCompany.avatar_url,
                                                     social_links: typeof editCompany.social_links === 'string' ? JSON.parse(editCompany.social_links) : editCompany.social_links
-                                                }).eq('id', editCompany.id)
+                                                }).eq('id', companyId)
+
+                                                if (updateError) {
+                                                    alert('Gagal update company: ' + updateError.message)
+                                                    return
+                                                }
                                             } else {
-                                                await supabase.from('companies').insert({
+                                                const { data: newCompany, error: insertError } = await supabase.from('companies').insert({
                                                     name: editCompany.name,
                                                     website: editCompany.website,
                                                     logo_url: editCompany.logo_url,
                                                     bio: editCompany.bio,
                                                     avatar_url: editCompany.avatar_url,
                                                     social_links: typeof editCompany.social_links === 'string' ? JSON.parse(editCompany.social_links) : (editCompany.social_links || [])
-                                                })
+                                                }).select().single()
+
+                                                if (insertError) {
+                                                    alert('Gagal membuat company: ' + insertError.message)
+                                                    return
+                                                }
+                                                if (newCompany) companyId = newCompany.id
                                             }
+
+                                            // Assign admin role if email is provided
+                                            if (companyId && editCompany.admin_email) {
+                                                const res = await fetch('/api/admin/companies/assign-admin', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ company_id: companyId, admin_email: editCompany.admin_email })
+                                                })
+                                                const data = await res.json()
+                                                if (!res.ok) {
+                                                    alert('Gagal menugaskan Admin: ' + (data.error || 'Unknown error. Pastikan email sudah register.'))
+                                                } else {
+                                                    alert(data.message)
+                                                }
+                                            }
+
                                             setEditCompany(null)
                                             if (adminRole) await loadAllData(adminRole, adminCompanyId)
                                         }}
