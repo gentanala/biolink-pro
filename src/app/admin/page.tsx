@@ -91,8 +91,9 @@ export default function AdminPage() {
     const [users, setUsers] = useState<any[]>([])
     const [companies, setCompanies] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
-    const [generating, setGenerating] = useState(false)
     const [generateCount, setGenerateCount] = useState(1)
+    const [generateCompanyId, setGenerateCompanyId] = useState<string>('')
+    const [generating, setGenerating] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [siteUrl, setSiteUrl] = useState('')
@@ -219,29 +220,22 @@ export default function AdminPage() {
     }
 
     const generateSerials = async () => {
+        if (!window.confirm(`Generate ${generateCount} new serials${generateCompanyId ? ' for the selected Company' : ''}?`)) return
         setGenerating(true)
         const supabase = createClient()
-        const { data: product } = await supabase
-            .from('products')
-            .select('id')
-            .eq('slug', 'gentanala-classic')
-            .single()
-        const productId = product?.id
-        const newRows = []
-        for (let i = 0; i < generateCount; i++) {
-            newRows.push({
-                serial_uuid: crypto.randomUUID(),
-                product_id: productId || null,
-                is_claimed: false,
-                nfc_tap_count: 0,
-            })
-        }
-        const { error } = await supabase.from('serial_numbers').insert(newRows)
+        const newSerials = Array.from({ length: generateCount }).map(() => ({
+            serial_uuid: crypto.randomUUID(),
+            product_id: '11111111-1111-1111-1111-111111111111', // Hardcoded for 'Gentanala Classic'
+            is_claimed: false,
+            nfc_tap_count: 0,
+            company_id: generateCompanyId || null
+        }))
+        const { error } = await supabase.from('serial_numbers').insert(newSerials)
         if (error) {
             alert('Gagal save: ' + error.message)
         } else {
             if (adminRole) await loadAllData(adminRole, adminCompanyId)
-            setEditUser(null)
+            setGenerateCompanyId('')
         }
         setGenerating(false)
     }
@@ -1026,26 +1020,38 @@ export default function AdminPage() {
                         {/* Actions */}
                         <div className="flex flex-wrap gap-3 mb-6">
                             {adminRole === 'super_admin' && (
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 bg-white/50 backdrop-blur-sm border border-zinc-200 rounded-xl px-2 py-1">
+                                    <span className="text-xs font-semibold text-zinc-500 pl-2">Generate:</span>
                                     <input
                                         type="number"
                                         min="1"
                                         max="100"
                                         value={generateCount}
                                         onChange={(e) => setGenerateCount(parseInt(e.target.value) || 1)}
-                                        className="w-20 px-3 py-2.5 bg-white/50 backdrop-blur-sm border border-zinc-200 rounded-xl text-zinc-900 text-center focus:border-blue-500 focus:outline-none"
+                                        className="w-16 px-2 py-1.5 bg-transparent border-none text-zinc-900 text-center focus:outline-none"
                                     />
+                                    <span className="text-xs text-zinc-400">cards for</span>
+                                    <select
+                                        value={generateCompanyId}
+                                        onChange={(e) => setGenerateCompanyId(e.target.value)}
+                                        className="py-1.5 px-2 bg-white rounded-lg border border-zinc-200 text-xs focus:outline-none focus:border-blue-500 min-w-[140px]"
+                                    >
+                                        <option value="">(No Company/B2C)</option>
+                                        {companies.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
                                     <button
                                         onClick={generateSerials}
                                         disabled={generating}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors shadow-sm disabled:opacity-50 font-medium"
+                                        className="flex items-center gap-2 px-4 py-1.5 ml-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50 text-xs font-medium"
                                     >
-                                        {generating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                                        Generate
+                                        {generating ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                                        Create
                                     </button>
                                 </div>
                             )}
-                            <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-zinc-200 hover:bg-white/80 text-zinc-700 rounded-xl transition-colors font-medium">
+                            <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-white/60 backdrop-blur-sm border border-zinc-200 hover:bg-white/80 text-zinc-700 rounded-xl transition-colors font-medium ml-auto">
                                 <Download className="w-4 h-4" />
                                 Export CSV
                             </button>
@@ -1099,8 +1105,6 @@ export default function AdminPage() {
                 )}
 
                 {renderContent()}
-
-                {activeTab === 'features' && renderFeaturesTable()}
 
                 {activeTab === 'profiles' && (
                     <div className="mt-8 bg-blue-50/60 backdrop-blur-sm border border-blue-200/50 rounded-2xl p-6">
