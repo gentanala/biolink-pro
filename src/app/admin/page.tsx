@@ -1375,7 +1375,55 @@ export default function AdminPage() {
                                         placeholder='[{"platform": "instagram", "url": "..."}]'
                                     />
                                 </div>
-                                <div className="flex justify-end gap-2 mt-8">
+
+                                {/* Employees / Serials List (Only edit mode) */}
+                                {editCompany.id && (
+                                    <div className="pt-4 border-t border-zinc-100">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase">Perangkat & Akun Terdaftar</label>
+                                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                                                {serials.filter(s => s.company_id === editCompany.id).length} Total
+                                            </span>
+                                        </div>
+                                        <div className="max-h-48 overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-zinc-200">
+                                            {serials.filter(s => s.company_id === editCompany.id).length === 0 ? (
+                                                <p className="text-xs text-zinc-400 italic text-center py-4 bg-zinc-50 rounded-xl">Belum ada perangkat/akun yang ditambahkan.</p>
+                                            ) : (
+                                                serials.filter(s => s.company_id === editCompany.id).map(s => (
+                                                    <div key={s.id} className="flex flex-col p-3 bg-zinc-50 border border-zinc-100 rounded-xl hover:border-zinc-200 transition-colors">
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <span className="text-sm font-bold text-zinc-900">{s.display_name || 'Unclaimed'}</span>
+                                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${s.is_claimed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                                {s.is_claimed ? 'Aktif' : 'Kosong'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3 mt-1">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] text-zinc-400">UUID</span>
+                                                                <code className="text-[10px] text-blue-600 font-mono mt-0.5">{s.serial_uuid.substring(0, 13)}...</code>
+                                                            </div>
+                                                            {s.email && (
+                                                                <div className="flex flex-col border-l border-zinc-200 pl-3">
+                                                                    <span className="text-[10px] text-zinc-400">Email</span>
+                                                                    <span className="text-[10px] text-zinc-600 font-medium truncate max-w-[120px]" title={s.email}>{s.email}</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="flex flex-col border-l border-zinc-200 pl-3 ml-auto text-right">
+                                                                <span className="text-[10px] text-zinc-400">Traffic</span>
+                                                                <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                                                                    <span className="text-[10px] text-zinc-700 font-medium flex items-center gap-0.5 border bg-white px-1 rounded shadow-sm"><Activity className="w-2.5 h-2.5 text-blue-500" />{s.nfc_tap_count}</span>
+                                                                    <span className="text-[10px] text-zinc-700 font-medium flex items-center gap-0.5 border bg-white px-1 rounded shadow-sm"><Eye className="w-2.5 h-2.5 text-purple-500" />{s.view_count}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end gap-2 mt-8 border-t border-zinc-100 pt-4">
                                     <button onClick={() => setEditCompany(null)} className="px-4 py-2 text-sm text-zinc-500 hover:bg-zinc-100 rounded-xl">Cancel</button>
                                     <button
                                         onClick={async () => {
