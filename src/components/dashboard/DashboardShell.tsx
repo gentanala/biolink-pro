@@ -3,18 +3,14 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
 import {
     LayoutDashboard,
     User,
     Link2,
     Palette,
     LogOut,
-    Menu,
-    X,
     CreditCard,
     ExternalLink,
-    ChevronRight,
     Bot,
     BarChart3
 } from 'lucide-react'
@@ -31,7 +27,6 @@ const navItems = [
 ]
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [profile, setProfile] = useState<any>(null)
     const pathname = usePathname()
     const router = useRouter()
@@ -117,20 +112,20 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             </aside>
 
             {/* Mobile Header — Liquid Glass Light */}
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
-                <header className="lg:hidden bg-white/50 backdrop-blur-2xl border-b border-white/40 p-4 flex items-center justify-between shadow-sm">
+            <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+                <header className="lg:hidden bg-white/50 backdrop-blur-2xl border-b border-white/40 p-4 flex items-center justify-between shadow-sm z-40">
                     <Link href="/" className="flex items-center gap-2">
                         <CreditCard className="w-6 h-6 text-blue-600" />
                         <span className="text-lg font-bold text-zinc-900">GenHub</span>
                     </Link>
-                    <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-zinc-500 hover:text-zinc-900">
-                        <Menu className="w-6 h-6" />
+                    <button onClick={handleLogout} className="p-2 text-zinc-400 hover:text-red-500 transition-colors">
+                        <LogOut className="w-5 h-5" />
                     </button>
                 </header>
 
                 {/* Main Content + Preview */}
                 <div className="flex-1 flex overflow-hidden">
-                    <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 text-zinc-900">
+                    <main className="flex-1 overflow-y-auto p-4 pb-24 md:p-8 lg:p-12 text-zinc-900">
                         {children}
                     </main>
 
@@ -146,73 +141,36 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 </div>
             </div>
 
-            {/* Mobile Navigation Overlay — Liquid Glass */}
-            <AnimatePresence>
-                {isSidebarOpen && (
-                    <>
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => setIsSidebarOpen(false)}
-                            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] lg:hidden"
-                        />
-                        <motion.aside
-                            initial={{ x: '-100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '-100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed inset-y-0 left-0 w-[80%] max-w-sm bg-white/90 backdrop-blur-2xl border-r border-white/50 shadow-xl z-[101] lg:hidden flex flex-col"
-                        >
-                            <div className="p-6 flex items-center justify-between">
-                                <CreditCard className="w-8 h-8 text-blue-600" />
-                                <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-zinc-400 hover:text-zinc-900">
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
+            {/* Mobile Bottom Navigation — Liquid Glass */}
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-zinc-200/50 pb-safe shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)] z-50">
+                <nav className="flex items-center justify-around px-1 py-2">
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href
+                        const isLocked = item.feature ? !hasFeature(item.feature) : false
 
-                            <nav className="flex-1 px-4 py-4 space-y-2">
-                                {navItems.map((item) => {
-                                    const isActive = pathname === item.href
-                                    const isLocked = item.feature ? !hasFeature(item.feature) : false
-
-                                    return (
-                                        <Link
-                                            key={item.href}
-                                            href={item.href}
-                                            onClick={() => setIsSidebarOpen(false)}
-                                            className={`flex items-center justify-between px-4 py-4 rounded-2xl transition-all ${isActive
-                                                ? 'bg-blue-600 text-white font-medium shadow-lg shadow-blue-600/20'
-                                                : 'text-zinc-500 active:bg-zinc-100'
-                                                }`}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <item.icon className="w-5 h-5" />
-                                                {item.label}
-                                            </div>
-                                            {isLocked ? (
-                                                <CreditCard className="w-4 h-4 text-zinc-400" />
-                                            ) : (
-                                                <ChevronRight className={`w-4 h-4 ${isActive ? 'opacity-100' : 'opacity-20'}`} />
-                                            )}
-                                        </Link>
-                                    )
-                                })}
-                            </nav>
-
-                            <div className="p-6 border-t border-zinc-200/50">
-                                <button
-                                    onClick={handleLogout}
-                                    className="flex items-center gap-4 w-full px-4 py-4 text-red-500 bg-red-50 rounded-2xl font-medium"
-                                >
-                                    <LogOut className="w-5 h-5" />
-                                    Keluar
-                                </button>
-                            </div>
-                        </motion.aside>
-                    </>
-                )}
-            </AnimatePresence>
-        </div>
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`flex flex-col items-center justify-center p-1 rounded-xl transition-all relative ${isActive
+                                    ? 'text-blue-600'
+                                    : 'text-zinc-500 hover:text-zinc-900'
+                                    }`}
+                            >
+                                <div className={`p-1.5 rounded-full mb-1 transition-colors ${isActive ? 'bg-blue-100' : 'bg-transparent'}`}>
+                                    <item.icon className="w-5 h-5" />
+                                </div>
+                                <span className="text-[9px] font-medium text-center leading-tight truncate w-full px-1 max-w-[4.5rem]">
+                                    {item.label}
+                                </span>
+                                {isLocked && (
+                                    <div className="absolute top-1 right-2 w-2 h-2 bg-amber-500 rounded-full border border-white" />
+                                )}
+                            </Link>
+                        )
+                    })}
+                </nav>
+            </div>
+        </div >
     )
 }
