@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import {
     LayoutDashboard,
     User,
@@ -141,35 +142,47 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 </div>
             </div>
 
-            {/* Mobile Bottom Navigation — Liquid Glass */}
-            <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-zinc-200/50 pb-safe shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)] z-50">
-                <nav className="flex items-center justify-around px-1 py-2">
-                    {navItems.map((item) => {
-                        const isActive = pathname === item.href
-                        const isLocked = item.feature ? !hasFeature(item.feature) : false
+            {/* Mobile Bottom Navigation — Floating Liquid Glass */}
+            <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50">
+                <div className="bg-white/40 backdrop-blur-2xl border border-white/60 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.1)]">
+                    <nav className="flex items-center justify-around px-2 py-2 relative">
+                        {navItems.map((item) => {
+                            const isActive = pathname === item.href
+                            const isLocked = item.feature ? !hasFeature(item.feature) : false
 
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={`flex flex-col items-center justify-center p-1 rounded-xl transition-all relative ${isActive
-                                    ? 'text-blue-600'
-                                    : 'text-zinc-500 hover:text-zinc-900'
-                                    }`}
-                            >
-                                <div className={`p-1.5 rounded-full mb-1 transition-colors ${isActive ? 'bg-blue-100' : 'bg-transparent'}`}>
-                                    <item.icon className="w-5 h-5" />
-                                </div>
-                                <span className="text-[9px] font-medium text-center leading-tight truncate w-full px-1 max-w-[4.5rem]">
-                                    {item.label}
-                                </span>
-                                {isLocked && (
-                                    <div className="absolute top-1 right-2 w-2 h-2 bg-amber-500 rounded-full border border-white" />
-                                )}
-                            </Link>
-                        )
-                    })}
-                </nav>
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all relative flex-1 ${isActive
+                                        ? 'text-blue-600'
+                                        : 'text-zinc-500 hover:text-zinc-900'
+                                        }`}
+                                >
+                                    {/* Active State Glass Pill */}
+                                    {isActive && (
+                                        <motion.div
+                                            layoutId="mobileNavIndicator"
+                                            className="absolute inset-0 bg-white/60 backdrop-blur-md border border-white/80 shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),0_4px_12px_-2px_rgba(0,0,0,0.1)] rounded-2xl z-0"
+                                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                        />
+                                    )}
+
+                                    <div className="relative z-10 flex flex-col items-center">
+                                        <item.icon className="w-5 h-5 mb-1 text-inherit" />
+                                        <span className={`text-[9px] font-semibold text-center leading-tight truncate w-full max-w-[4.5rem] ${isActive ? 'opacity-100 drop-shadow-sm' : 'opacity-70'}`}>
+                                            {item.label}
+                                        </span>
+                                    </div>
+
+                                    {isLocked && (
+                                        <div className="absolute top-1 right-2 w-2 h-2 bg-amber-500 rounded-full border border-white shadow-sm z-20" />
+                                    )}
+                                </Link>
+                            )
+                        })}
+                    </nav>
+                </div>
             </div>
         </div >
     )
