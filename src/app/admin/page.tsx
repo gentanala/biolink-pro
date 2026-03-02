@@ -199,8 +199,8 @@ export default function AdminPage() {
                 sync_enabled: s.sync_enabled !== false,
                 tier: profile?.tier || 'FREE',
                 user_tag: profile?.user_tag || null,
-                company_id: profile?.company_id || null,
-                company_name: profile?.company_id ? companyMap.get(profile.company_id)?.name : null,
+                company_id: s.company_id || profile?.company_id || null,
+                company_name: (s.company_id ? companyMap.get(s.company_id)?.name : null) || (profile?.company_id ? companyMap.get(profile.company_id)?.name : null),
                 user_id: s.owner_id || null
             }
         })
