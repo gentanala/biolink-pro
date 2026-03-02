@@ -223,9 +223,23 @@ export default function AdminPage() {
         if (!window.confirm(`Generate ${generateCount} new serials${generateCompanyId ? ' for the selected Company' : ''}?`)) return
         setGenerating(true)
         const supabase = createClient()
+
+        // Ambil product_id yang valid dari database
+        const { data: product } = await supabase
+            .from('products')
+            .select('id')
+            .limit(1)
+            .single() // Ambil produk apapun yang tersedia (atau spesifik slug 'gentanala-classic' jika ada)
+
+        if (!product) {
+            alert('Gagal: Tidak ada produk master (Products Table) di database untuk dikaitkan dengan kartu ini.')
+            setGenerating(false)
+            return
+        }
+
         const newSerials = Array.from({ length: generateCount }).map(() => ({
             serial_uuid: crypto.randomUUID(),
-            product_id: '11111111-1111-1111-1111-111111111111', // Hardcoded for 'Gentanala Classic'
+            product_id: product.id,
             is_claimed: false,
             nfc_tap_count: 0,
             company_id: generateCompanyId || null
