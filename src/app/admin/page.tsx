@@ -222,51 +222,30 @@ export default function AdminPage() {
     const generateSerials = async () => {
         if (!window.confirm(`Generate ${generateCount} new serials${generateCompanyId ? ' for the selected Company' : ''}?`)) return
         setGenerating(true)
-        const supabase = createClient()
 
-        // Ambil product_id yang valid dari database
-        let { data: product } = await supabase
-            .from('products')
-            .select('id')
-            .limit(1)
-            .maybeSingle() // Gunakan maybeSingle agar tidak throw error jika kosong
-
-        // Jika belum ada produk master sama sekali di database (database masih fresh)
-        if (!product) {
-            console.log('No master product found. Auto-creating Gentanala Classic...')
-            const { data: newProduct, error: insertProdErr } = await supabase
-                .from('products')
-                .insert({
-                    name: 'Gentanala Classic',
-                    slug: 'gentanala-classic',
-                    base_price: 0,
-                    product_type: 'ready_stock'
+        try {
+            const res = await fetch('/api/admin/serials/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    count: generateCount,
+                    company_id: generateCompanyId || null
                 })
-                .select('id')
-                .single()
+            })
 
-            if (insertProdErr || !newProduct) {
-                alert('Gagal: Tidak dapat membuat produk master secara otomatis. ' + (insertProdErr?.message || ''))
-                setGenerating(false)
-                return
+            const data = await res.json()
+
+            if (!res.ok) {
+                alert('Gagal generate: ' + (data.error || 'Unknown error'))
+            } else {
+                alert(data.message || `${generateCount} serial berhasil dibuat!`)
+                if (adminRole) await loadAllData(adminRole, adminCompanyId)
+                setGenerateCompanyId('')
             }
-            product = newProduct
+        } catch (err: any) {
+            alert('Network error: ' + err.message)
         }
 
-        const newSerials = Array.from({ length: generateCount }).map(() => ({
-            serial_uuid: crypto.randomUUID(),
-            product_id: product.id,
-            is_claimed: false,
-            nfc_tap_count: 0,
-            company_id: generateCompanyId || null
-        }))
-        const { error } = await supabase.from('serial_numbers').insert(newSerials)
-        if (error) {
-            alert('Gagal save: ' + error.message)
-        } else {
-            if (adminRole) await loadAllData(adminRole, adminCompanyId)
-            setGenerateCompanyId('')
-        }
         setGenerating(false)
     }
 
