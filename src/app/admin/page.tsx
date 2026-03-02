@@ -225,16 +225,32 @@ export default function AdminPage() {
         const supabase = createClient()
 
         // Ambil product_id yang valid dari database
-        const { data: product } = await supabase
+        let { data: product } = await supabase
             .from('products')
             .select('id')
             .limit(1)
-            .single() // Ambil produk apapun yang tersedia (atau spesifik slug 'gentanala-classic' jika ada)
+            .maybeSingle() // Gunakan maybeSingle agar tidak throw error jika kosong
 
+        // Jika belum ada produk master sama sekali di database (database masih fresh)
         if (!product) {
-            alert('Gagal: Tidak ada produk master (Products Table) di database untuk dikaitkan dengan kartu ini.')
-            setGenerating(false)
-            return
+            console.log('No master product found. Auto-creating Gentanala Classic...')
+            const { data: newProduct, error: insertProdErr } = await supabase
+                .from('products')
+                .insert({
+                    name: 'Gentanala Classic',
+                    slug: 'gentanala-classic',
+                    base_price: 0,
+                    product_type: 'ready_stock'
+                })
+                .select('id')
+                .single()
+
+            if (insertProdErr || !newProduct) {
+                alert('Gagal: Tidak dapat membuat produk master secara otomatis. ' + (insertProdErr?.message || ''))
+                setGenerating(false)
+                return
+            }
+            product = newProduct
         }
 
         const newSerials = Array.from({ length: generateCount }).map(() => ({
