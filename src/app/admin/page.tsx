@@ -579,6 +579,11 @@ export default function AdminPage() {
                                             >
                                                 {serial.sync_enabled !== false ? 'Synced' : 'Independent'}
                                             </button>
+                                            {serial.company_name && (
+                                                <span className="text-[9px] text-blue-500 font-medium truncate max-w-[140px]" title={serial.company_name}>
+                                                    🏢 {serial.company_name}
+                                                </span>
+                                            )}
                                             {serial.sync_enabled && (serial.display_name || serial.email) && (
                                                 <span className="text-[9px] text-zinc-400 truncate max-w-[120px]" title={serial.display_name || serial.email || ''}>
                                                     🔗 {serial.display_name || serial.email}
