@@ -1705,6 +1705,19 @@ export default function AdminPage() {
                 )}
             </AnimatePresence>
 
-        </div >
+            {/* Hidden QR Code for processing download */}
+            <div style={{ display: 'none' }} id="qr-download-svg">
+                {qrDownloadData && (
+                    <QRCodeSVG
+                        value={qrDownloadData.url}
+                        size={400}
+                        bgColor="#ffffff"
+                        fgColor="#18181b"
+                        level="Q"
+                        includeMargin={false}
+                    />
+                )}
+            </div>
+        </div>
     )
 }
