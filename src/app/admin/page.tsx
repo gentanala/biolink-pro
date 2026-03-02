@@ -934,21 +934,21 @@ export default function AdminPage() {
                         Halaman ini dilindungi. Silakan login menggunakan akun email Administrator (Super Admin atau B2B Admin).
                     </p>
                     <div className="space-y-3">
-                        <Link
+                        <a
                             href="/login?next=/admin"
-                            className="flex items-center justify-center gap-3 w-full py-4 bg-blue-600 text-white rounded-2xl font-bold transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 active:scale-95"
+                            className="flex items-center justify-center gap-3 w-full py-4 bg-blue-600 text-white rounded-2xl font-bold transition-all hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 active:scale-95 cursor-pointer relative z-10"
                         >
                             <User className="w-4 h-4" /> Masuk sebagai Admin
-                        </Link>
-                        <Link
+                        </a>
+                        <a
                             href="/"
-                            className="flex items-center justify-center w-full py-3 text-sm font-bold text-zinc-400 hover:text-zinc-600 transition-colors"
+                            className="flex items-center justify-center w-full py-3 text-sm font-bold text-zinc-400 hover:text-zinc-600 transition-colors cursor-pointer relative z-10"
                         >
                             Kembali ke Beranda
-                        </Link>
+                        </a>
                     </div>
 
-                    <div className="mt-8 pt-8 border-t border-zinc-100">
+                    <div className="mt-8 pt-8 border-t border-zinc-100 relative z-10">
                         <p className="text-[10px] text-zinc-400 leading-relaxed">
                             <strong>CATATAN:</strong> Kami telah memperbarui sistem keamanan. Sekarang tidak lagi menggunakan satu password bersama, melainkan login menggunakan email pribadi Anda masing-masing yang sudah terdaftar.
                         </p>
