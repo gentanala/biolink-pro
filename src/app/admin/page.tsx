@@ -1566,6 +1566,7 @@ export default function AdminPage() {
                                             setDeleteConfirm(null)
                                             setUserToDelete({
                                                 user_id: serial.user_id,
+                                                serial_id: serial.id,
                                                 display_name: serial.display_name,
                                                 email: serial.email
                                             })
@@ -1648,9 +1649,34 @@ export default function AdminPage() {
                             </p>
 
                             <div className="space-y-3">
-                                {/* Option 1: Reset Content Only */}
+                                {/* Option 1: Unclaim this specific serial only */}
+                                {userToDelete.serial_id && (
+                                    <button
+                                        onClick={async () => {
+                                            const res = await fetch('/api/admin/users/delete', {
+                                                method: 'DELETE',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ userId: userToDelete.user_id, serialId: userToDelete.serial_id, action: 'unclaim' })
+                                            })
+                                            const data = await res.json()
+                                            if (data.error) alert('Gagal unclaim: ' + data.error)
+                                            else {
+                                                alert('Serial berhasil dilepas dari user. Profil user TIDAK tersentuh.')
+                                                setUserToDelete(null)
+                                                if (adminRole) await loadAllData(adminRole, adminCompanyId)
+                                            }
+                                        }}
+                                        className="w-full py-4 bg-blue-100 text-blue-800 text-sm font-bold rounded-2xl hover:bg-blue-200 transition-all border border-blue-200 flex flex-col items-center gap-1"
+                                    >
+                                        <span className="uppercase tracking-widest">LEPASKAN SERIAL INI</span>
+                                        <span className="text-[10px] font-normal opacity-80">(Unclaim kartu ini saja - Akun user tetap utuh)</span>
+                                    </button>
+                                )}
+
+                                {/* Option 2: Reset entire profile (affects all serials) */}
                                 <button
                                     onClick={async () => {
+                                        if (!window.confirm('PERINGATAN: Reset ini akan menghapus SEMUA isi profil user (bio, foto, links) yang berdampak ke SEMUA kartu miliknya. Lanjutkan?')) return
                                         const res = await fetch('/api/admin/users/delete', {
                                             method: 'DELETE',
                                             headers: { 'Content-Type': 'application/json' },
@@ -1659,15 +1685,15 @@ export default function AdminPage() {
                                         const data = await res.json()
                                         if (data.error) alert('Gagal reset: ' + data.error)
                                         else {
-                                            alert('Isi akun berhasil di-reset bersih.')
+                                            alert('Seluruh isi profil user berhasil di-reset.')
                                             setUserToDelete(null)
                                             if (adminRole) await loadAllData(adminRole, adminCompanyId)
                                         }
                                     }}
                                     className="w-full py-4 bg-amber-100 text-amber-800 text-sm font-bold rounded-2xl hover:bg-amber-200 transition-all border border-amber-200 flex flex-col items-center gap-1"
                                 >
-                                    <span className="uppercase tracking-widest">RESET ISI AKUN</span>
-                                    <span className="text-[10px] font-normal opacity-80">(Hapus foto, bio, link - Akun tetap ada)</span>
+                                    <span className="uppercase tracking-widest">RESET SELURUH PROFIL</span>
+                                    <span className="text-[10px] font-normal opacity-80">(Hapus foto, bio, link SEMUA kartu user - Akun tetap ada)</span>
                                 </button>
 
                                 {/* Option 2: Full Delete */}
@@ -1707,11 +1733,12 @@ export default function AdminPage() {
                             </div>
                         </motion.div>
                     </div>
-                )}
-            </AnimatePresence>
+                )
+                }
+            </AnimatePresence >
 
             {/* Hidden QR Code for processing download */}
-            <div style={{ display: 'none' }} id="qr-download-svg">
+            < div style={{ display: 'none' }} id="qr-download-svg" >
                 {qrDownloadData && (
                     <QRCodeSVG
                         value={qrDownloadData.url}
@@ -1722,7 +1749,7 @@ export default function AdminPage() {
                         includeMargin={false}
                     />
                 )}
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }

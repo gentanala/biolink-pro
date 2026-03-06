@@ -22,7 +22,7 @@ const getAdminClient = () => {
 
 export async function DELETE(request: Request) {
     try {
-        const { userId, action } = await request.json()
+        const { userId, serialId, action } = await request.json()
         const performAction = action || 'delete'
 
         if (!userId) {
@@ -72,8 +72,28 @@ export async function DELETE(request: Request) {
 
         console.log(`Targeting Auth ID: ${targetAuthId}`)
 
-        if (performAction === 'reset') {
-            // ACTION: RESET CONTENT
+        if (performAction === 'unclaim') {
+            // ACTION: UNCLAIM A SPECIFIC SERIAL (without touching user profile)
+            if (!serialId) {
+                return NextResponse.json({ error: 'Serial ID is required for unclaim' }, { status: 400 })
+            }
+
+            const { error: unclaimError } = await supabaseAdmin
+                .from('serial_numbers')
+                .update({
+                    owner_id: null,
+                    is_claimed: false,
+                    claimed_at: null,
+                    sync_enabled: true
+                })
+                .eq('id', serialId)
+
+            if (unclaimError) return NextResponse.json({ error: unclaimError.message }, { status: 500 })
+
+            return NextResponse.json({ success: true, message: 'Serial unclaimed successfully. User profile untouched.' })
+
+        } else if (performAction === 'reset') {
+            // ACTION: RESET PROFILE CONTENT (affects ALL serials of this user)
             const { error: resetError } = await supabaseAdmin
                 .from('profiles')
                 .update({
