@@ -441,6 +441,9 @@ export default function ProfileEditor() {
                 bio: formData.bio,
                 company: formData.company,
                 job_title: formData.job_title,
+                avatar_url: formData.avatar_url,
+                phone: formData.phone,
+                social_links: formData.social_links,
                 // Construct basic theme object if needed by DB, or flattened fields
                 // DB expects 'theme' jsonb.
                 theme: {
@@ -784,14 +787,14 @@ export default function ProfileEditor() {
                             <div>
                                 <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Custom URL</label>
                                 <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">biolink.pro/</span>
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">my.gentanala.com/</span>
                                     <input
                                         type="text"
                                         value={formData.slug}
                                         onChange={(e) => updateField('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))}
                                         disabled={userTier === 'FREE'}
                                         placeholder="username"
-                                        className={`w-full pl-[5.5rem] pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none ${userTier === 'FREE' ? 'cursor-not-allowed opacity-70' : ''}`}
+                                        className={`w-full pl-[9rem] pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none ${userTier === 'FREE' ? 'cursor-not-allowed opacity-70' : ''}`}
                                     />
                                     {userTier === 'FREE' && (
                                         <div className="absolute right-3 top-1/2 -translate-y-1/2">

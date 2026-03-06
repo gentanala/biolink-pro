@@ -121,7 +121,7 @@ export default function CompanyUsersPage() {
                                 </div>
                                 <div className="flex items-center gap-2 text-zinc-500 text-sm">
                                     <LinkIcon className="w-4 h-4" />
-                                    <span className="truncate">biolink.pro/{emp.slug}</span>
+                                    <span className="truncate">my.gentanala.com/{emp.slug}</span>
                                 </div>
                             </div>
 
