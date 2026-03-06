@@ -40,6 +40,7 @@ export default function ProfileEditor() {
     const [showAddFile, setShowAddFile] = useState(false)
     const [newFileTitle, setNewFileTitle] = useState('')
     const [newFileUrl, setNewFileUrl] = useState('')
+    const [mySerials, setMySerials] = useState<{ id: string; serial_uuid: string; created_at: string; is_claimed: boolean }[]>([])
 
     const [formData, setFormData] = useState({
         display_name: '',
@@ -133,6 +134,14 @@ export default function ProfileEditor() {
                 return
             }
             setUserId(user.id)
+
+            // Load user's serial numbers
+            const { data: userSerials } = await supabase
+                .from('serial_numbers')
+                .select('id, serial_uuid, created_at, is_claimed')
+                .eq('owner_id', user.id)
+                .order('created_at', { ascending: true })
+            setMySerials(userSerials || [])
 
             const { data: profile, error } = await supabase
                 .from('profiles')
@@ -978,75 +987,65 @@ export default function ProfileEditor() {
                 </button>
             </form>
 
-            {/* Danger Zone */}
-            <div className="mt-12 pt-8 border-t border-red-100">
-                <h3 className="text-lg font-bold text-red-600 mb-2">Danger Zone</h3>
+            {/* Kartu Saya & Danger Zone */}
+            <div className="mt-12 pt-8 border-t border-zinc-200">
+                <h3 className="text-lg font-bold text-zinc-900 mb-1">Kartu NFC Saya</h3>
                 <p className="text-sm text-zinc-500 mb-4">
-                    Hati-hati, aksi di bawah ini tidak bisa dibatalkan.
+                    Daftar semua kartu yang terhubung ke akun Anda. Anda bisa melepaskan kartu tertentu tanpa mengganggu akun dan kartu lainnya.
                 </p>
 
-                <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-center justify-between">
-                    <div>
-                        <h4 className="font-bold text-red-900">Reset Device / Jual Kartu</h4>
-                        <p className="text-xs text-red-700 mt-1">
-                            Unlink semua kartu NFC dari akun ini. Data profil di kartu akan hilang.<br />
-                            Gunakan ini jika Anda ingin menjual/memberikan kartu ke orang lain.
-                        </p>
+                {mySerials.length === 0 ? (
+                    <div className="text-center py-6 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-400 text-sm">
+                        Belum ada kartu yang terhubung ke akun Anda.
                     </div>
-                    <button
-                        type="button"
-                        onClick={async () => {
-                            if (!confirm('YAKIN MAU RESET? \n\nSemua kartu NFC yang terhubung dengan akun ini akan diputus (Unlink). Kartu akan jadi kosong dan bisa diklaim orang lain.\n\nData profil Anda di akun ini juga akan di-reset ke default.')) return
+                ) : (
+                    <div className="space-y-3">
+                        {mySerials.map((serial, idx) => (
+                            <div key={serial.id} className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-zinc-400">#{idx + 1}</span>
+                                        <span className="text-sm font-mono text-blue-600 truncate">{serial.serial_uuid.substring(0, 18)}...</span>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-400 mt-1">
+                                        Diklaim {new Date(serial.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        if (!confirm(`Lepaskan kartu #${idx + 1} (${serial.serial_uuid.substring(0, 8)}...) dari akun Anda?\n\nKartu ini akan jadi kosong dan bisa diklaim orang lain.\nProfil dan kartu lain Anda TIDAK akan terpengaruh.`)) return
 
-                            const magicWord = prompt('Ketik "RESET" untuk konfirmasi:')
-                            if (magicWord !== 'RESET') {
-                                alert('Konfirmasi salah. Batal.')
-                                return
-                            }
+                                        try {
+                                            const res = await fetch('/api/admin/users/delete', {
+                                                method: 'DELETE',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ userId: userId, serialId: serial.id, action: 'unclaim' })
+                                            })
+                                            const data = await res.json()
+                                            if (data.error) {
+                                                alert('Gagal melepaskan kartu: ' + data.error)
+                                            } else {
+                                                alert('Kartu berhasil dilepas! Profil Anda tetap aman.')
+                                                setMySerials(prev => prev.filter(s => s.id !== serial.id))
+                                            }
+                                        } catch (err) {
+                                            alert('Gagal melepaskan kartu. Coba lagi nanti.')
+                                        }
+                                    }}
+                                    className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-bold rounded-lg transition-colors border border-red-200 whitespace-nowrap"
+                                >
+                                    Lepaskan Kartu
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
-                            setIsLoading(true)
-                            try {
-                                const { data: { user } } = await supabase.auth.getUser()
-                                if (!user) return
-
-                                // 1. Unlink all serials
-                                await supabase
-                                    .from('serial_numbers')
-                                    .update({
-                                        owner_id: null,
-                                        is_claimed: false,
-                                        sync_enabled: true, // Reset to default
-                                        profile_id: null
-                                    })
-                                    .eq('owner_id', user.id)
-
-                                // 2. Reset Profile Data
-                                await supabase
-                                    .from('profiles')
-                                    .update({
-                                        bio: '',
-                                        avatar_url: '',
-                                        social_links: [],
-                                        theme: {},
-                                        slug: `reset-${Date.now()}`, // Temporary slug to free up the old one
-                                        display_name: 'User Reset'
-                                    })
-                                    .eq('user_id', user.id)
-
-                                alert('Akun berhasil di-reset. Kartu sudah aman untuk dipindahtangankan.')
-                                window.location.reload()
-                            } catch (err) {
-                                console.error(err)
-                                alert('Gagal reset akun. Hubungi admin.')
-                            } finally {
-                                setIsLoading(false)
-                            }
-                        }}
-                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
-                    >
-                        Reset Akun & Unlink
-                    </button>
-                </div>
+                <p className="text-[10px] text-zinc-400 mt-3 leading-relaxed">
+                    💡 <strong>Tip:</strong> "Lepaskan Kartu" hanya melepas kartu tersebut dari akun Anda. Profil dan kartu-kartu lain Anda tidak akan terpengaruh.
+                    Kartu yang dilepas akan kembali kosong dan bisa diklaim oleh orang lain dengan email baru.
+                </p>
             </div>
         </div>
     )
