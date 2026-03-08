@@ -38,6 +38,7 @@ interface Profile {
     bio: string
     email: string | null
     links: any[]
+    social_links?: any[]
     avatar_url?: string | null
     // PLG
     tier?: 'FREE' | 'PREMIUM' | 'B2B'
@@ -724,7 +725,24 @@ export default function DashboardPage() {
                             </Link>
                         </div>
 
-                        {profile.links && profile.links.length > 0 ? (
+                        {profile.social_links && profile.social_links.length > 0 ? (
+                            <div className="grid gap-3">
+                                {profile.social_links.slice(0, 5).map((link: any) => (
+                                    <div key={link.id} className="glass rounded-xl p-4 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-blue-600">
+                                                <Link2 className="w-4 h-4" />
+                                            </div>
+                                            <span className="font-medium text-sm text-zinc-900">{link.title}</span>
+                                        </div>
+                                        <ExternalLink className="w-4 h-4 text-zinc-400" />
+                                    </div>
+                                ))}
+                                {profile.social_links.length > 5 && (
+                                    <p className="text-center text-xs text-zinc-400 mt-2">Dapatkan akses ke semua link di menu Atur Link</p>
+                                )}
+                            </div>
+                        ) : profile.links && profile.links.length > 0 ? (
                             <div className="grid gap-3">
                                 {profile.links.slice(0, 5).map((link: any) => (
                                     <div key={link.id} className="glass rounded-xl p-4 flex items-center justify-between">
