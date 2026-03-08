@@ -56,12 +56,7 @@ export default function ProfileEditor() {
         company: '',
         job_title: '',
         avatar_url: '',
-        social_links: [] as any[],
-        // Fitur Pintasan Link (Redirect Mode)
-        active_mode: 'profile' as 'profile' | 'redirect',
-        redirect_url: '',
-        redirect_type: 'direct' as 'direct' | 'intro',
-        redirect_message: ''
+        social_links: [] as any[]
     })
 
     const [isGenerating, setIsGenerating] = useState(false)
@@ -470,11 +465,6 @@ export default function ProfileEditor() {
                     image_filter: userTier === 'FREE' ? 'normal' : formData.image_filter,
                     theme_mode: userTier === 'FREE' ? 'light' : formData.theme_mode,
                     welcome_word: userTier === 'FREE' ? 'Hello' : formData.welcome_word,
-                    // Fitur Pintasan
-                    active_mode: formData.active_mode,
-                    redirect_url: formData.redirect_url,
-                    redirect_type: formData.redirect_type,
-                    redirect_message: formData.redirect_message,
                     gallery: formData.gallery,
                     files: formData.files,
                     links: formData.social_links // Legacy
@@ -543,102 +533,7 @@ export default function ProfileEditor() {
             </div>
 
             <form onSubmit={handleSave} className="space-y-8">
-
-                {/* --- Fungsi Kartu / Mode --- */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass rounded-3xl p-6 overflow-hidden border border-zinc-200/50"
-                >
-                    <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-zinc-900">
-                        <RefreshCw className="w-5 h-5 text-blue-600" />
-                        Fungsi Utama Link
-                    </h2>
-                    <p className="text-xs text-zinc-500 mb-6">Pilih apakah link/kartu Anda akan menampilkan profil digital lengkap, atau langsung diarahkan (redirect) ke situs lain.</p>
-
-                    {/* Mode Toggle */}
-                    <div className="flex p-1 bg-zinc-100 rounded-xl mb-6">
-                        <button
-                            type="button"
-                            onClick={() => updateField('active_mode', 'profile')}
-                            className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${formData.active_mode === 'profile' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
-                        >
-                            Kartu Nama Digital
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => updateField('active_mode', 'redirect')}
-                            className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${formData.active_mode === 'redirect' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
-                        >
-                            Pintasan Redirect (Link Saver)
-                        </button>
-                    </div>
-
-                    {/* Redirect Settings */}
-                    {formData.active_mode === 'redirect' && (
-                        <div className="space-y-4 p-5 bg-blue-50/50 rounded-2xl border border-blue-100/50 mt-4">
-                            <div>
-                                <label className="block text-xs font-bold text-zinc-700 mb-1 ml-1">URL Tujuan Redirect</label>
-                                <input
-                                    type="url"
-                                    value={formData.redirect_url}
-                                    onChange={(e) => updateField('redirect_url', e.target.value)}
-                                    placeholder="https://youtube.com/..."
-                                    className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none"
-                                />
-                                <p className="text-[10px] text-zinc-500 mt-1 ml-1">Pengunjung profil Anda akan otomatis diarahkan ke link ini.</p>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-zinc-700 mb-2 ml-1">Tipe Redirect</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <label className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${formData.redirect_type === 'direct' ? 'border-blue-500 bg-blue-50/50' : 'border-zinc-200 hover:border-blue-200'}`}>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="radio"
-                                                name="redirect_type"
-                                                checked={formData.redirect_type === 'direct'}
-                                                onChange={() => updateField('redirect_type', 'direct')}
-                                                className="w-4 h-4 text-blue-600"
-                                            />
-                                            <span className="font-bold text-sm text-zinc-900">Langsung</span>
-                                        </div>
-                                        <p className="text-[10px] text-zinc-500 mt-1 ml-6">Tanpa loading, langsung loncat ke link tujuan secara instan.</p>
-                                    </label>
-
-                                    <label className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${formData.redirect_type === 'intro' ? 'border-blue-500 bg-blue-50/50' : 'border-zinc-200 hover:border-blue-200'}`}>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="radio"
-                                                name="redirect_type"
-                                                checked={formData.redirect_type === 'intro'}
-                                                onChange={() => updateField('redirect_type', 'intro')}
-                                                className="w-4 h-4 text-blue-600"
-                                            />
-                                            <span className="font-bold text-sm text-zinc-900">Dengan Intro Animasi</span>
-                                        </div>
-                                        <p className="text-[10px] text-zinc-500 mt-1 ml-6">Menampilkan halaman loading interaktif & pesan sebelum pindah.</p>
-                                    </label>
-                                </div>
-                            </div>
-
-                            {formData.redirect_type === 'intro' && (
-                                <div>
-                                    <label className="block text-xs font-bold text-zinc-700 mb-1 ml-1">Pesan Intro / Pop-up</label>
-                                    <input
-                                        type="text"
-                                        value={formData.redirect_message}
-                                        onChange={(e) => updateField('redirect_message', e.target.value)}
-                                        placeholder="Cth: Menuju video terbaru saya..."
-                                        className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none"
-                                    />
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </motion.section>
-
-                {/* Profile Photo Section (Hanya relevan jika mode profile, tapi kita biarkan tetap bisa diisi sebagai fallback) */}
+                {/* Profile Photo Section */}
                 <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
