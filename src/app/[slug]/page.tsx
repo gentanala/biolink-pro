@@ -59,6 +59,10 @@ export default function PublicProfile() {
                     links: dbProfile.social_links || uiTheme.links || [],
                     welcome_word: uiTheme.welcome_word || 'hello',
                     primary_color: uiTheme.primary || '#3B82F6',
+                    active_mode: uiTheme.active_mode || 'profile',
+                    redirect_url: uiTheme.redirect_url || '',
+                    redirect_type: uiTheme.redirect_type || 'direct',
+                    redirect_message: uiTheme.redirect_message || '',
                 }
                 setProfile(processedProfile)
                 setLoading(false)
@@ -136,8 +140,84 @@ export default function PublicProfile() {
         return () => clearInterval(typeInterval)
     }, [profile, showWelcome])
 
-    if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Loading...</div>
+    // Logika Redirect Pintasan Fungsi
+    useEffect(() => {
+        if (!profile) return;
+
+        if (profile.active_mode === 'redirect' && profile.redirect_url) {
+            // Track view before redirecting
+            trackProfileView(profile.id);
+
+            // Validasi format URL (tambah http jika belum ada)
+            let finalUrl = profile.redirect_url;
+            if (!/^https?:\/\//i.test(finalUrl)) {
+                finalUrl = 'https://' + finalUrl;
+            }
+
+            if (profile.redirect_type === 'direct') {
+                window.location.replace(finalUrl);
+            } else if (profile.redirect_type === 'intro') {
+                const timer = setTimeout(() => {
+                    window.location.replace(finalUrl);
+                }, 3500); // Tunggu 3.5 detik biar intro sempat dibaca
+                return () => clearTimeout(timer);
+            }
+        }
+    }, [profile]);
+
+    if (loading) return <div className="min-h-screen bg-black flex items-center justify-center text-white"><div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" /></div>
     if (!profile) return notFound()
+
+    // ----------------------------------------------------
+    // RENDER: REDIRECT MODE (Jika Tipe Redirect = "Direct", layar dibiarkan putih ngeblank saat transit)
+    if (profile.active_mode === 'redirect' && profile.redirect_url) {
+        if (profile.redirect_type === 'direct') {
+            return <div className="min-h-screen bg-white" /> // Blank screen while throwing to URL
+        }
+
+        const isLight = profile.theme_mode === 'light' || profile.theme_mode === 'liquid_glass';
+        let finalUrl = profile.redirect_url;
+        if (!/^https?:\/\//i.test(finalUrl)) {
+            finalUrl = 'https://' + finalUrl;
+        }
+
+        return (
+            <div className={`min-h-screen flex flex-col items-center justify-center p-6 text-center ${isLight ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-950 text-white'}`}>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                >
+                    <div className="w-24 h-24 mb-6 mx-auto rounded-full overflow-hidden shadow-2xl ring-4 ring-blue-500/20">
+                        {profile.avatar_url ? (
+                            <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full bg-blue-500 flex items-center justify-center text-4xl font-bold text-white">
+                                {profile.display_name?.[0]?.toUpperCase() || 'U'}
+                            </div>
+                        )}
+                    </div>
+                    <h1 className="text-2xl font-black mb-3">{profile.display_name}</h1>
+                    <p className={`text-base font-medium mb-10 max-w-sm mx-auto leading-relaxed ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                        {profile.redirect_message || 'Mengarahkan ke halaman tujuan...'}
+                    </p>
+
+                    <div className="flex justify-center mb-10">
+                        <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                    </div>
+
+                    <p className={`text-xs mb-3 font-medium opacity-50`}>Jika tidak dialihkan secara otomatis</p>
+                    <a
+                        href={finalUrl}
+                        className="inline-block px-8 py-3.5 bg-blue-600 hover:bg-blue-700 transition-colors text-white text-sm font-bold rounded-2xl shadow-xl shadow-blue-600/20"
+                    >
+                        Lanjutkan ke Link
+                    </a>
+                </motion.div>
+            </div>
+        )
+    }
+    // ----------------------------------------------------
 
     const isLightMode = profile.theme_mode === 'light' || profile.theme_mode === 'liquid_glass'
     const isLiquidGlass = profile.theme_mode === 'liquid_glass'

@@ -160,6 +160,18 @@ export default function TapPage() {
 
                     // Personal Sync Store: Redirect to primary slug (Existing behavior)
                     if (ownerProfile.slug) {
+                        // INTERCEPT REDIRECT DIRECT: Mencegah double redirect delay
+                        const theme = ownerProfile.theme || {};
+                        if (theme.active_mode === 'redirect' && theme.redirect_url && theme.redirect_type === 'direct') {
+                            let finalUrl = theme.redirect_url;
+                            if (!/^https?:\/\//i.test(finalUrl)) {
+                                finalUrl = 'https://' + finalUrl;
+                            }
+                            window.location.replace(finalUrl);
+                            return; // Stop eksekusi agar tidak render
+                        }
+
+                        // Jika bukan redirect direct (atau berupa intro), lempar ke halaman profil yang akan handle sisanya
                         router.push(`/${ownerProfile.slug}`)
                         return
                     }
