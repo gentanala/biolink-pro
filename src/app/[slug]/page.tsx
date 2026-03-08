@@ -36,6 +36,10 @@ export default function PublicProfile() {
     const [showQR, setShowQR] = useState(false)
     const [showLeadModal, setShowLeadModal] = useState(false)
 
+    // State untuk fitur Pintasan Link dengan efek Intro Typewriter
+    const [introTypewriterText, setIntroTypewriterText] = useState('')
+    const [isIntroTypingDone, setIsIntroTypingDone] = useState(false)
+
     useEffect(() => {
         const fetchProfile = async () => {
             const slug = params?.slug as string
@@ -140,7 +144,7 @@ export default function PublicProfile() {
         return () => clearInterval(typeInterval)
     }, [profile, showWelcome])
 
-    // Logika Redirect Pintasan Fungsi
+    // Logika Redirect Pintasan Fungsi (Auto Redirect / Intro Effect)
     useEffect(() => {
         if (!profile) return;
 
@@ -155,12 +159,26 @@ export default function PublicProfile() {
             }
 
             if (profile.redirect_type === 'direct') {
+                // Langsung redirect tanpa babibu
                 window.location.replace(finalUrl);
             } else if (profile.redirect_type === 'intro') {
-                const timer = setTimeout(() => {
-                    window.location.replace(finalUrl);
-                }, 3500); // Tunggu 3.5 detik biar intro sempat dibaca
-                return () => clearTimeout(timer);
+                // Jalankan efek Typewriter untuk pesan redirect
+                const message = profile.redirect_message || 'Mengarahkan ke halaman tujuan...';
+                let i = 0;
+                setIntroTypewriterText('');
+                setIsIntroTypingDone(false);
+
+                const typeInterval = setInterval(() => {
+                    if (i < message.length) {
+                        setIntroTypewriterText(message.slice(0, i + 1));
+                        i++;
+                    } else {
+                        clearInterval(typeInterval);
+                        setIsIntroTypingDone(true);
+                    }
+                }, 100); // Kecepatan ngetik
+
+                return () => clearInterval(typeInterval);
             }
         }
     }, [profile]);
@@ -187,8 +205,9 @@ export default function PublicProfile() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="w-full max-w-sm"
                 >
-                    <div className="w-24 h-24 mb-6 mx-auto rounded-full overflow-hidden shadow-2xl ring-4 ring-blue-500/20">
+                    <div className="w-24 h-24 mb-8 mx-auto rounded-full overflow-hidden shadow-2xl ring-4 ring-blue-500/20">
                         {profile.avatar_url ? (
                             <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
                         ) : (
@@ -197,22 +216,44 @@ export default function PublicProfile() {
                             </div>
                         )}
                     </div>
-                    <h1 className="text-2xl font-black mb-3">{profile.display_name}</h1>
-                    <p className={`text-base font-medium mb-10 max-w-sm mx-auto leading-relaxed ${isLight ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                        {profile.redirect_message || 'Mengarahkan ke halaman tujuan...'}
-                    </p>
 
-                    <div className="flex justify-center mb-10">
-                        <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                    {/* Header Name */}
+                    <h1 className="text-2xl font-black mb-4">{profile.display_name}</h1>
+
+                    {/* Typewriter Effect Box */}
+                    <div className={`min-h-[80px] mb-10 p-6 rounded-2xl flex items-center justify-center border backdrop-blur-sm ${isLight ? 'bg-white/50 border-zinc-200' : 'bg-white/5 border-white/10'}`}>
+                        <p className={`text-lg font-medium tracking-wide font-mono ${isLight ? 'text-zinc-700' : 'text-zinc-200'}`}>
+                            {introTypewriterText}
+                            {!isIntroTypingDone && (
+                                <motion.span
+                                    animate={{ opacity: [1, 0] }}
+                                    transition={{ repeat: Infinity, duration: 0.5 }}
+                                    className="inline-block ml-1 opacity-50"
+                                >
+                                    ▌
+                                </motion.span>
+                            )}
+                        </p>
                     </div>
 
-                    <p className={`text-xs mb-3 font-medium opacity-50`}>Jika tidak dialihkan secara otomatis</p>
-                    <a
-                        href={finalUrl}
-                        className="inline-block px-8 py-3.5 bg-blue-600 hover:bg-blue-700 transition-colors text-white text-sm font-bold rounded-2xl shadow-xl shadow-blue-600/20"
-                    >
-                        Lanjutkan ke Link
-                    </a>
+                    {/* Button Muncul kalau udah selesai ngetik */}
+                    <AnimatePresence>
+                        {isIntroTypingDone && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4 }}
+                            >
+                                <a
+                                    href={finalUrl}
+                                    className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 transition-all text-white text-base font-bold rounded-2xl shadow-[0_8px_30px_rgb(37,99,235,0.2)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.4)] active:scale-95 group"
+                                >
+                                    <span>Lanjutkan ke Link</span>
+                                    <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                </a>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </motion.div>
             </div>
         )
