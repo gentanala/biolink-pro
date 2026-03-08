@@ -31,7 +31,12 @@ import {
     Check,
     Copy,
     Package,
-    AlertTriangle
+    AlertTriangle,
+    Building,
+    FileText,
+    UserCheck,
+    Settings,
+    Smartphone
 } from 'lucide-react'
 import Link from 'next/link' // Added Link import
 import { createClient } from '@/lib/supabase/client'
@@ -1305,204 +1310,264 @@ export default function AdminPage() {
             </AnimatePresence>
 
             {/* Edit Company Modal */}
-            {/* Edit Company Modal */}
+            {/* Edit Company Modal - Redesigned as Full Dashboard */}
             <AnimatePresence>
                 {editCompany && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-zinc-900/60 backdrop-blur-sm">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl"
+                            initial={{ opacity: 0, y: 30, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 30, scale: 0.98 }}
+                            className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl flex flex-col h-full max-h-[90vh] overflow-hidden"
                         >
-                            <h3 className="text-lg font-bold mb-4">{editCompany.id ? 'Edit Company' : 'New Company'}</h3>
-                            <div className="space-y-4">
+                            {/* Dashboard Header */}
+                            <div className="px-8 py-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/80">
                                 <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Company Name</label>
-                                    <input
-                                        type="text"
-                                        value={editCompany.name || ''}
-                                        onChange={e => setEditCompany({ ...editCompany, name: e.target.value })}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
-                                        placeholder="e.g. PT. Gentanala Jaya"
-                                    />
+                                    <h3 className="text-2xl font-black text-zinc-900 flex items-center gap-3">
+                                        <Building className="w-7 h-7 text-blue-600" />
+                                        {editCompany.id ? 'Company Dashboard' : 'Registrasi Company Baru'}
+                                    </h3>
+                                    <p className="text-sm text-zinc-500 mt-1 ml-10">Kelola identitas, delegasi admin, serta perangkat yang terhubung.</p>
                                 </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Company Admin Email</label>
-                                    <input
-                                        type="email"
-                                        value={editCompany.admin_email || ''}
-                                        onChange={e => setEditCompany({ ...editCompany, admin_email: e.target.value })}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
-                                        placeholder="e.g. hrd@abadi.com"
-                                    />
-                                    <p className="text-[10px] text-zinc-400 mt-1">Isi email jika ingin menugaskan akun (harus sudah terdaftar). Kosongkan jika tidak ada perubahan.</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Website</label>
-                                    <input
-                                        type="text"
-                                        value={editCompany.website || ''}
-                                        onChange={e => setEditCompany({ ...editCompany, website: e.target.value })}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
-                                        placeholder="https://company.com"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Logo URL</label>
-                                    <input
-                                        type="text"
-                                        value={editCompany.logo_url || ''}
-                                        onChange={e => setEditCompany({ ...editCompany, logo_url: e.target.value })}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
-                                        placeholder="https://..."
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Profile Avatar (B2B)</label>
-                                    <input
-                                        type="text"
-                                        value={editCompany.avatar_url || ''}
-                                        onChange={e => setEditCompany({ ...editCompany, avatar_url: e.target.value })}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none"
-                                        placeholder="Alternative avatar for company-synced cards"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Company Bio</label>
-                                    <textarea
-                                        value={editCompany.bio || ''}
-                                        onChange={e => setEditCompany({ ...editCompany, bio: e.target.value })}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none min-h-[80px]"
-                                        placeholder="Tell us about the company..."
-                                    />
-                                </div>
-                                <div>
-                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Social Links (JSON)</label>
-                                    <textarea
-                                        value={typeof editCompany.social_links === 'string' ? editCompany.social_links : JSON.stringify(editCompany.social_links || [], null, 2)}
-                                        onChange={e => {
-                                            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                                            try {
-                                                const parsed = JSON.parse(e.target.value)
-                                                setEditCompany({ ...editCompany, social_links: parsed })
-                                            } catch (err) {
-                                                setEditCompany({ ...editCompany, social_links: e.target.value })
-                                            }
-                                        }}
-                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono outline-none min-h-[120px]"
-                                        placeholder='[{"platform": "instagram", "url": "..."}]'
-                                    />
-                                </div>
+                                <button
+                                    onClick={() => setEditCompany(null)}
+                                    className="p-2.5 bg-white border border-zinc-200 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
 
-                                {/* Employees / Serials List (Only edit mode) */}
-                                {editCompany.id && (
-                                    <div className="pt-4 border-t border-zinc-100">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <label className="text-xs font-semibold text-zinc-500 uppercase">Perangkat & Akun Terdaftar</label>
-                                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                                                {serials.filter(s => s.company_id === editCompany.id).length} Total
-                                            </span>
+                            {/* Scrollable Content Area */}
+                            <div className="flex-1 overflow-y-auto p-8 grid lg:grid-cols-2 gap-10">
+                                {/* Left Column: Main Information */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-2 mb-6 border-b border-zinc-100 pb-3">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                                            <FileText className="w-4 h-4 text-blue-600" />
                                         </div>
-                                        <div className="max-h-48 overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-zinc-200">
-                                            {serials.filter(s => s.company_id === editCompany.id).length === 0 ? (
-                                                <p className="text-xs text-zinc-400 italic text-center py-4 bg-zinc-50 rounded-xl">Belum ada perangkat/akun yang ditambahkan.</p>
-                                            ) : (
-                                                serials.filter(s => s.company_id === editCompany.id).map(s => (
-                                                    <div key={s.id} className="flex flex-col p-3 bg-zinc-50 border border-zinc-100 rounded-xl hover:border-zinc-200 transition-colors">
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <span className="text-sm font-bold text-zinc-900">{s.display_name || 'Unclaimed'}</span>
-                                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${s.is_claimed ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                                {s.is_claimed ? 'Aktif' : 'Kosong'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-3 mt-1">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[10px] text-zinc-400">UUID</span>
-                                                                <code className="text-[10px] text-blue-600 font-mono mt-0.5">{s.serial_uuid.substring(0, 13)}...</code>
-                                                            </div>
-                                                            {s.email && (
-                                                                <div className="flex flex-col border-l border-zinc-200 pl-3">
-                                                                    <span className="text-[10px] text-zinc-400">Email</span>
-                                                                    <span className="text-[10px] text-zinc-600 font-medium truncate max-w-[120px]" title={s.email}>{s.email}</span>
-                                                                </div>
-                                                            )}
-                                                            <div className="flex flex-col border-l border-zinc-200 pl-3 ml-auto text-right">
-                                                                <span className="text-[10px] text-zinc-400">Traffic</span>
-                                                                <div className="flex items-center gap-1.5 justify-end mt-0.5">
-                                                                    <span className="text-[10px] text-zinc-700 font-medium flex items-center gap-0.5 border bg-white px-1 rounded shadow-sm"><Activity className="w-2.5 h-2.5 text-blue-500" />{s.nfc_tap_count}</span>
-                                                                    <span className="text-[10px] text-zinc-700 font-medium flex items-center gap-0.5 border bg-white px-1 rounded shadow-sm"><Eye className="w-2.5 h-2.5 text-purple-500" />{s.view_count}</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            )}
+                                        <h4 className="text-lg font-bold text-zinc-900">Informasi Utama</h4>
+                                    </div>
+
+                                    <div className="grid gap-5">
+                                        <div>
+                                            <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Company Name</label>
+                                            <input
+                                                type="text"
+                                                value={editCompany.name || ''}
+                                                onChange={e => setEditCompany({ ...editCompany, name: e.target.value })}
+                                                className="w-full mt-1.5 p-3.5 bg-zinc-50 border border-zinc-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all rounded-xl text-sm outline-none"
+                                                placeholder="e.g. PT. Gentanala Jaya"
+                                            />
+                                        </div>
+                                        <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50">
+                                            <label className="text-xs font-bold text-amber-700 uppercase flex items-center gap-2 mb-1.5">
+                                                <UserCheck className="w-4 h-4" /> Company Admin Email
+                                            </label>
+                                            <input
+                                                type="email"
+                                                value={editCompany.admin_email || ''}
+                                                onChange={e => setEditCompany({ ...editCompany, admin_email: e.target.value })}
+                                                className="w-full p-3.5 bg-white border border-amber-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all rounded-xl text-sm outline-none"
+                                                placeholder="e.g. hrd@abadi.com"
+                                            />
+                                            <p className="text-[11px] text-amber-600/80 mt-2 font-medium">Isi email ini untuk mendelegasikan akses admin ke profil company (harus email yang sudah terdaftar sebagai akun).</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-5">
+                                            <div>
+                                                <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Website</label>
+                                                <input
+                                                    type="text"
+                                                    value={editCompany.website || ''}
+                                                    onChange={e => setEditCompany({ ...editCompany, website: e.target.value })}
+                                                    className="w-full mt-1.5 p-3.5 bg-zinc-50 border border-zinc-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all rounded-xl text-sm outline-none"
+                                                    placeholder="https://company.com"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Logo URL</label>
+                                                <input
+                                                    type="text"
+                                                    value={editCompany.logo_url || ''}
+                                                    onChange={e => setEditCompany({ ...editCompany, logo_url: e.target.value })}
+                                                    className="w-full mt-1.5 p-3.5 bg-zinc-50 border border-zinc-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all rounded-xl text-sm outline-none"
+                                                    placeholder="https://..."
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Profile Avatar B2B Fallback</label>
+                                            <input
+                                                type="text"
+                                                value={editCompany.avatar_url || ''}
+                                                onChange={e => setEditCompany({ ...editCompany, avatar_url: e.target.value })}
+                                                className="w-full mt-1.5 p-3.5 bg-zinc-50 border border-zinc-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all rounded-xl text-sm outline-none"
+                                                placeholder="Alternatif avatar bagi profil B2B yang kosong"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Company Bio / Description</label>
+                                            <textarea
+                                                value={editCompany.bio || ''}
+                                                onChange={e => setEditCompany({ ...editCompany, bio: e.target.value })}
+                                                className="w-full mt-1.5 p-3.5 bg-zinc-50 border border-zinc-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all rounded-xl text-sm outline-none min-h-[100px]"
+                                                placeholder="Jelaskan deskripsi singkat profil company ini..."
+                                            />
                                         </div>
                                     </div>
-                                )}
-
-                                <div className="flex justify-end gap-2 mt-8 border-t border-zinc-100 pt-4">
-                                    <button onClick={() => setEditCompany(null)} className="px-4 py-2 text-sm text-zinc-500 hover:bg-zinc-100 rounded-xl">Cancel</button>
-                                    <button
-                                        onClick={async () => {
-                                            const supabase = createClient()
-                                            let companyId = editCompany.id
-
-                                            if (companyId) {
-                                                const { error: updateError } = await supabase.from('companies').update({
-                                                    name: editCompany.name,
-                                                    website: editCompany.website,
-                                                    logo_url: editCompany.logo_url,
-                                                    bio: editCompany.bio,
-                                                    avatar_url: editCompany.avatar_url,
-                                                    social_links: typeof editCompany.social_links === 'string' ? JSON.parse(editCompany.social_links) : editCompany.social_links
-                                                }).eq('id', companyId)
-
-                                                if (updateError) {
-                                                    alert('Gagal update company: ' + updateError.message)
-                                                    return
-                                                }
-                                            } else {
-                                                const { data: newCompany, error: insertError } = await supabase.from('companies').insert({
-                                                    name: editCompany.name,
-                                                    website: editCompany.website,
-                                                    logo_url: editCompany.logo_url,
-                                                    bio: editCompany.bio,
-                                                    avatar_url: editCompany.avatar_url,
-                                                    social_links: typeof editCompany.social_links === 'string' ? JSON.parse(editCompany.social_links) : (editCompany.social_links || [])
-                                                }).select().single()
-
-                                                if (insertError) {
-                                                    alert('Gagal membuat company: ' + insertError.message)
-                                                    return
-                                                }
-                                                if (newCompany) companyId = newCompany.id
-                                            }
-
-                                            // Assign admin role if email is provided
-                                            if (companyId && editCompany.admin_email) {
-                                                const res = await fetch('/api/admin/companies/assign-admin', {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ company_id: companyId, admin_email: editCompany.admin_email })
-                                                })
-                                                const data = await res.json()
-                                                if (!res.ok) {
-                                                    alert('Gagal menugaskan Admin: ' + (data.error || 'Unknown error. Pastikan email sudah register.'))
-                                                } else {
-                                                    alert(data.message)
-                                                }
-                                            }
-
-                                            setEditCompany(null)
-                                            if (adminRole) await loadAllData(adminRole, adminCompanyId)
-                                        }}
-                                        className="px-6 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-sm shadow-blue-600/20"
-                                    >
-                                        Save Company
-                                    </button>
                                 </div>
+
+                                {/* Right Column: Extras and Devices */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-2 mb-6 border-b border-zinc-100 pb-3">
+                                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                                            <Settings className="w-4 h-4 text-indigo-600" />
+                                        </div>
+                                        <h4 className="text-lg font-bold text-zinc-900">Pengaturan Ekstra</h4>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-bold text-zinc-500 uppercase ml-1">Social Links (JSON Configuration)</label>
+                                        <p className="text-xs text-zinc-400 mb-2 ml-1">Konfigurasi array format JSON untuk social links company.</p>
+                                        <textarea
+                                            value={typeof editCompany.social_links === 'string' ? editCompany.social_links : JSON.stringify(editCompany.social_links || [], null, 2)}
+                                            onChange={e => {
+                                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                                try {
+                                                    const parsed = JSON.parse(e.target.value)
+                                                    setEditCompany({ ...editCompany, social_links: parsed })
+                                                } catch (err) {
+                                                    setEditCompany({ ...editCompany, social_links: e.target.value })
+                                                }
+                                            }}
+                                            className="w-full p-4 bg-zinc-900 text-zinc-300 rounded-xl font-mono text-xs outline-none min-h-[140px] focus:ring-2 focus:ring-blue-500/50 transition-all"
+                                            placeholder='[{"platform": "instagram", "url": "..."}]'
+                                        />
+                                    </div>
+
+                                    {/* Employees / Serials List (Only edit mode) */}
+                                    {editCompany.id && (
+                                        <div className="mt-8">
+                                            <div className="flex items-center gap-2 mb-4 border-b border-zinc-100 pb-3">
+                                                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                                                    <Smartphone className="w-4 h-4 text-emerald-600" />
+                                                </div>
+                                                <h4 className="text-lg font-bold text-zinc-900">Perangkat & Akun Tertaut</h4>
+                                                <div className="ml-auto">
+                                                    <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-200">
+                                                        {serials.filter(s => s.company_id === editCompany.id).length} Perangkat
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="max-h-[220px] overflow-y-auto pr-2 space-y-3 scrollbar-thin scrollbar-thumb-zinc-200">
+                                                {serials.filter(s => s.company_id === editCompany.id).length === 0 ? (
+                                                    <div className="flex flex-col items-center justify-center py-8 bg-zinc-50/50 rounded-2xl border border-dashed border-zinc-200">
+                                                        <Search className="w-8 h-8 text-zinc-300 mb-2" />
+                                                        <p className="text-sm font-medium text-zinc-500">Belum ada perangkat / kartu yang tertaut.</p>
+                                                    </div>
+                                                ) : (
+                                                    serials.filter(s => s.company_id === editCompany.id).map(s => (
+                                                        <div key={s.id} className="group flex flex-col p-4 bg-white border border-zinc-200 rounded-2xl hover:border-blue-300 hover:shadow-md transition-all">
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <span className="text-sm font-black text-zinc-900 group-hover:text-blue-600 transition-colors uppercase">{s.display_name || 'Unclaimed'}</span>
+                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${s.is_claimed ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
+                                                                    {s.is_claimed ? 'Aktif' : 'Terbuka'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-[10px] uppercase font-bold text-zinc-400 mb-0.5">Kode Kartu (UUID)</span>
+                                                                    <code className="text-xs text-zinc-600 font-mono bg-zinc-100 px-1.5 py-0.5 rounded">{s.serial_uuid.substring(0, 13)}...</code>
+                                                                </div>
+                                                                {s.email && (
+                                                                    <div className="flex flex-col border-l border-zinc-200 pl-4">
+                                                                        <span className="text-[10px] uppercase font-bold text-zinc-400 mb-0.5">Akun Pegawai</span>
+                                                                        <span className="text-xs font-semibold text-zinc-700 truncate max-w-[120px]" title={s.email}>{s.email}</span>
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex flex-col border-l border-zinc-200 pl-4 ml-auto text-right">
+                                                                    <span className="text-[10px] uppercase font-bold text-zinc-400 mb-0.5">Analitik</span>
+                                                                    <div className="flex items-center gap-2 justify-end">
+                                                                        <span className="text-[11px] text-blue-700 font-bold flex items-center gap-1 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100"><Activity className="w-3 h-3 text-blue-500" />{s.nfc_tap_count}</span>
+                                                                        <span className="text-[11px] text-purple-700 font-bold flex items-center gap-1 bg-purple-50 px-1.5 py-0.5 rounded-md border border-purple-100"><Eye className="w-3 h-3 text-purple-500" />{s.view_count}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Footer Actions */}
+                            <div className="px-8 py-5 border-t border-zinc-100 bg-zinc-50 flex justify-end gap-3 items-center">
+                                <button
+                                    onClick={() => setEditCompany(null)}
+                                    className="px-6 py-3 text-sm font-bold text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 rounded-xl transition-colors"
+                                >
+                                    Batal & Tutup
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        const supabase = createClient()
+                                        let companyId = editCompany.id
+
+                                        if (companyId) {
+                                            const { error: updateError } = await supabase.from('companies').update({
+                                                name: editCompany.name,
+                                                website: editCompany.website,
+                                                logo_url: editCompany.logo_url,
+                                                bio: editCompany.bio,
+                                                avatar_url: editCompany.avatar_url,
+                                                social_links: typeof editCompany.social_links === 'string' ? JSON.parse(editCompany.social_links) : editCompany.social_links
+                                            }).eq('id', companyId)
+
+                                            if (updateError) {
+                                                alert('Gagal update company: ' + updateError.message)
+                                                return
+                                            }
+                                        } else {
+                                            const { data: newCompany, error: insertError } = await supabase.from('companies').insert({
+                                                name: editCompany.name,
+                                                website: editCompany.website,
+                                                logo_url: editCompany.logo_url,
+                                                bio: editCompany.bio,
+                                                avatar_url: editCompany.avatar_url,
+                                                social_links: typeof editCompany.social_links === 'string' ? JSON.parse(editCompany.social_links) : (editCompany.social_links || [])
+                                            }).select().single()
+
+                                            if (insertError) {
+                                                alert('Gagal membuat company: ' + insertError.message)
+                                                return
+                                            }
+                                            if (newCompany) companyId = newCompany.id
+                                        }
+
+                                        // Assign admin role if email is provided
+                                        if (companyId && editCompany.admin_email) {
+                                            const res = await fetch('/api/admin/companies/assign-admin', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ company_id: companyId, admin_email: editCompany.admin_email })
+                                            })
+                                            const data = await res.json()
+                                            if (!res.ok) {
+                                                alert('Gagal menugaskan Admin: ' + (data.error || 'Unknown error. Pastikan email sudah register.'))
+                                            } else {
+                                                alert(data.message)
+                                            }
+                                        }
+
+                                        setEditCompany(null)
+                                        if (adminRole) await loadAllData(adminRole, adminCompanyId)
+                                    }}
+                                    className="px-8 py-3 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-[0_8px_30px_rgb(37,99,235,0.2)] hover:shadow-[0_8px_30px_rgb(37,99,235,0.4)] hover:-translate-y-0.5 active:translate-y-0 transition-all"
+                                >
+                                    Simpan Dashboard Company
+                                </button>
                             </div>
                         </motion.div>
                     </div>
