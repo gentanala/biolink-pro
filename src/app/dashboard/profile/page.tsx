@@ -23,7 +23,8 @@ import {
     Sparkles,
     Wand2,
     Bot,
-    RefreshCw
+    RefreshCw,
+    Mail
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { uploadAvatar, uploadGalleryImage, deleteFile } from '@/lib/storage'
@@ -48,6 +49,7 @@ export default function ProfileEditor() {
         bio: '',
         phone: '',
         whatsapp: '',
+        email: '',
         image_filter: 'normal',
         theme_mode: 'dark',
         welcome_word: 'hello',
@@ -168,6 +170,7 @@ export default function ProfileEditor() {
                     bio: profile.bio || '',
                     phone: profile.phone || '',
                     whatsapp: profile.whatsapp || (uiTheme.whatsapp || ''),
+                    email: profile.email || '',
                     company: profile.company || '',
                     job_title: profile.job_title || '',
                     avatar_url: profile.avatar_url || '',
@@ -457,6 +460,7 @@ export default function ProfileEditor() {
                 job_title: formData.job_title,
                 avatar_url: formData.avatar_url,
                 phone: formData.phone,
+                email: formData.email,
                 social_links: formData.social_links,
                 // Construct basic theme object if needed by DB, or flattened fields
                 // DB expects 'theme' jsonb.
@@ -953,6 +957,20 @@ export default function ProfileEditor() {
                                     onChange={(e) => updateField('whatsapp', e.target.value)}
                                     placeholder="6281234567890"
                                     className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-green-500 transition-all outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Email</label>
+                            <div className="relative">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                                <input
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => updateField('email', e.target.value)}
+                                    placeholder="nama@email.com"
+                                    className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
                                 />
                             </div>
                         </div>

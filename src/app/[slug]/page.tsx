@@ -304,7 +304,7 @@ export default function PublicProfile() {
         const vcard = generateVCard({
             displayName: profile.display_name,
             bio: profile.bio || '',
-            email: '',
+            email: profile.email || '',
             phone: profile.phone,
             whatsapp: profile.whatsapp,
             company: profile.company,
@@ -343,6 +343,9 @@ export default function PublicProfile() {
         const cleanPhone = profile.whatsapp.replace(/\D/g, '')
         const waNumber = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone
         mainSocials.push({ id: 'synthetic-wa', icon: 'whatsapp', url: `https://wa.me/${waNumber}`, title: 'WhatsApp' })
+    }
+    if (profile.email && !mainSocials.find((l: any) => l.icon === 'email')) {
+        mainSocials.push({ id: 'synthetic-email', icon: 'email', url: `mailto:${profile.email}`, title: 'Email' })
     }
     const filteredSocials = mainSocials.filter((l: any) => ['instagram', 'linkedin', 'twitter', 'whatsapp', 'email', 'website'].includes(l.icon))
 
