@@ -110,8 +110,11 @@ export default function ProfileEditor() {
         }
     }
 
-    const applyAiAvatar = () => {
+    const applyAiAvatar = async () => {
         updateField('avatar_url', generatedAvatarUrl)
+        if (userId) {
+            await supabase.from('profiles').update({ avatar_url: generatedAvatarUrl }).eq('user_id', userId)
+        }
         setGeneratedAvatarUrl('')
         setOriginalAvatarUrl('')
         // Scroll to top to see change
@@ -255,6 +258,9 @@ export default function ProfileEditor() {
             const newFormData = { ...formData, avatar_url: publicUrl }
             setFormData(newFormData)
             syncToPreview(newFormData)
+            
+            // Auto-save to database
+            await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('user_id', userId)
         } catch (err) {
             console.error(err)
             setError('Gagal upload gambar. Silakan coba lagi.')
@@ -272,6 +278,11 @@ export default function ProfileEditor() {
         const newFormData = { ...formData, avatar_url: '' }
         setFormData(newFormData)
         syncToPreview(newFormData)
+        
+        // Auto-save to database
+        if (userId) {
+            await supabase.from('profiles').update({ avatar_url: '' }).eq('user_id', userId)
+        }
         if (fileInputRef.current) {
             fileInputRef.current.value = ''
         }
