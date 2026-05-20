@@ -5,11 +5,13 @@ import { notFound, useParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Instagram, Twitter, Linkedin, Globe, ChevronRight, Mail, Phone, Download, Share2, Copy, Check, X, FileText, Image as ImageIcon, ExternalLink, QrCode } from 'lucide-react'
+import { Instagram, Twitter, Linkedin, Globe, ChevronRight, Mail, Phone, Download, Share2, Copy, Check, X, FileText, Image as ImageIcon, ExternalLink, QrCode, Gift, Heart, HelpCircle, Briefcase, ChevronDown, Send, Sparkles, MapPin, Search } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { generateVCard } from '@/lib/vcard'
 import LeadCaptureModal from '@/components/LeadCaptureModal'
 import { trackProfileView, trackLinkClick } from '@/lib/analytics'
+import ArunaAnimation from '@/components/special/ArunaAnimation'
+import PrabowoAnimation from '@/components/special/PrabowoAnimation'
 
 // WhatsApp SVG Icon
 function WhatsAppIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -129,6 +131,7 @@ export default function PublicProfile() {
     // Handwriting animation — letter by letter typewriter
     useEffect(() => {
         if (!profile || !showWelcome) return
+
         const word = profile.welcome_word || 'hello'
         let i = 0
         const typeInterval = setInterval(() => {
@@ -138,9 +141,12 @@ export default function PublicProfile() {
             } else {
                 clearInterval(typeInterval)
                 setWelcomeComplete(true)
-                setTimeout(() => setShowWelcome(false), 800)
+                // Auto close with longer delay for special editions
+                const delay = ['aruna', 'prabowo'].includes(profile.special_edition) ? 3500 : 800
+                setTimeout(() => setShowWelcome(false), delay)
             }
-        }, 120)
+        }, 150)
+
         return () => clearInterval(typeInterval)
     }, [profile, showWelcome])
 
@@ -402,7 +408,14 @@ export default function PublicProfile() {
                                 WebkitBackdropFilter: 'blur(30px) saturate(1.5)',
                             }}
                         >
-                            <div className="relative">
+                            <div className="relative flex flex-col items-center justify-center gap-6">
+                                {profile.special_edition === 'aruna' && (
+                                    <ArunaAnimation mode="loop" size={180} />
+                                )}
+                                {profile.special_edition === 'prabowo' && (
+                                    <PrabowoAnimation mode="loop" size={180} />
+                                )}
+
                                 <motion.span
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}

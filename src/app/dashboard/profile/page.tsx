@@ -58,7 +58,9 @@ export default function ProfileEditor() {
         company: '',
         job_title: '',
         avatar_url: '',
-        social_links: [] as any[]
+        social_links: [] as any[],
+        special_edition: null as string | null,
+        enable_special_greeting_anim: false
     })
 
     const [isGenerating, setIsGenerating] = useState(false)
@@ -186,7 +188,9 @@ export default function ProfileEditor() {
                     files: uiTheme.files || [],
                     documents: profile.documents || [],
                     social_links: profile.social_links || [],
-                    tier: profile.tier || 'FREE'
+                    tier: profile.tier || 'FREE',
+                    special_edition: profile.special_edition || null,
+                    enable_special_greeting_anim: profile.enable_special_greeting_anim || false
                 }
                 setFormData(loadedData)
                 // Normalize tier to uppercase to handle 'Free', 'free', 'FREE' consistently
@@ -462,6 +466,8 @@ export default function ProfileEditor() {
                 phone: formData.phone,
                 email: formData.email,
                 social_links: formData.social_links,
+                special_edition: formData.special_edition,
+                enable_special_greeting_anim: formData.enable_special_greeting_anim,
                 // Construct basic theme object if needed by DB, or flattened fields
                 // DB expects 'theme' jsonb.
                 theme: {
@@ -658,6 +664,27 @@ export default function ProfileEditor() {
                         )}
                     </div>
                     <p className="text-[10px] text-zinc-600 mt-2">Contoh: hello, halo, selamat datang, welcome, apa kabar</p>
+                    {(formData.special_edition === 'aruna' || formData.special_edition === 'prabowo') && (
+                        <div className="mt-6 pt-6 border-t border-zinc-100 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-semibold text-zinc-900">Animasi Sapaan Loop ({formData.special_edition === 'aruna' ? 'Bunga Bangkai' : 'Prabowo'})</h3>
+                                <p className="text-xs text-zinc-500 mt-0.5">Tampilkan animasi {formData.special_edition === 'aruna' ? 'Bunga Bangkai' : 'Prabowo'} berputar looping di welcome screen.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => updateField('enable_special_greeting_anim', !formData.enable_special_greeting_anim)}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                    formData.enable_special_greeting_anim ? 'bg-amber-500' : 'bg-zinc-200'
+                                }`}
+                            >
+                                <span
+                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                        formData.enable_special_greeting_anim ? 'translate-x-5' : 'translate-x-0'
+                                    }`}
+                                />
+                            </button>
+                        </div>
+                    )}
                 </motion.section>
 
                 {/* Gallery Section */}

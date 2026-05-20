@@ -1,21 +1,38 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Watch, Sparkles, LogIn, User, Mail } from 'lucide-react'
 import type { SerialWithOwner } from '@/types/database'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import ArunaAnimation from '@/components/special/ArunaAnimation'
+import PrabowoAnimation from '@/components/special/PrabowoAnimation'
 
 interface UnclaimedViewProps {
     serial: SerialWithOwner
 }
 
 export function UnclaimedView({ serial }: UnclaimedViewProps) {
+    const isAruna = serial.special_edition === 'aruna' ||
+                    serial.product?.slug === 'aruna' || 
+                    serial.product?.name?.toLowerCase().includes('aruna')
+    const isPrabowo = serial.special_edition === 'prabowo'
+    const hasSpecialIntro = isAruna || isPrabowo
+    const [showIntro, setShowIntro] = useState(hasSpecialIntro)
     const [isLoading, setIsLoading] = useState(false)
     const [showAuthModal, setShowAuthModal] = useState(false)
     const [showEmailForm, setShowEmailForm] = useState(false)
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
+
+    useEffect(() => {
+        if (hasSpecialIntro && showIntro) {
+            const timer = setTimeout(() => {
+                setShowIntro(false)
+            }, 4000)
+            return () => clearTimeout(timer)
+        }
+    }, [hasSpecialIntro, showIntro])
 
     const handleLogin = async (provider: 'google' | 'email') => {
         setIsLoading(true)
@@ -164,9 +181,44 @@ export function UnclaimedView({ serial }: UnclaimedViewProps) {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-white flex flex-col items-center justify-center p-6">
-            {/* Background glow effect */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <>
+            <AnimatePresence>
+                {showIntro && (
+                    <motion.div
+                        initial={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.6 }}
+                        className="fixed inset-0 z-[200] bg-zinc-950 flex flex-col items-center justify-center p-6 text-center"
+                    >
+                        {isAruna && (
+                            <>
+                                <ArunaAnimation 
+                                    mode="loop" 
+                                    size={180} 
+                                />
+                                <p className="text-amber-500/80 text-sm font-semibold tracking-widest uppercase mt-4 animate-pulse">
+                                    Aruna Limited Edition
+                                </p>
+                            </>
+                        )}
+                        {isPrabowo && (
+                            <>
+                                <PrabowoAnimation 
+                                    mode="loop" 
+                                    size={180} 
+                                />
+                                <p className="text-red-500/80 text-sm font-semibold tracking-widest uppercase mt-4 animate-pulse">
+                                    Prabowo Limited Edition
+                                </p>
+                            </>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-white flex flex-col items-center justify-center p-6">
+                {/* Background glow effect */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
                 <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-amber-600/5 rounded-full blur-2xl" />
             </div>
@@ -332,5 +384,6 @@ export function UnclaimedView({ serial }: UnclaimedViewProps) {
                 </motion.p>
             </motion.div>
         </div>
+        </>
     )
 }

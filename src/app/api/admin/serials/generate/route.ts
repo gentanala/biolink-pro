@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto'
 
 export async function POST(req: Request) {
     try {
-        const { count, company_id } = await req.json()
+        const { count, company_id, special_edition } = await req.json()
 
         if (!count || count < 1 || count > 100) {
             return NextResponse.json({ error: 'Count must be between 1 and 100' }, { status: 400 })
@@ -51,7 +51,8 @@ export async function POST(req: Request) {
             product_id: product!.id,
             is_claimed: false,
             nfc_tap_count: 0,
-            company_id: company_id || null
+            company_id: company_id || null,
+            special_edition: special_edition || null
         }))
 
         const { data: inserted, error: insertError } = await supabaseAdmin

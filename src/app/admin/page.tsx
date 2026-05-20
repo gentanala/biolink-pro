@@ -62,6 +62,7 @@ interface SerialWithProfile {
     // Full user metadata
     tier: string | null
     user_tag: string | null
+    special_edition: string | null
     company_id: string | null
     company_name: string | null
     user_id: string | null
@@ -98,6 +99,7 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(false)
     const [generateCount, setGenerateCount] = useState(1)
     const [generateCompanyId, setGenerateCompanyId] = useState<string>('')
+    const [generateSpecialEdition, setGenerateSpecialEdition] = useState<string>('')
     const [generating, setGenerating] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -204,6 +206,7 @@ export default function AdminPage() {
                 sync_enabled: s.sync_enabled !== false,
                 tier: profile?.tier || 'FREE',
                 user_tag: profile?.user_tag || null,
+                special_edition: s.special_edition || profile?.special_edition || null,
                 company_id: s.company_id || profile?.company_id || null,
                 company_name: (s.company_id ? companyMap.get(s.company_id)?.name : null) || (profile?.company_id ? companyMap.get(profile.company_id)?.name : null),
                 user_id: s.owner_id || null
@@ -234,7 +237,8 @@ export default function AdminPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     count: generateCount,
-                    company_id: generateCompanyId || null
+                    company_id: generateCompanyId || null,
+                    special_edition: generateSpecialEdition || null
                 })
             })
 
@@ -246,6 +250,7 @@ export default function AdminPage() {
                 alert(data.message || `${generateCount} serial berhasil dibuat!`)
                 if (adminRole) await loadAllData(adminRole, adminCompanyId)
                 setGenerateCompanyId('')
+                setGenerateSpecialEdition('')
             }
         } catch (err: any) {
             alert('Network error: ' + err.message)
@@ -620,7 +625,7 @@ export default function AdminPage() {
                                     <td className="px-4 py-4">
                                         {serial.is_claimed ? (
                                             <div className="flex flex-col gap-1.5">
-                                                <div className="flex items-center gap-1.5">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
                                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${serial.tier === 'PREMIUM' ? 'bg-purple-100 text-purple-700' :
                                                         serial.tier === 'B2B' ? 'bg-blue-100 text-blue-700' :
                                                             'bg-zinc-100 text-zinc-600'
@@ -630,6 +635,11 @@ export default function AdminPage() {
                                                     {serial.user_tag && (
                                                         <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-700 font-medium">
                                                             {serial.user_tag}
+                                                        </span>
+                                                    )}
+                                                    {serial.special_edition && (
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-medium">
+                                                            ✨ {serial.special_edition === 'aruna' ? 'Aruna Series' : serial.special_edition === 'prabowo' ? 'Prabowo Series' : serial.special_edition}
                                                         </span>
                                                     )}
                                                 </div>
@@ -646,7 +656,24 @@ export default function AdminPage() {
                                                 </button>
                                             </div>
                                         ) : (
-                                            <span className="text-[10px] text-zinc-300">-</span>
+                                            <div className="flex flex-col gap-1">
+                                                {serial.special_edition && (
+                                                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-medium w-fit">
+                                                        ✨ {serial.special_edition === 'aruna' ? 'Aruna Series' : serial.special_edition === 'prabowo' ? 'Prabowo Series' : serial.special_edition}
+                                                    </span>
+                                                )}
+                                                {serial.company_name && (
+                                                    <span className="text-[10px] text-zinc-400 truncate max-w-[100px]" title={serial.company_name}>
+                                                        🏢 {serial.company_name}
+                                                    </span>
+                                                )}
+                                                <button
+                                                    onClick={() => setEditUser(serial)}
+                                                    className="text-[10px] text-blue-600 font-medium hover:underline w-fit"
+                                                >
+                                                    Manage Card
+                                                </button>
+                                            </div>
                                         )}
                                     </td>
                                     <td className="px-4 py-4">
@@ -1065,6 +1092,16 @@ export default function AdminPage() {
                                             <option key={c.id} value={c.id}>{c.name}</option>
                                         ))}
                                     </select>
+                                    <span className="text-xs text-zinc-400 pl-2">Edition:</span>
+                                    <select
+                                        value={generateSpecialEdition}
+                                        onChange={(e) => setGenerateSpecialEdition(e.target.value)}
+                                        className="py-1.5 px-2 bg-white rounded-lg border border-zinc-200 text-xs focus:outline-none focus:border-blue-500 min-w-[120px]"
+                                    >
+                                        <option value="">Standard</option>
+                                        <option value="aruna">Aruna Series</option>
+                                        <option value="prabowo">Prabowo Series</option>
+                                    </select>
                                     <button
                                         onClick={generateSerials}
                                         disabled={generating}
@@ -1154,40 +1191,63 @@ export default function AdminPage() {
                             exit={{ opacity: 0, scale: 0.95 }}
                             className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl focus:outline-none"
                         >
-                            <h3 className="text-lg font-bold mb-4">Manage Subscription</h3>
+                            <h3 className="text-lg font-bold mb-4">
+                                {editUser.is_claimed ? 'Manage Subscription' : 'Manage Unclaimed Card'}
+                            </h3>
                             <div className="space-y-4">
-                                {editUser.display_name && (
+                                {editUser.display_name ? (
                                     <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-100 mb-2">
                                         <p className="text-xs text-zinc-500 uppercase font-semibold">User</p>
                                         <p className="text-sm font-bold text-zinc-900">{editUser.display_name}</p>
                                         <p className="text-xs text-zinc-500">{editUser.email}</p>
                                     </div>
+                                ) : (
+                                    <div className="p-3 bg-amber-500/5 rounded-xl border border-amber-500/10 mb-2">
+                                        <p className="text-xs text-amber-600 uppercase font-semibold">Unclaimed Card</p>
+                                        <p className="text-xs font-mono text-zinc-600 truncate mt-1">UUID: {editUser.serial_uuid}</p>
+                                    </div>
                                 )}
                                 {adminRole === 'super_admin' && (
                                     <>
+                                        {editUser.is_claimed && (
+                                            <>
+                                                <div>
+                                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Tier</label>
+                                                    <select
+                                                        value={editUser.tier || 'FREE'}
+                                                        onChange={e => setEditUser({ ...editUser, tier: e.target.value })}
+                                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                                                    >
+                                                        <option value="FREE">Free</option>
+                                                        <option value="PREMIUM">Premium</option>
+                                                        <option value="B2B">B2B</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-semibold text-zinc-500 uppercase">Tag</label>
+                                                    <select
+                                                        value={editUser.user_tag || ''}
+                                                        onChange={e => setEditUser({ ...editUser, user_tag: e.target.value || null })}
+                                                        className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
+                                                    >
+                                                        <option value="">None</option>
+                                                        <option value="GIFT">Gift</option>
+                                                        <option value="DEMO">Demo</option>
+                                                        <option value="INTERNAL">Internal</option>
+                                                    </select>
+                                                </div>
+                                            </>
+                                        )}
                                         <div>
-                                            <label className="text-xs font-semibold text-zinc-500 uppercase">Tier</label>
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase">Special Edition</label>
                                             <select
-                                                value={editUser.tier || 'FREE'}
-                                                onChange={e => setEditUser({ ...editUser, tier: e.target.value })}
+                                                value={editUser.special_edition || ''}
+                                                onChange={e => setEditUser({ ...editUser, special_edition: e.target.value || null })}
                                                 className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                                             >
-                                                <option value="FREE">Free</option>
-                                                <option value="PREMIUM">Premium</option>
-                                                <option value="B2B">B2B</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-semibold text-zinc-500 uppercase">Tag</label>
-                                            <select
-                                                value={editUser.user_tag || ''}
-                                                onChange={e => setEditUser({ ...editUser, user_tag: e.target.value || null })}
-                                                className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                                            >
-                                                <option value="">None</option>
-                                                <option value="GIFT">Gift</option>
-                                                <option value="DEMO">Demo</option>
-                                                <option value="INTERNAL">Internal</option>
+                                                <option value="">None (Standard)</option>
+                                                <option value="aruna">Aruna Series</option>
+                                                <option value="prabowo">Prabowo Series</option>
                                             </select>
                                         </div>
                                     </>
@@ -1209,7 +1269,7 @@ export default function AdminPage() {
                                 )}
 
                                 <div className="flex justify-end gap-2 mt-8">
-                                    {adminRole === 'super_admin' && (
+                                    {adminRole === 'super_admin' && editUser.is_claimed && (
                                         <button
                                             onClick={async () => {
                                                 if (!window.confirm('Are you sure you want to DELETE this user? This action cannot be undone.')) return
@@ -1280,10 +1340,12 @@ export default function AdminPage() {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({
-                                                    userId: editUser.user_id,
+                                                    userId: editUser.user_id || null,
+                                                    serialId: editUser.id,
                                                     tier: editUser.tier,
                                                     user_tag: editUser.user_tag,
-                                                    company_id: editUser.company_id || null
+                                                    company_id: editUser.company_id || null,
+                                                    special_edition: editUser.special_edition || null
                                                 })
                                             })
 

@@ -63,7 +63,7 @@ export default function TapPage() {
             // 1. Query Supabase for this serial
             const { data: dbSerial, error } = await supabase
                 .from('serial_numbers')
-                .select('*')
+                .select('*, products(*)')
                 .eq('serial_uuid', cleanUuid)
                 .single()
 
@@ -113,7 +113,7 @@ export default function TapPage() {
                     if (independentProfile) {
                         setSerial({
                             ...dbSerial,
-                            product: DEFAULT_PRODUCT,
+                            product: dbSerial.products || DEFAULT_PRODUCT,
                             owner: independentProfile
                         })
                         setLoading(false)
@@ -150,7 +150,7 @@ export default function TapPage() {
 
                             setSerial({
                                 ...dbSerial,
-                                product: DEFAULT_PRODUCT,
+                                product: dbSerial.products || DEFAULT_PRODUCT,
                                 owner: mergedProfile
                             })
                             setLoading(false)
@@ -180,7 +180,7 @@ export default function TapPage() {
                 // Fallback: Just show the owner profile as-is
                 setSerial({
                     ...dbSerial,
-                    product: DEFAULT_PRODUCT,
+                    product: dbSerial.products || DEFAULT_PRODUCT,
                     owner: ownerProfile
                 })
                 setLoading(false)
@@ -190,7 +190,7 @@ export default function TapPage() {
             // 4. Build serial object for Unclaimed view
             const serialData = {
                 ...dbSerial,
-                product: DEFAULT_PRODUCT,
+                product: dbSerial.products || DEFAULT_PRODUCT,
                 owner: undefined
             }
 

@@ -76,6 +76,7 @@ export interface SerialNumber {
     sync_enabled: boolean;
     last_synced_at?: string | null;
     profile_id?: string | null; // NEW: Link to a specific profile
+    special_edition?: string | null;
     created_at: string;
 }
 

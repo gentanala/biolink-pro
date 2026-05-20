@@ -49,9 +49,18 @@ export async function POST(request: NextRequest) {
         // Ensure user has a profile
         const { data: existingProfile } = await supabase
             .from('profiles')
-            .select('id')
+            .select('id, special_edition')
             .eq('user_id', user.id)
-            .single()
+            .maybeSingle()
+
+        // Fetch the serial's special edition to sync it
+        const { data: serialInfo } = await supabase
+            .from('serial_numbers')
+            .select('special_edition')
+            .eq('serial_uuid', serial_uuid)
+            .maybeSingle()
+
+        const targetSpecialEdition = serialInfo?.special_edition || null
 
         if (!existingProfile) {
             // Create default profile
@@ -61,8 +70,15 @@ export async function POST(request: NextRequest) {
                 slug: `owner_${user.id.substring(0, 8)}`,
                 avatar_url: user.user_metadata?.avatar_url || null,
                 is_public: true,
-                social_links: []
+                social_links: [],
+                special_edition: targetSpecialEdition
             })
+        } else if (targetSpecialEdition && existingProfile.special_edition !== targetSpecialEdition) {
+            // Update existing profile's special edition to match card
+            await supabase
+                .from('profiles')
+                .update({ special_edition: targetSpecialEdition })
+                .eq('user_id', user.id)
         }
 
         return NextResponse.json({
