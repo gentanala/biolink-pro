@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { uploadAvatar, uploadGalleryImage, deleteFile } from '@/lib/storage'
+import { getAvailableSpecialEditions, SPECIAL_EDITIONS } from '@/lib/special-greeting.mjs'
 
 export default function ProfileEditor() {
     const supabase = createClient()
@@ -60,6 +61,8 @@ export default function ProfileEditor() {
         avatar_url: '',
         social_links: [] as any[],
         special_edition: null as string | null,
+        special_editions: [] as string[],
+        selected_special_greeting_anim: null as string | null,
         enable_special_greeting_anim: false
     })
 
@@ -193,6 +196,14 @@ export default function ProfileEditor() {
                     social_links: profile.social_links || [],
                     tier: profile.tier || 'FREE',
                     special_edition: profile.special_edition || null,
+                    special_editions: Array.isArray(profile.special_editions)
+                        ? profile.special_editions
+                        : profile.special_edition
+                            ? [profile.special_edition]
+                            : [],
+                    selected_special_greeting_anim: profile.selected_special_greeting_anim || (
+                        Array.isArray(profile.special_editions) && profile.special_editions.length > 0 ? null : profile.special_edition || null
+                    ),
                     enable_special_greeting_anim: profile.enable_special_greeting_anim || false
                 }
                 setFormData(loadedData)
@@ -227,6 +238,16 @@ export default function ProfileEditor() {
     // Update form data and sync to preview
     const updateField = (field: string, value: any) => {
         const newFormData = { ...formData, [field]: value }
+        setFormData(newFormData)
+        syncToPreview(newFormData)
+    }
+
+    const updateSpecialGreetingSelection = (editionId: string | null) => {
+        const newFormData = {
+            ...formData,
+            selected_special_greeting_anim: editionId,
+            enable_special_greeting_anim: Boolean(editionId)
+        }
         setFormData(newFormData)
         syncToPreview(newFormData)
     }
@@ -477,7 +498,9 @@ export default function ProfileEditor() {
                 phone: formData.phone,
                 email: formData.email,
                 social_links: formData.social_links,
-                special_edition: formData.special_edition,
+                special_edition: formData.special_editions[0] || formData.special_edition,
+                special_editions: formData.special_editions,
+                selected_special_greeting_anim: formData.selected_special_greeting_anim,
                 enable_special_greeting_anim: formData.enable_special_greeting_anim,
                 // Construct basic theme object if needed by DB, or flattened fields
                 // DB expects 'theme' jsonb.
@@ -542,12 +565,14 @@ export default function ProfileEditor() {
         }
     }
 
+    const availableSpecialEditions = getAvailableSpecialEditions(formData)
+    const selectedSpecialEdition = SPECIAL_EDITIONS.find((edition) => edition.id === formData.selected_special_greeting_anim)
 
     return (
         <div className="max-w-2xl mx-auto pb-20">
             <div className="mb-8 relative">
                 <h1 className="text-3xl font-bold mb-2 text-zinc-900">Editor Profil</h1>
-                <p className="text-zinc-500">Perubahan langsung terlihat di Live Preview →</p>
+                <p className="hidden xl:block text-zinc-500">Perubahan langsung terlihat di Live Preview →</p>
                 <div className="mt-2 text-[10px] text-zinc-400 font-mono bg-zinc-50 border border-zinc-100 inline-block px-2 py-1 rounded">
                     Tier: {userTier}
                 </div>
@@ -675,25 +700,63 @@ export default function ProfileEditor() {
                         )}
                     </div>
                     <p className="text-[10px] text-zinc-600 mt-2">Contoh: hello, halo, selamat datang, welcome, apa kabar</p>
-                    {(formData.special_edition === 'aruna' || formData.special_edition === 'prabowo') && (
-                        <div className="mt-6 pt-6 border-t border-zinc-100 flex items-center justify-between">
+                    {availableSpecialEditions.length > 0 && (
+                        <div className="mt-6 pt-6 border-t border-zinc-100 space-y-4">
                             <div>
-                                <h3 className="text-sm font-semibold text-zinc-900">Animasi Sapaan Loop ({formData.special_edition === 'aruna' ? 'Bunga Bangkai' : 'Prabowo'})</h3>
-                                <p className="text-xs text-zinc-500 mt-0.5">Tampilkan animasi {formData.special_edition === 'aruna' ? 'Bunga Bangkai' : 'Prabowo'} berputar looping di welcome screen.</p>
+                                <h3 className="text-sm font-semibold text-zinc-900">Animasi Special Edition</h3>
+                                <p className="text-xs text-zinc-500 mt-0.5">Pilih salah satu animasi yang muncul di welcome screen.</p>
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => updateField('enable_special_greeting_anim', !formData.enable_special_greeting_anim)}
-                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                    formData.enable_special_greeting_anim ? 'bg-amber-500' : 'bg-zinc-200'
-                                }`}
-                            >
-                                <span
-                                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                        formData.enable_special_greeting_anim ? 'translate-x-5' : 'translate-x-0'
+
+                            <div className="grid gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => updateSpecialGreetingSelection(null)}
+                                    className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
+                                        !formData.selected_special_greeting_anim
+                                            ? 'border-zinc-900 bg-zinc-900 text-white'
+                                            : 'border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
                                     }`}
-                                />
-                            </button>
+                                >
+                                    None
+                                </button>
+                                {SPECIAL_EDITIONS.filter((edition) => availableSpecialEditions.includes(edition.id)).map((edition) => (
+                                    <button
+                                        key={edition.id}
+                                        type="button"
+                                        onClick={() => updateSpecialGreetingSelection(edition.id)}
+                                        className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
+                                            formData.selected_special_greeting_anim === edition.id
+                                                ? 'border-amber-500 bg-amber-50 text-amber-700'
+                                                : 'border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
+                                        }`}
+                                    >
+                                        {edition.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-zinc-900">Aktifkan Animasi</h4>
+                                    <p className="text-xs text-zinc-500 mt-0.5">
+                                        {selectedSpecialEdition ? `Tampilkan ${selectedSpecialEdition.animationLabel} looping di welcome screen.` : 'Pilih animasi dulu untuk mengaktifkan.'}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={!formData.selected_special_greeting_anim}
+                                    onClick={() => updateField('enable_special_greeting_anim', !formData.enable_special_greeting_anim)}
+                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                                        formData.enable_special_greeting_anim ? 'bg-amber-500' : 'bg-zinc-200'
+                                    }`}
+                                >
+                                    <span
+                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                            formData.enable_special_greeting_anim ? 'translate-x-5' : 'translate-x-0'
+                                        }`}
+                                    />
+                                </button>
+                            </div>
                         </div>
                     )}
                 </motion.section>

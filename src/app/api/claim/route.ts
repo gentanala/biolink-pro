@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { normalizeSpecialEditions } from '@/lib/special-greeting.mjs'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -49,18 +50,21 @@ export async function POST(request: NextRequest) {
         // Ensure user has a profile
         const { data: existingProfile } = await supabase
             .from('profiles')
-            .select('id, special_edition')
+            .select('id, special_edition, special_editions')
             .eq('user_id', user.id)
             .maybeSingle()
 
         // Fetch the serial's special edition to sync it
         const { data: serialInfo } = await supabase
             .from('serial_numbers')
-            .select('special_edition')
+            .select('special_edition, special_editions')
             .eq('serial_uuid', serial_uuid)
             .maybeSingle()
 
-        const targetSpecialEdition = serialInfo?.special_edition || null
+        const targetSpecialEditions = normalizeSpecialEditions(
+            serialInfo?.special_editions?.length ? serialInfo.special_editions : serialInfo?.special_edition
+        )
+        const targetSpecialEdition = targetSpecialEditions[0] || null
 
         if (!existingProfile) {
             // Create default profile
@@ -71,13 +75,22 @@ export async function POST(request: NextRequest) {
                 avatar_url: user.user_metadata?.avatar_url || null,
                 is_public: true,
                 social_links: [],
-                special_edition: targetSpecialEdition
+                special_edition: targetSpecialEdition,
+                special_editions: targetSpecialEditions
             })
-        } else if (targetSpecialEdition && existingProfile.special_edition !== targetSpecialEdition) {
+        } else if (targetSpecialEditions.length > 0) {
             // Update existing profile's special edition to match card
+            const mergedSpecialEditions = Array.from(new Set([
+                ...normalizeSpecialEditions(existingProfile.special_editions?.length ? existingProfile.special_editions : existingProfile.special_edition),
+                ...targetSpecialEditions
+            ]))
+
             await supabase
                 .from('profiles')
-                .update({ special_edition: targetSpecialEdition })
+                .update({
+                    special_edition: mergedSpecialEditions[0] || targetSpecialEdition,
+                    special_editions: mergedSpecialEditions
+                })
                 .eq('user_id', user.id)
         }
 

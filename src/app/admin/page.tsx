@@ -41,6 +41,7 @@ import {
 import Link from 'next/link' // Added Link import
 import { createClient } from '@/lib/supabase/client'
 import { QRCodeSVG } from 'qrcode.react'
+import { SPECIAL_EDITIONS, normalizeSpecialEditions } from '@/lib/special-greeting.mjs'
 
 interface SerialWithProfile {
     id: string
@@ -63,6 +64,8 @@ interface SerialWithProfile {
     tier: string | null
     user_tag: string | null
     special_edition: string | null
+    special_editions: string[]
+    selected_special_greeting_anim: string | null
     company_id: string | null
     company_name: string | null
     user_id: string | null
@@ -84,6 +87,14 @@ const formatRelative = (d: string | null) => {
     if (mins < 1440) return `${Math.floor(mins / 60)}h ago`
     return `${Math.floor(mins / 1440)}d ago`
 }
+
+const getSpecialEditionLabel = (editionId: string) => (
+    SPECIAL_EDITIONS.find((edition) => edition.id === editionId)?.label || editionId
+)
+
+const getSpecialEditionLabels = (editionIds: string[]) => (
+    editionIds.length > 0 ? editionIds.map(getSpecialEditionLabel).join(', ') : ''
+)
 
 export default function AdminPage() {
     const [adminRole, setAdminRole] = useState<'super_admin' | 'company_admin' | null>(null)
@@ -188,6 +199,9 @@ export default function AdminPage() {
         const mappedSerials: SerialWithProfile[] = (serialData || []).map((s: any) => {
             const profile = s.owner_id ? profileMap.get(s.owner_id) : null
             const theme = profile?.theme || {}
+            const specialEditions = normalizeSpecialEditions(
+                profile?.special_editions?.length ? profile.special_editions : s.special_editions?.length ? s.special_editions : s.special_edition || profile?.special_edition
+            )
             return {
                 id: s.id,
                 serial_uuid: s.serial_uuid,
@@ -206,7 +220,9 @@ export default function AdminPage() {
                 sync_enabled: s.sync_enabled !== false,
                 tier: profile?.tier || 'FREE',
                 user_tag: profile?.user_tag || null,
-                special_edition: s.special_edition || profile?.special_edition || null,
+                special_edition: specialEditions[0] || s.special_edition || profile?.special_edition || null,
+                special_editions: specialEditions,
+                selected_special_greeting_anim: profile?.selected_special_greeting_anim || null,
                 company_id: s.company_id || profile?.company_id || null,
                 company_name: (s.company_id ? companyMap.get(s.company_id)?.name : null) || (profile?.company_id ? companyMap.get(profile.company_id)?.name : null),
                 user_id: s.owner_id || null
@@ -637,9 +653,9 @@ export default function AdminPage() {
                                                             {serial.user_tag}
                                                         </span>
                                                     )}
-                                                    {serial.special_edition && (
+                                                    {serial.special_editions.length > 0 && (
                                                         <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-medium">
-                                                            ✨ {serial.special_edition === 'aruna' ? 'Aruna Series' : serial.special_edition === 'prabowo' ? 'Prabowo Series' : serial.special_edition}
+                                                            ✨ {getSpecialEditionLabels(serial.special_editions)}
                                                         </span>
                                                     )}
                                                 </div>
@@ -657,9 +673,9 @@ export default function AdminPage() {
                                             </div>
                                         ) : (
                                             <div className="flex flex-col gap-1">
-                                                {serial.special_edition && (
+                                                {serial.special_editions.length > 0 && (
                                                     <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-100 text-indigo-700 font-medium w-fit">
-                                                        ✨ {serial.special_edition === 'aruna' ? 'Aruna Series' : serial.special_edition === 'prabowo' ? 'Prabowo Series' : serial.special_edition}
+                                                        ✨ {getSpecialEditionLabels(serial.special_editions)}
                                                     </span>
                                                 )}
                                                 {serial.company_name && (
@@ -1239,16 +1255,38 @@ export default function AdminPage() {
                                             </>
                                         )}
                                         <div>
-                                            <label className="text-xs font-semibold text-zinc-500 uppercase">Special Edition</label>
-                                            <select
-                                                value={editUser.special_edition || ''}
-                                                onChange={e => setEditUser({ ...editUser, special_edition: e.target.value || null })}
-                                                className="w-full mt-1 p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
-                                            >
-                                                <option value="">None (Standard)</option>
-                                                <option value="aruna">Aruna Series</option>
-                                                <option value="prabowo">Prabowo Series</option>
-                                            </select>
+                                            <label className="text-xs font-semibold text-zinc-500 uppercase">Special Edition Access</label>
+                                            <div className="mt-2 grid gap-2">
+                                                {SPECIAL_EDITIONS.map((edition) => {
+                                                    const currentEditions = normalizeSpecialEditions(editUser.special_editions?.length ? editUser.special_editions : editUser.special_edition)
+                                                    const checked = currentEditions.includes(edition.id)
+
+                                                    return (
+                                                        <label key={edition.id} className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={checked}
+                                                                onChange={(e) => {
+                                                                    const nextEditions = e.target.checked
+                                                                        ? Array.from(new Set([...currentEditions, edition.id]))
+                                                                        : currentEditions.filter((item) => item !== edition.id)
+
+                                                                    setEditUser({
+                                                                        ...editUser,
+                                                                        special_editions: nextEditions,
+                                                                        special_edition: nextEditions[0] || null,
+                                                                        selected_special_greeting_anim: typeof editUser.selected_special_greeting_anim === 'string' && nextEditions.includes(editUser.selected_special_greeting_anim)
+                                                                            ? editUser.selected_special_greeting_anim
+                                                                            : null
+                                                                    })
+                                                                }}
+                                                                className="h-4 w-4 rounded border-zinc-300 text-blue-600"
+                                                            />
+                                                            {edition.label}
+                                                        </label>
+                                                    )
+                                                })}
+                                            </div>
                                         </div>
                                     </>
                                 )}
@@ -1345,7 +1383,11 @@ export default function AdminPage() {
                                                     tier: editUser.tier,
                                                     user_tag: editUser.user_tag,
                                                     company_id: editUser.company_id || null,
-                                                    special_edition: editUser.special_edition || null
+                                                    special_edition: editUser.special_editions?.[0] || null,
+                                                    special_editions: normalizeSpecialEditions(editUser.special_editions),
+                                                    selected_special_greeting_anim: typeof editUser.selected_special_greeting_anim === 'string' && normalizeSpecialEditions(editUser.special_editions).includes(editUser.selected_special_greeting_anim)
+                                                        ? editUser.selected_special_greeting_anim
+                                                        : null
                                                 })
                                             })
 

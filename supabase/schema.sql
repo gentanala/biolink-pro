@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     tier TEXT DEFAULT 'FREE' CHECK (tier IN ('FREE', 'PREMIUM', 'B2B')),
     user_tag TEXT CHECK (user_tag IN ('GIFT', 'DEMO', 'INTERNAL')),
     company_id UUID REFERENCES public.companies(id) ON DELETE SET NULL,
+    special_edition TEXT,
+    special_editions JSONB DEFAULT '[]'::JSONB,
+    selected_special_greeting_anim TEXT,
+    enable_special_greeting_anim BOOLEAN DEFAULT FALSE,
     subscription_valid_until TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -75,6 +79,8 @@ CREATE TABLE IF NOT EXISTS public.serial_numbers (
     -- PLG Columns
     sync_enabled BOOLEAN DEFAULT TRUE,
     last_synced_at TIMESTAMPTZ,
+    special_edition TEXT,
+    special_editions JSONB DEFAULT '[]'::JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

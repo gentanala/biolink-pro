@@ -12,6 +12,7 @@ import LeadCaptureModal from '@/components/LeadCaptureModal'
 import { trackProfileView, trackLinkClick } from '@/lib/analytics'
 import ArunaAnimation from '@/components/special/ArunaAnimation'
 import PrabowoAnimation from '@/components/special/PrabowoAnimation'
+import { getSelectedSpecialGreetingAnimation, getWelcomeCloseDelay, shouldShowSpecialGreetingAnimation } from '@/lib/special-greeting.mjs'
 
 // WhatsApp SVG Icon
 function WhatsAppIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -141,8 +142,8 @@ export default function PublicProfile() {
             } else {
                 clearInterval(typeInterval)
                 setWelcomeComplete(true)
-                // Auto close with longer delay for special editions
-                const delay = ['aruna', 'prabowo'].includes(profile.special_edition) ? 3500 : 800
+                // Auto close with longer delay only when special greeting animation is enabled
+                const delay = getWelcomeCloseDelay(profile)
                 setTimeout(() => setShowWelcome(false), delay)
             }
         }, 150)
@@ -358,6 +359,7 @@ export default function PublicProfile() {
     const textPrimary = isLightMode ? 'text-zinc-900' : 'text-white'
     const textSecondary = isLightMode ? 'text-zinc-700' : 'text-white/90'
     const textMuted = isLightMode ? 'text-zinc-500' : 'text-white/60'
+    const selectedSpecialAnimation = getSelectedSpecialGreetingAnimation(profile)
 
     // Liquid glass card styles
     const glassCard = isLiquidGlass
@@ -370,7 +372,7 @@ export default function PublicProfile() {
         ? 'lg-item'
         : isLightMode
             ? 'bg-white/60 backdrop-blur-md border border-white/40 hover:bg-white/80'
-            : 'bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10'
+            : 'bg-zinc-900/75 backdrop-blur-md hover:bg-zinc-900/90 shadow-[0_12px_28px_rgba(0,0,0,0.24)]'
 
     // Tab style with liquid glass
     const getTabStyle = (tab: string) => {
@@ -378,11 +380,11 @@ export default function PublicProfile() {
             if (isLiquidGlass) return 'text-zinc-900 lg-tab-active shadow-lg'
             return isLightMode
                 ? 'text-zinc-900 bg-white/70 backdrop-blur-xl border border-white/50 shadow-lg'
-                : 'text-white bg-white/15 backdrop-blur-xl border border-white/20 shadow-lg'
+                : 'text-white bg-zinc-800/90 backdrop-blur-xl shadow-[0_10px_24px_rgba(0,0,0,0.24)]'
         }
         return isLightMode
             ? 'text-zinc-400 hover:text-zinc-600 border border-transparent'
-            : 'text-white/30 hover:text-white/60 border border-transparent'
+            : 'text-white/30 hover:text-white/60'
     }
 
     return (
@@ -390,7 +392,7 @@ export default function PublicProfile() {
             {/* Desktop background */}
             <div className="hidden md:block fixed inset-0 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 -z-10" />
 
-            <div className={`relative font-sans selection:bg-purple-500/30 md:max-w-[430px] md:mx-auto md:my-8 md:rounded-[40px] md:overflow-hidden md:shadow-2xl md:border ${isLightMode ? 'md:border-zinc-200' : 'md:border-white/10'}`}>
+            <div className={`relative font-sans selection:bg-purple-500/30 md:max-w-[430px] md:mx-auto md:my-8 md:rounded-[40px] md:overflow-hidden md:shadow-2xl md:border ${isLiquidGlass ? 'md:border-white/30' : isLightMode ? 'md:border-zinc-200' : 'md:border-transparent'}`}>
 
                 {/* Welcome Animation — Frosted Glass Background, Handwriting */}
                 <AnimatePresence>
@@ -408,18 +410,18 @@ export default function PublicProfile() {
                                 WebkitBackdropFilter: 'blur(30px) saturate(1.5)',
                             }}
                         >
-                            <div className="relative flex flex-col items-center justify-center gap-6">
-                                {profile.special_edition === 'aruna' && (
+                            <div className="relative flex w-full flex-col items-center justify-center gap-6 px-6">
+                                {shouldShowSpecialGreetingAnimation(profile) && selectedSpecialAnimation === 'aruna' && (
                                     <ArunaAnimation mode="loop" size={180} />
                                 )}
-                                {profile.special_edition === 'prabowo' && (
+                                {shouldShowSpecialGreetingAnimation(profile) && selectedSpecialAnimation === 'prabowo' && (
                                     <PrabowoAnimation mode="loop" size={180} />
                                 )}
 
                                 <motion.span
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
-                                    className={`text-4xl md:text-5xl ${isLightMode ? 'text-zinc-900' : 'text-emerald-400'}`}
+                                    className={`block max-w-full text-center text-4xl leading-tight break-words md:text-5xl ${isLightMode ? 'text-zinc-900' : 'text-emerald-400'}`}
                                     style={{
                                         fontFamily: "var(--font-mono), 'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
                                         fontWeight: 500,
@@ -444,7 +446,7 @@ export default function PublicProfile() {
                 </AnimatePresence>
 
                 {/* Scrollable container */}
-                <div className={`h-screen md:h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden relative ${isLiquidGlass ? 'bg-gradient-to-b from-slate-100 via-gray-50 to-slate-100' : isLightMode ? 'bg-zinc-100' : 'bg-zinc-950'}`}>
+                <div className={`h-screen md:h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden relative ${isLiquidGlass ? 'bg-[radial-gradient(circle_at_20%_0%,rgba(125,211,252,0.24),transparent_34%),radial-gradient(circle_at_85%_22%,rgba(216,180,254,0.20),transparent_30%),linear-gradient(180deg,#edf7ff_0%,#f7fbff_48%,#eaf1f8_100%)]' : isLightMode ? 'bg-zinc-100' : 'bg-zinc-950'}`}>
 
                     {/* Hero Photo — STICKY, stays fixed while card scrolls over it */}
                     <div className="sticky top-0 w-full z-0" style={{ height: '55vh' }}>
@@ -474,7 +476,7 @@ export default function PublicProfile() {
                             ? 'lg-content-card'
                             : isLightMode
                                 ? 'bg-white/40 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.04)] border-t border-white/40'
-                                : 'bg-zinc-950/30 backdrop-blur-xl shadow-[0_-10px_40px_rgba(0,0,0,0.2)] border-t border-white/10'
+                                : 'bg-zinc-950/55 backdrop-blur-xl shadow-[0_-16px_42px_rgba(0,0,0,0.36)]'
                             }`}
                     >
                         {/* Pull indicator */}
@@ -521,7 +523,7 @@ export default function PublicProfile() {
                                             ? 'lg-social text-zinc-800'
                                             : isLightMode
                                                 ? 'bg-white/50 border border-white/50 text-zinc-800 hover:bg-white/70 backdrop-blur-md'
-                                                : 'bg-white/5 border border-white/10 text-white hover:bg-white/15 backdrop-blur-md'
+                                                : 'bg-zinc-900/75 text-white hover:bg-zinc-800/90 backdrop-blur-md shadow-[0_10px_24px_rgba(0,0,0,0.24)]'
                                             }`}
                                     >
                                         {renderIcon(link.icon, "w-6 h-6")}
@@ -553,7 +555,7 @@ export default function PublicProfile() {
                                     ? 'lg-social text-zinc-700'
                                     : isLightMode
                                         ? 'bg-white/50 text-zinc-700 border border-white/50 hover:bg-white/70 backdrop-blur-md'
-                                        : 'bg-white/5 text-white border border-white/10 hover:bg-white/15 backdrop-blur-md'
+                                        : 'bg-zinc-900/75 text-white hover:bg-zinc-800/90 backdrop-blur-md shadow-[0_10px_24px_rgba(0,0,0,0.24)]'
                                     }`}
                                 title="Show QR Code"
                             >
@@ -565,7 +567,7 @@ export default function PublicProfile() {
                                     ? 'lg-social text-zinc-700'
                                     : isLightMode
                                         ? 'bg-white/50 text-zinc-700 border border-white/50 hover:bg-white/70 backdrop-blur-md'
-                                        : 'bg-white/5 text-white border border-white/10 hover:bg-white/15 backdrop-blur-md'
+                                        : 'bg-zinc-900/75 text-white hover:bg-zinc-800/90 backdrop-blur-md shadow-[0_10px_24px_rgba(0,0,0,0.24)]'
                                     }`}
                             >
                                 <Share2 className="w-5 h-5" />
@@ -581,7 +583,7 @@ export default function PublicProfile() {
                                     exit={{ opacity: 0, height: 0 }}
                                     className="overflow-hidden mb-8"
                                 >
-                                    <div className={`p-6 rounded-2xl text-center backdrop-blur-xl border ${isLightMode ? 'bg-white/50 border-white/50' : 'bg-white/5 border-white/10'}`}>
+                                    <div className={`p-6 rounded-2xl text-center backdrop-blur-xl ${isLightMode ? 'bg-white/50 border border-white/50' : 'bg-zinc-900/75 shadow-[0_12px_28px_rgba(0,0,0,0.24)]'}`}>
                                         <div className="bg-white p-4 rounded-xl inline-block shadow-sm">
                                             <QRCodeSVG value={typeof window !== 'undefined' ? window.location.href : ''} size={160} level="M" />
                                         </div>
@@ -592,7 +594,7 @@ export default function PublicProfile() {
                         </AnimatePresence>
 
                         {/* Tabs — Liquid Glass Indicator */}
-                        <div className={`flex items-center justify-center gap-2 mb-8 rounded-2xl p-1.5 ${isLightMode ? 'bg-zinc-100/80' : 'bg-white/5'}`}>
+                        <div className={`flex items-center justify-center gap-2 mb-8 rounded-2xl p-1.5 ${isLiquidGlass ? 'lg-tabs' : isLightMode ? 'bg-zinc-100/80' : 'bg-zinc-900/70'}`}>
                             {['links', 'gallery', 'files'].map(tab => (
                                 <button
                                     key={tab}
@@ -636,7 +638,7 @@ export default function PublicProfile() {
                             <div className="grid grid-cols-2 gap-3">
                                 {profile.gallery && profile.gallery.length > 0 ? (
                                     profile.gallery.map((item: any) => (
-                                        <div key={item.id} className={`aspect-square rounded-2xl overflow-hidden cursor-zoom-in backdrop-blur-md ${isLightMode ? 'bg-white/50 border border-white/40' : 'bg-white/5 border border-white/10'}`} onClick={() => setSelectedImage(item.url)}>
+                                        <div key={item.id} className={`aspect-square rounded-2xl overflow-hidden cursor-zoom-in backdrop-blur-md ${isLiquidGlass ? 'lg-item' : isLightMode ? 'bg-white/50 border border-white/40' : 'bg-zinc-900/75 shadow-[0_12px_28px_rgba(0,0,0,0.24)]'}`} onClick={() => setSelectedImage(item.url)}>
                                             <img src={item.url} alt={item.caption} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
                                         </div>
                                     ))

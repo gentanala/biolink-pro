@@ -52,7 +52,8 @@ export async function POST(req: Request) {
             is_claimed: false,
             nfc_tap_count: 0,
             company_id: company_id || null,
-            special_edition: special_edition || null
+            special_edition: special_edition || null,
+            special_editions: special_edition ? [special_edition] : []
         }))
 
         const { data: inserted, error: insertError } = await supabaseAdmin

@@ -158,7 +158,10 @@ export default function AppearancePage() {
         <div className="max-w-2xl mx-auto">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2 text-zinc-900">Tampilan</h1>
-                <p className="text-zinc-500">Kustomisasi warna, tema, dan filter profil Anda. Perubahan langsung terlihat di Live Preview →</p>
+                <p className="text-zinc-500">
+                    Kustomisasi warna, tema, dan filter profil Anda.
+                    <span className="hidden xl:inline"> Perubahan langsung terlihat di Live Preview →</span>
+                </p>
             </div>
 
             <div className="space-y-8">

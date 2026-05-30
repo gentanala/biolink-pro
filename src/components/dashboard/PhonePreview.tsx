@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Instagram, Twitter, Linkedin, Globe, ChevronRight, Mail, Phone, ExternalLink, Download, FileText, Image as ImageIcon, QrCode } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
+import { getCompanyDisplayName } from '@/lib/profile-display.mjs'
 
 // WhatsApp SVG Icon
 function WhatsAppIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -34,6 +35,7 @@ export default function PhonePreview() {
     const isLightMode = profile.theme_mode === 'light'
     const isGrayscale = profile.image_filter === 'grayscale'
     const primaryColor = profile.primary_color || '#3B82F6'
+    const companyName = getCompanyDisplayName(profile.company)
 
     const allLinks = [...(profile.links || [])]
     if (profile.whatsapp && !allLinks.find((l: any) => l.icon === 'whatsapp')) {
@@ -90,11 +92,11 @@ export default function PhonePreview() {
                         <p className={`text-[10px] font-medium tracking-wider uppercase mb-2 ${isLightMode ? 'text-zinc-500' : 'text-white/50'}`}>@{profile.slug || 'username'}</p>
 
                         {/* Job Title + Company */}
-                        {(profile.job_title || profile.company) && (
+                        {(profile.job_title || companyName) && (
                             <div className={`flex items-center justify-center gap-1.5 text-xs mb-2 ${isLightMode ? 'text-zinc-600' : 'text-zinc-300'}`}>
                                 {profile.job_title && <span>{profile.job_title}</span>}
-                                {profile.job_title && profile.company && <span className="opacity-40">•</span>}
-                                {profile.company && <span>{profile.company}</span>}
+                                {profile.job_title && companyName && <span className="opacity-40">•</span>}
+                                {companyName && <span>{companyName}</span>}
                             </div>
                         )}
 

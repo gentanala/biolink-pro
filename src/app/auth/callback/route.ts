@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { normalizeSpecialEditions } from '@/lib/special-greeting.mjs'
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
@@ -20,6 +21,17 @@ export async function GET(request: Request) {
                 const serialUuid = tapMatch?.[1]
 
                 if (serialUuid) {
+                    const { data: serialInfo } = await supabase
+                        .from('serial_numbers')
+                        .select('special_edition, special_editions')
+                        .eq('serial_uuid', serialUuid)
+                        .maybeSingle()
+
+                    const targetSpecialEditions = normalizeSpecialEditions(
+                        serialInfo?.special_editions?.length ? serialInfo.special_editions : serialInfo?.special_edition
+                    )
+                    const targetSpecialEdition = targetSpecialEditions[0] || null
+
                     // 1. Auto-activate user
                     await supabase
                         .from('users')
@@ -39,7 +51,7 @@ export async function GET(request: Request) {
                     // 3. Create profile if doesn't exist
                     const { data: existingProfile } = await supabase
                         .from('profiles')
-                        .select('id')
+                        .select('id, special_edition, special_editions')
                         .eq('user_id', user.id)
                         .single()
 
@@ -55,8 +67,23 @@ export async function GET(request: Request) {
                                 email: user.email,
                                 tier: 'PREMIUM',
                                 subscription_valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 Days Trial
-                                lead_capture_enabled: true
+                                lead_capture_enabled: true,
+                                special_edition: targetSpecialEdition,
+                                special_editions: targetSpecialEditions
                             })
+                    } else if (targetSpecialEditions.length > 0) {
+                        const mergedSpecialEditions = Array.from(new Set([
+                            ...normalizeSpecialEditions(existingProfile.special_editions?.length ? existingProfile.special_editions : existingProfile.special_edition),
+                            ...targetSpecialEditions
+                        ]))
+
+                        await supabase
+                            .from('profiles')
+                            .update({
+                                special_edition: mergedSpecialEditions[0] || targetSpecialEdition,
+                                special_editions: mergedSpecialEditions
+                            })
+                            .eq('user_id', user.id)
                     }
 
                     // 4. Go straight to dashboard

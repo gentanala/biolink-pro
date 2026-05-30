@@ -77,6 +77,7 @@ export interface SerialNumber {
     last_synced_at?: string | null;
     profile_id?: string | null; // NEW: Link to a specific profile
     special_edition?: string | null;
+    special_editions?: string[];
     created_at: string;
 }
 
@@ -116,6 +117,10 @@ export interface Profile {
     company_id?: string | null;
     is_master?: boolean; // NEW: Flag for Personal Master mode
     subscription_valid_until?: string | null;
+    special_edition?: string | null;
+    special_editions?: string[];
+    selected_special_greeting_anim?: string | null;
+    enable_special_greeting_anim?: boolean;
     created_at: string;
     updated_at: string;
 }

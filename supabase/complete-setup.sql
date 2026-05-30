@@ -35,6 +35,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     company TEXT,
     job_title TEXT,
     social_links JSONB DEFAULT '[]'::JSONB,
+    special_edition TEXT,
+    special_editions JSONB DEFAULT '[]'::JSONB,
+    selected_special_greeting_anim TEXT,
+    enable_special_greeting_anim BOOLEAN DEFAULT FALSE,
     is_public BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -91,6 +95,8 @@ CREATE TABLE IF NOT EXISTS public.serial_numbers (
     nfc_tap_count INTEGER DEFAULT 0,
     last_tapped_at TIMESTAMPTZ,
     manufactured_at DATE,
+    special_edition TEXT,
+    special_editions JSONB DEFAULT '[]'::JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

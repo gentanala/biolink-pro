@@ -1,6 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { buildProfileUpdates } from '@/lib/profile-updates.mjs'
 
 // Helper to get admin client
 const getAdminClient = () => {
@@ -49,6 +50,9 @@ export async function POST(request: Request) {
             if ('special_edition' in updates) {
                 serialUpdates.special_edition = updates.special_edition
             }
+            if ('special_editions' in updates) {
+                serialUpdates.special_editions = updates.special_editions
+            }
             if ('company_id' in updates) {
                 serialUpdates.company_id = updates.company_id
             }
@@ -68,11 +72,7 @@ export async function POST(request: Request) {
 
         // 3. If User ID is provided, update profiles table
         if (userId) {
-            const profileUpdates: any = {}
-            if ('tier' in updates) profileUpdates.tier = updates.tier
-            if ('user_tag' in updates) profileUpdates.user_tag = updates.user_tag
-            if ('special_edition' in updates) profileUpdates.special_edition = updates.special_edition
-            if ('company_id' in updates) profileUpdates.company_id = updates.company_id
+            const profileUpdates = buildProfileUpdates(updates)
 
             if (Object.keys(profileUpdates).length > 0) {
                 const { error: profileError } = await supabaseAdmin

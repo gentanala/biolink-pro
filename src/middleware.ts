@@ -1,7 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { getOAuthCallbackUrl } from './lib/oauth-redirect.mjs'
 
 export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname
+    const oauthCallbackUrl = getOAuthCallbackUrl(request.nextUrl)
+
+    if (oauthCallbackUrl) {
+        return NextResponse.redirect(oauthCallbackUrl)
+    }
 
     // In development, we bypass Supabase auth checks
     // and rely on client-side localStorage auth
@@ -89,7 +95,7 @@ export async function middleware(request: NextRequest) {
         }
 
         return response
-    } catch (error) {
+    } catch {
         // If Supabase is not configured, let request through
         console.warn('Supabase not configured, skipping auth checks')
         return NextResponse.next()
