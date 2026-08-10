@@ -13,6 +13,7 @@ import { trackProfileView, trackLinkClick } from '@/lib/analytics'
 import ArunaAnimation from '@/components/special/ArunaAnimation'
 import PrabowoAnimation from '@/components/special/PrabowoAnimation'
 import { getSelectedSpecialGreetingAnimation, getWelcomeCloseDelay, shouldShowSpecialGreetingAnimation } from '@/lib/special-greeting.mjs'
+import { activeRedirectUrl, normalizeUrl } from '@/lib/redirect-mode.mjs'
 
 // WhatsApp SVG Icon
 function WhatsAppIcon({ className = "w-5 h-5" }: { className?: string }) {
@@ -70,6 +71,7 @@ export default function PublicProfile() {
                     redirect_url: uiTheme.redirect_url || '',
                     redirect_type: uiTheme.redirect_type || 'direct',
                     redirect_message: uiTheme.redirect_message || '',
+                    redirect_until: uiTheme.redirect_until || null,
                 }
                 setProfile(processedProfile)
                 setLoading(false)
@@ -155,15 +157,13 @@ export default function PublicProfile() {
     useEffect(() => {
         if (!profile) return;
 
-        if (profile.active_mode === 'redirect' && profile.redirect_url) {
+        const redirectUrl = activeRedirectUrl(profile);
+        if (redirectUrl) {
             // Track view before redirecting
             trackProfileView(profile.id);
 
             // Validasi format URL (tambah http jika belum ada)
-            let finalUrl = profile.redirect_url;
-            if (!/^https?:\/\//i.test(finalUrl)) {
-                finalUrl = 'https://' + finalUrl;
-            }
+            const finalUrl = normalizeUrl(redirectUrl);
 
             if (profile.redirect_type === 'direct') {
                 // Langsung redirect tanpa babibu
@@ -195,16 +195,14 @@ export default function PublicProfile() {
 
     // ----------------------------------------------------
     // RENDER: REDIRECT MODE (Jika Tipe Redirect = "Direct", layar dibiarkan putih ngeblank saat transit)
-    if (profile.active_mode === 'redirect' && profile.redirect_url) {
+    const pendingRedirectUrl = activeRedirectUrl(profile)
+    if (pendingRedirectUrl) {
         if (profile.redirect_type === 'direct') {
             return <div className="min-h-screen bg-white" /> // Blank screen while throwing to URL
         }
 
         const isLight = profile.theme_mode === 'light' || profile.theme_mode === 'liquid_glass';
-        let finalUrl = profile.redirect_url;
-        if (!/^https?:\/\//i.test(finalUrl)) {
-            finalUrl = 'https://' + finalUrl;
-        }
+        const finalUrl = normalizeUrl(pendingRedirectUrl);
 
         return (
             <div className={`min-h-screen flex flex-col items-center justify-center p-6 text-center ${isLight ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-950 text-white'}`}>

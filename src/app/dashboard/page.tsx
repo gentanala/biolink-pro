@@ -213,6 +213,9 @@ export default function DashboardPage() {
                 redirect_url: redirectConfig.redirect_url,
                 redirect_type: redirectConfig.redirect_type,
                 redirect_message: redirectConfig.redirect_message,
+                // Set manual dari dashboard = tanpa batas waktu. Buang sisa timer
+                // dari halaman /switch supaya mode ini tidak mati sendiri.
+                redirect_until: null,
             }
 
             const res = await fetch('/api/admin/users/update', {

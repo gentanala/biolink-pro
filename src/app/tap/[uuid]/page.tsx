@@ -7,6 +7,7 @@ import { ProfileView } from './profile-view'
 import { motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { activeRedirectUrl, normalizeUrl } from '@/lib/redirect-mode.mjs'
 
 // Default product info (used when no product join is available)
 const DEFAULT_PRODUCT = {
@@ -162,12 +163,9 @@ export default function TapPage() {
                     if (ownerProfile.slug) {
                         // INTERCEPT REDIRECT DIRECT: Mencegah double redirect delay
                         const theme = ownerProfile.theme || {};
-                        if (theme.active_mode === 'redirect' && theme.redirect_url && theme.redirect_type === 'direct') {
-                            let finalUrl = theme.redirect_url;
-                            if (!/^https?:\/\//i.test(finalUrl)) {
-                                finalUrl = 'https://' + finalUrl;
-                            }
-                            window.location.replace(finalUrl);
+                        const tapRedirectUrl = activeRedirectUrl(theme);
+                        if (tapRedirectUrl && theme.redirect_type === 'direct') {
+                            window.location.replace(normalizeUrl(tapRedirectUrl));
                             return; // Stop eksekusi agar tidak render
                         }
 
