@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { ChevronUp, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronUp, LayoutDashboard, Link2, Loader2, Pencil, Plus, Trash2, User, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { activeRedirectUrl, DURATIONS, expiryFor, readShortcuts } from '@/lib/redirect-mode.mjs'
 
@@ -15,12 +16,25 @@ type Shortcut = {
     siteName?: string | null
 }
 
+// Kartu terakhir di rel bukan tujuan, tapi ajakan menambah — makanya dibedakan.
+type Card =
+    | { kind: 'profile' }
+    | { kind: 'shortcut'; data: Shortcut }
+    | { kind: 'add' }
+
 // Warna tile cadangan saat tujuan tidak punya gambar.
 const TILES = [
     { bg: '#EFE7D4', ink: '#8A6E1F' },
     { bg: '#F3DEDE', ink: '#9A3F3F' },
     { bg: '#DEEAEF', ink: '#2F5F70' },
     { bg: '#E4EAD7', ink: '#55682F' },
+]
+
+const NAV = [
+    { href: '/switch', icon: Zap, label: 'Pintasan', active: true },
+    { href: '/dashboard', icon: LayoutDashboard, label: 'Beranda' },
+    { href: '/dashboard/links', icon: Link2, label: 'Atur Link' },
+    { href: '/dashboard/profile', icon: User, label: 'Edit Profil' },
 ]
 
 const SLOT = 0.8
@@ -61,9 +75,19 @@ export default function SwitchPage() {
     const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const slotWidth = () => (railRef.current?.clientWidth ?? 0) * SLOT
 
-    const cards = [null, ...shortcuts] as (Shortcut | null)[]
-    const focused = cards[index] ?? null
-    const focusedId = focused?.id ?? 'profile'
+    const cards: Card[] = [
+        { kind: 'profile' },
+        ...shortcuts.map((s) => ({ kind: 'shortcut' as const, data: s })),
+        { kind: 'add' },
+    ]
+    const focused = cards[index]
+    const focusedShortcut = focused?.kind === 'shortcut' ? focused.data : null
+    const focusedId = focused?.kind === 'shortcut' ? focused.data.id : focused?.kind ?? 'profile'
+
+    const openNew = () => {
+        setEditing({ id: 'new', title: '', url: '' })
+        setForm({ title: '', url: '' })
+    }
 
     useEffect(() => {
         const load = async () => {
@@ -134,17 +158,18 @@ export default function SwitchPage() {
     }
 
     // Geser kartu ke atas = pasang. Ini satu-satunya cara link publik berubah.
-    const apply = async (card: Shortcut | null) => {
-        if (phase !== 'idle') return
+    const apply = async (card: Card) => {
+        if (phase !== 'idle' || card.kind === 'add') return
         setPhase('loading')
 
-        const ok = await persist(shortcuts, card?.url ?? null, duration)
+        const url = card.kind === 'shortcut' ? card.data.url : null
+        const ok = await persist(shortcuts, url, duration)
         if (!ok) {
             setPhase('idle')
             return
         }
 
-        setLiveId(card?.id ?? 'profile')
+        setLiveId(card.kind === 'shortcut' ? card.data.id : 'profile')
         setPhase('landed')
         setTimeout(() => setPhase('idle'), reduceMotion ? 900 : 1700)
     }
@@ -228,9 +253,13 @@ export default function SwitchPage() {
     }
 
     const mono = "var(--font-mono), 'JetBrains Mono', ui-monospace, monospace"
-    const imageOf = (c: Shortcut | null) =>
-        c ? (brokenImages[c.id] ? null : c.image) : profile.avatar_url
-    const ambient = imageOf(focused)
+    const imageOf = (c: Card) =>
+        c.kind === 'shortcut'
+            ? (brokenImages[c.data.id] ? null : c.data.image)
+            : c.kind === 'profile'
+                ? profile.avatar_url
+                : null
+    const ambient = focused ? imageOf(focused) : null
 
     return (
         <div className="min-h-screen h-screen flex flex-col overflow-hidden bg-[#F1F2F4] text-[#101114]">
@@ -261,7 +290,7 @@ export default function SwitchPage() {
                 />
             </div>
 
-            {/* ── PORT: bibir tempat kartu "masuk" ke jam ── */}
+            {/* ── PORT ── */}
             <div className="relative pt-2.5 flex flex-col items-center shrink-0">
                 <motion.div
                     className="relative w-[92px] h-11 flex items-end justify-center pb-1"
@@ -302,15 +331,40 @@ export default function SwitchPage() {
                     <div className="shrink-0" style={{ width: `${(1 - SLOT) * 50}%` }} />
 
                     {cards.map((card, i) => {
-                        const tile = TILES[card ? (i - 1) % TILES.length : 0]
-                        const id = card?.id ?? 'profile'
-                        const isLive = liveId === id
                         const isFocused = i === index
+                        const key = card.kind === 'shortcut' ? card.data.id : card.kind
+
+                        // Kartu ajakan: satu kotak putus-putus, ditap untuk menambah tujuan.
+                        if (card.kind === 'add') {
+                            return (
+                                <div key={key} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
+                                    <motion.button
+                                        onClick={openNew}
+                                        animate={{ scale: isFocused ? 1 : 0.94, opacity: isFocused ? 1 : 0.5 }}
+                                        transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+                                        className="w-full rounded-[24px] border-2 border-dashed border-black/[0.14] bg-white/45 hover:bg-white/70 hover:border-black/25 transition-colors flex flex-col items-center justify-center gap-3 py-24"
+                                    >
+                                        <span className="w-14 h-14 rounded-full bg-[#101114] text-white flex items-center justify-center">
+                                            <Plus className="w-6 h-6" />
+                                        </span>
+                                        <span className="text-[15px] font-semibold">Tambah pintasan</span>
+                                        <span className="text-[11px] text-black/40 px-10 text-center leading-relaxed">
+                                            Tap buat nambah tujuan baru
+                                        </span>
+                                    </motion.button>
+                                </div>
+                            )
+                        }
+
+                        const shortcut = card.kind === 'shortcut' ? card.data : null
+                        const tile = TILES[shortcut ? (i - 1) % TILES.length : 0]
+                        const id = shortcut ? shortcut.id : 'profile'
+                        const isLive = liveId === id
                         const img = imageOf(card)
-                        const label = card ? card.title : profile.display_name || profile.slug
+                        const label = shortcut ? shortcut.title : profile.display_name || profile.slug
 
                         return (
-                            <div key={id} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
+                            <div key={key} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
                                 <motion.div
                                     drag={isFocused && phase === 'idle' ? 'y' : false}
                                     dragConstraints={{ top: -140, bottom: 0 }}
@@ -344,13 +398,10 @@ export default function SwitchPage() {
                                                     src={img}
                                                     alt=""
                                                     className="w-full h-full object-cover"
-                                                    onError={() => card && setBrokenImages((b) => ({ ...b, [card.id]: true }))}
+                                                    onError={() => shortcut && setBrokenImages((b) => ({ ...b, [shortcut.id]: true }))}
                                                 />
                                             ) : (
-                                                <span
-                                                    className="text-[40px] font-bold tracking-tight"
-                                                    style={{ color: tile.ink }}
-                                                >
+                                                <span className="text-[40px] font-bold tracking-tight" style={{ color: tile.ink }}>
                                                     {label?.[0]?.toUpperCase() || '?'}
                                                 </span>
                                             )}
@@ -366,44 +417,33 @@ export default function SwitchPage() {
                                         </div>
 
                                         <div className="px-2 pt-3.5">
-                                            <h2 className="text-xl font-bold tracking-tight leading-tight truncate">
-                                                {label}
-                                            </h2>
+                                            <h2 className="text-xl font-bold tracking-tight leading-tight truncate">{label}</h2>
 
                                             <div className="flex gap-1.5 mt-2.5 flex-wrap">
                                                 <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55">
-                                                    {card ? 'Pintasan' : 'Kartu nama'}
+                                                    {shortcut ? 'Pintasan' : 'Kartu nama'}
                                                 </span>
                                                 <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55 max-w-[55%] truncate">
-                                                    {card
-                                                        ? card.siteName || hostOf(card.url)
+                                                    {shortcut
+                                                        ? shortcut.siteName || hostOf(shortcut.url)
                                                         : profile.job_title || profile.company || `@${profile.slug}`}
                                                 </span>
                                             </div>
 
-                                            {card ? (
+                                            {shortcut && (
                                                 <div className="flex gap-1.5 mt-3 pt-3 border-t border-black/[0.07]">
                                                     <button
-                                                        onClick={() => { setEditing(card); setForm({ title: card.title, url: card.url }) }}
+                                                        onClick={() => { setEditing(shortcut); setForm({ title: shortcut.title, url: shortcut.url }) }}
                                                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
                                                     >
                                                         <Pencil className="w-3 h-3" /> Ubah
                                                     </button>
                                                     <button
-                                                        onClick={() => remove(card)}
-                                                        aria-label={`Hapus ${card.title}`}
+                                                        onClick={() => remove(shortcut)}
+                                                        aria-label={`Hapus ${shortcut.title}`}
                                                         className="px-3.5 py-2.5 rounded-[10px] bg-[#F2F3F5] hover:bg-red-50 text-black/40 hover:text-red-500 transition-colors"
                                                     >
                                                         <Trash2 className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <div className="mt-3 pt-3 border-t border-black/[0.07]">
-                                                    <button
-                                                        onClick={() => { setEditing({ id: 'new', title: '', url: '' }); setForm({ title: '', url: '' }) }}
-                                                        className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
-                                                    >
-                                                        <Plus className="w-3 h-3" /> Tambah pintasan
                                                     </button>
                                                 </div>
                                             )}
@@ -419,11 +459,11 @@ export default function SwitchPage() {
             </div>
 
             {/* ── AKSI ── */}
-            <div className="relative shrink-0 px-7 pt-1 pb-7">
-                <div className="flex justify-center gap-1.5 mb-3.5">
+            <div className="relative shrink-0 px-7 pt-1">
+                <div className="flex justify-center gap-1.5 mb-3">
                     {cards.map((c, i) => (
                         <button
-                            key={c?.id ?? 'profile'}
+                            key={c.kind === 'shortcut' ? c.data.id : c.kind}
                             onClick={() => scrollTo(i)}
                             aria-label={`Kartu ${i + 1} dari ${cards.length}`}
                             className="h-[5px] rounded-full transition-all"
@@ -440,16 +480,25 @@ export default function SwitchPage() {
                         <motion.p
                             key="applying"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-12 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/45"
+                            className="h-11 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/45"
                             style={{ fontFamily: mono }}
                         >
                             MEMASANG
+                        </motion.p>
+                    ) : focused?.kind === 'add' ? (
+                        <motion.p
+                            key="add"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="h-11 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/35"
+                            style={{ fontFamily: mono }}
+                        >
+                            TAP KARTU BUAT NAMBAH
                         </motion.p>
                     ) : liveId === focusedId ? (
                         <motion.p
                             key="live"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-12 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/35"
+                            className="h-11 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/35"
                             style={{ fontFamily: mono }}
                         >
                             SEDANG DIPAKAI
@@ -458,7 +507,7 @@ export default function SwitchPage() {
                         <motion.div
                             key="swipe"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-12 flex flex-col items-center justify-center gap-0.5"
+                            className="h-11 flex flex-col items-center justify-center gap-0.5"
                         >
                             <div className="relative h-4 w-5">
                                 {[0, 1].map((n) => (
@@ -481,7 +530,7 @@ export default function SwitchPage() {
 
                 <div className="h-10">
                     <AnimatePresence>
-                        {focused && phase === 'idle' && (
+                        {focusedShortcut && phase === 'idle' && (
                             <motion.div
                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                                 className="flex gap-1.5"
@@ -505,7 +554,33 @@ export default function SwitchPage() {
                     </AnimatePresence>
                 </div>
 
-                {error && <p className="mt-2 text-center text-[11px] text-red-500">{error}</p>}
+                {error && <p className="mt-1 text-center text-[11px] text-red-500">{error}</p>}
+            </div>
+
+            {/* ── NAVIGASI BAWAH — gaya kaca ngambang, sama seperti dashboard ── */}
+            <div className="relative shrink-0 px-4 pt-2 pb-4">
+                <div className="bg-white/40 backdrop-blur-2xl border border-white/60 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.1)]">
+                    <nav className="flex items-center justify-around px-2 py-2">
+                        {NAV.map((item) => (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all relative flex-1 ${item.active ? 'text-blue-600' : 'text-zinc-500 hover:text-zinc-900'
+                                    }`}
+                            >
+                                {item.active && (
+                                    <div className="absolute inset-0 bg-white/60 backdrop-blur-md border border-white/80 shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),0_4px_12px_-2px_rgba(0,0,0,0.1)] rounded-2xl z-0" />
+                                )}
+                                <div className="relative z-10 flex flex-col items-center">
+                                    <item.icon className="w-5 h-5 mb-1 text-inherit" />
+                                    <span className={`text-[9px] font-semibold leading-tight ${item.active ? 'opacity-100' : 'opacity-70'}`}>
+                                        {item.label}
+                                    </span>
+                                </div>
+                            </Link>
+                        ))}
+                    </nav>
+                </div>
             </div>
 
             {/* ── FORM ── */}
