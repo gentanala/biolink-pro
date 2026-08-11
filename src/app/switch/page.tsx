@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { ChevronUp, LayoutDashboard, Link2, Loader2, Pencil, Plus, Trash2, User, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronUp, LayoutDashboard, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { activeRedirectUrl, DURATIONS, expiryFor, readShortcuts } from '@/lib/redirect-mode.mjs'
 
@@ -14,27 +14,22 @@ type Shortcut = {
     url: string
     image?: string | null
     siteName?: string | null
+    // Cara mendarat: langsung lempar, atau tampilkan pesan mengetik dulu.
+    type?: 'direct' | 'intro'
+    message?: string
 }
 
-// Kartu terakhir di rel bukan tujuan, tapi ajakan menambah — makanya dibedakan.
+// Kartu terakhir di rel bukan tujuan, tapi ajakan menambah.
 type Card =
     | { kind: 'profile' }
     | { kind: 'shortcut'; data: Shortcut }
     | { kind: 'add' }
 
-// Warna tile cadangan saat tujuan tidak punya gambar.
 const TILES = [
     { bg: '#EFE7D4', ink: '#8A6E1F' },
     { bg: '#F3DEDE', ink: '#9A3F3F' },
     { bg: '#DEEAEF', ink: '#2F5F70' },
     { bg: '#E4EAD7', ink: '#55682F' },
-]
-
-const NAV = [
-    { href: '/switch', icon: Zap, label: 'Pintasan', active: true },
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Beranda' },
-    { href: '/dashboard/links', icon: Link2, label: 'Atur Link' },
-    { href: '/dashboard/profile', icon: User, label: 'Edit Profil' },
 ]
 
 const SLOT = 0.8
@@ -68,7 +63,9 @@ export default function SwitchPage() {
     const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({})
 
     const [editing, setEditing] = useState<Shortcut | null>(null)
-    const [form, setForm] = useState({ title: '', url: '' })
+    const [form, setForm] = useState<{ title: string; url: string; type: 'direct' | 'intro'; message: string }>(
+        { title: '', url: '', type: 'direct', message: '' }
+    )
     const [fetchingPreview, setFetchingPreview] = useState(false)
 
     const railRef = useRef<HTMLDivElement>(null)
@@ -86,7 +83,12 @@ export default function SwitchPage() {
 
     const openNew = () => {
         setEditing({ id: 'new', title: '', url: '' })
-        setForm({ title: '', url: '' })
+        setForm({ title: '', url: '', type: 'direct', message: '' })
+    }
+
+    const openEdit = (s: Shortcut) => {
+        setEditing(s)
+        setForm({ title: s.title, url: s.url, type: s.type ?? 'direct', message: s.message ?? '' })
     }
 
     useEffect(() => {
@@ -115,6 +117,13 @@ export default function SwitchPage() {
             const currentUrl = activeRedirectUrl(theme)
             const found = currentUrl ? list.find((s) => s.url === currentUrl) : null
 
+            // Setelan cara mendarat sebelumnya masih global di profil; turunkan ke
+            // tujuan yang sedang aktif supaya tidak hilang saat disimpan ulang.
+            if (found && !found.type && theme.redirect_type) {
+                found.type = theme.redirect_type === 'intro' ? 'intro' : 'direct'
+                found.message = theme.redirect_message || ''
+            }
+
             setProfile(dbProfile)
             setShortcuts(list)
             setLiveId(found ? found.id : 'profile')
@@ -130,17 +139,22 @@ export default function SwitchPage() {
         if (railRef.current && !loading) railRef.current.scrollLeft = index * slotWidth()
     }, [loading])
 
-    const persist = async (list: Shortcut[], url: string | null, durationId: string) => {
+    // Satu pintu untuk menulis: apa pun yang berubah, isi profil selalu dihitung
+    // dari daftar tujuan + tujuan mana yang sedang dipakai.
+    const persist = async (list: Shortcut[], nextLiveId: string, durationId: string) => {
         if (!userId || !profile) return false
         setError(null)
+
+        const live = list.find((s) => s.id === nextLiveId) || null
 
         const theme = {
             ...(profile.theme || {}),
             shortcuts: list,
-            active_mode: url ? 'redirect' : 'profile',
-            redirect_url: url || '',
-            redirect_type: 'direct',
-            redirect_until: url ? expiryFor(durationId) : null,
+            active_mode: live ? 'redirect' : 'profile',
+            redirect_url: live?.url || '',
+            redirect_type: live?.type || 'direct',
+            redirect_message: live?.message || '',
+            redirect_until: live ? expiryFor(durationId) : null,
         }
 
         const { error: updateError } = await supabase
@@ -162,16 +176,24 @@ export default function SwitchPage() {
         if (phase !== 'idle' || card.kind === 'add') return
         setPhase('loading')
 
-        const url = card.kind === 'shortcut' ? card.data.url : null
-        const ok = await persist(shortcuts, url, duration)
+        const nextLive = card.kind === 'shortcut' ? card.data.id : 'profile'
+        const ok = await persist(shortcuts, nextLive, duration)
         if (!ok) {
             setPhase('idle')
             return
         }
 
-        setLiveId(card.kind === 'shortcut' ? card.data.id : 'profile')
+        setLiveId(nextLive)
         setPhase('landed')
         setTimeout(() => setPhase('idle'), reduceMotion ? 900 : 1700)
+    }
+
+    // Ganti cara mendarat. Kalau tujuan ini yang sedang dipakai, langsung berlaku.
+    const setLanding = async (target: Shortcut, type: 'direct' | 'intro') => {
+        if (target.type === type) return
+        const list = shortcuts.map((s) => (s.id === target.id ? { ...s, type } : s))
+        setShortcuts(list)
+        await persist(list, liveId, duration)
     }
 
     const onScroll = () => {
@@ -201,8 +223,14 @@ export default function SwitchPage() {
             if (res.ok) preview = await res.json()
         } catch { /* biarkan kosong */ }
 
-        const title = form.title.trim() || preview.title?.trim() || 'Pintasan'
-        const patch = { title, url, image: preview.image ?? null, siteName: preview.siteName ?? hostOf(url) }
+        const patch = {
+            title: form.title.trim() || preview.title?.trim() || 'Pintasan',
+            url,
+            image: preview.image ?? null,
+            siteName: preview.siteName ?? hostOf(url),
+            type: form.type,
+            message: form.type === 'intro' ? form.message.trim() : '',
+        }
 
         let list: Shortcut[]
         let target: number
@@ -217,7 +245,7 @@ export default function SwitchPage() {
         setShortcuts(list)
         setFetchingPreview(false)
         setEditing(null)
-        await persist(list, liveId === 'profile' ? null : shortcuts.find((s) => s.id === liveId)?.url ?? null, duration)
+        await persist(list, liveId, duration)
         setIndex(target)
         setTimeout(() => scrollTo(target), 60)
     }
@@ -227,12 +255,9 @@ export default function SwitchPage() {
         setShortcuts(list)
         setIndex(0)
         // Menghapus tujuan yang sedang dipakai akan meninggalkan link mati.
-        if (liveId === target.id) {
-            setLiveId('profile')
-            await persist(list, null, 'forever')
-        } else {
-            await persist(list, shortcuts.find((s) => s.id === liveId)?.url ?? null, duration)
-        }
+        const nextLive = liveId === target.id ? 'profile' : liveId
+        if (nextLive !== liveId) setLiveId('profile')
+        await persist(list, nextLive, nextLive === 'profile' ? 'forever' : duration)
         setTimeout(() => scrollTo(0), 60)
     }
 
@@ -334,7 +359,6 @@ export default function SwitchPage() {
                         const isFocused = i === index
                         const key = card.kind === 'shortcut' ? card.data.id : card.kind
 
-                        // Kartu ajakan: satu kotak putus-putus, ditap untuk menambah tujuan.
                         if (card.kind === 'add') {
                             return (
                                 <div key={key} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
@@ -362,6 +386,7 @@ export default function SwitchPage() {
                         const isLive = liveId === id
                         const img = imageOf(card)
                         const label = shortcut ? shortcut.title : profile.display_name || profile.slug
+                        const landing = shortcut?.type ?? 'direct'
 
                         return (
                             <div key={key} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
@@ -382,7 +407,7 @@ export default function SwitchPage() {
                                     className="cursor-grab active:cursor-grabbing"
                                 >
                                     <div
-                                        className="bg-white rounded-[24px] p-2.5 pb-3.5"
+                                        className="bg-white rounded-[24px] p-2.5 pb-3"
                                         style={{
                                             boxShadow: isFocused
                                                 ? '0 18px 40px rgba(16,17,20,0.13)'
@@ -391,7 +416,7 @@ export default function SwitchPage() {
                                     >
                                         <div
                                             className="relative rounded-[18px] overflow-hidden flex items-center justify-center"
-                                            style={{ aspectRatio: '4 / 5', background: img ? '#EDEEF1' : tile.bg }}
+                                            style={{ aspectRatio: shortcut ? '1 / 1' : '4 / 5', background: img ? '#EDEEF1' : tile.bg }}
                                         >
                                             {img ? (
                                                 <img
@@ -416,36 +441,59 @@ export default function SwitchPage() {
                                             )}
                                         </div>
 
-                                        <div className="px-2 pt-3.5">
-                                            <h2 className="text-xl font-bold tracking-tight leading-tight truncate">{label}</h2>
+                                        <div className="px-2 pt-3">
+                                            <h2 className="text-lg font-bold tracking-tight leading-tight truncate">{label}</h2>
 
-                                            <div className="flex gap-1.5 mt-2.5 flex-wrap">
-                                                <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55">
-                                                    {shortcut ? 'Pintasan' : 'Kartu nama'}
-                                                </span>
-                                                <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55 max-w-[55%] truncate">
+                                            <div className="flex gap-1.5 mt-2">
+                                                <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55 truncate">
                                                     {shortcut
                                                         ? shortcut.siteName || hostOf(shortcut.url)
                                                         : profile.job_title || profile.company || `@${profile.slug}`}
                                                 </span>
+                                                {!shortcut && (
+                                                    <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55">
+                                                        Kartu nama
+                                                    </span>
+                                                )}
                                             </div>
 
                                             {shortcut && (
-                                                <div className="flex gap-1.5 mt-3 pt-3 border-t border-black/[0.07]">
-                                                    <button
-                                                        onClick={() => { setEditing(shortcut); setForm({ title: shortcut.title, url: shortcut.url }) }}
-                                                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
-                                                    >
-                                                        <Pencil className="w-3 h-3" /> Ubah
-                                                    </button>
-                                                    <button
-                                                        onClick={() => remove(shortcut)}
-                                                        aria-label={`Hapus ${shortcut.title}`}
-                                                        className="px-3.5 py-2.5 rounded-[10px] bg-[#F2F3F5] hover:bg-red-50 text-black/40 hover:text-red-500 transition-colors"
-                                                    >
-                                                        <Trash2 className="w-3 h-3" />
-                                                    </button>
-                                                </div>
+                                                <>
+                                                    {/* Cara mendarat — pengunjung dilempar langsung, atau disambut dulu */}
+                                                    <div className="flex gap-1 mt-3 p-1 rounded-[11px] bg-[#F2F3F5]">
+                                                        {([
+                                                            { id: 'direct' as const, label: 'Langsung' },
+                                                            { id: 'intro' as const, label: 'Disambut' },
+                                                        ]).map((opt) => (
+                                                            <button
+                                                                key={opt.id}
+                                                                onClick={() => setLanding(shortcut, opt.id)}
+                                                                className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${landing === opt.id
+                                                                    ? 'bg-white text-[#101114] shadow-sm'
+                                                                    : 'text-black/40 hover:text-black/60'
+                                                                    }`}
+                                                            >
+                                                                {opt.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className="flex gap-1.5 mt-2.5">
+                                                        <button
+                                                            onClick={() => openEdit(shortcut)}
+                                                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
+                                                        >
+                                                            <Pencil className="w-3 h-3" /> Ubah
+                                                        </button>
+                                                        <button
+                                                            onClick={() => remove(shortcut)}
+                                                            aria-label={`Hapus ${shortcut.title}`}
+                                                            className="px-3.5 py-2.5 rounded-[10px] bg-[#F2F3F5] hover:bg-red-50 text-black/40 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                </>
                                             )}
                                         </div>
                                     </div>
@@ -480,7 +528,7 @@ export default function SwitchPage() {
                         <motion.p
                             key="applying"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-11 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/45"
+                            className="h-10 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/45"
                             style={{ fontFamily: mono }}
                         >
                             MEMASANG
@@ -489,7 +537,7 @@ export default function SwitchPage() {
                         <motion.p
                             key="add"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-11 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/35"
+                            className="h-10 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/35"
                             style={{ fontFamily: mono }}
                         >
                             TAP KARTU BUAT NAMBAH
@@ -498,7 +546,7 @@ export default function SwitchPage() {
                         <motion.p
                             key="live"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-11 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/35"
+                            className="h-10 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/35"
                             style={{ fontFamily: mono }}
                         >
                             SEDANG DIPAKAI
@@ -507,7 +555,7 @@ export default function SwitchPage() {
                         <motion.div
                             key="swipe"
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-11 flex flex-col items-center justify-center gap-0.5"
+                            className="h-10 flex flex-col items-center justify-center gap-0.5"
                         >
                             <div className="relative h-4 w-5">
                                 {[0, 1].map((n) => (
@@ -557,30 +605,16 @@ export default function SwitchPage() {
                 {error && <p className="mt-1 text-center text-[11px] text-red-500">{error}</p>}
             </div>
 
-            {/* ── NAVIGASI BAWAH — gaya kaca ngambang, sama seperti dashboard ── */}
+            {/* ── KEMBALI KE DASHBOARD — satu-satunya jalan keluar dari halaman ini ── */}
             <div className="relative shrink-0 px-4 pt-2 pb-4">
-                <div className="bg-white/40 backdrop-blur-2xl border border-white/60 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.1)]">
-                    <nav className="flex items-center justify-around px-2 py-2">
-                        {NAV.map((item) => (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all relative flex-1 ${item.active ? 'text-blue-600' : 'text-zinc-500 hover:text-zinc-900'
-                                    }`}
-                            >
-                                {item.active && (
-                                    <div className="absolute inset-0 bg-white/60 backdrop-blur-md border border-white/80 shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),0_4px_12px_-2px_rgba(0,0,0,0.1)] rounded-2xl z-0" />
-                                )}
-                                <div className="relative z-10 flex flex-col items-center">
-                                    <item.icon className="w-5 h-5 mb-1 text-inherit" />
-                                    <span className={`text-[9px] font-semibold leading-tight ${item.active ? 'opacity-100' : 'opacity-70'}`}>
-                                        {item.label}
-                                    </span>
-                                </div>
-                            </Link>
-                        ))}
-                    </nav>
-                </div>
+                <Link
+                    href="/dashboard"
+                    className="flex items-center justify-center gap-2 py-3.5 rounded-3xl bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.1)] text-zinc-600 hover:text-zinc-900 transition-colors"
+                >
+                    <ChevronLeft className="w-4 h-4" />
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span className="text-[13px] font-semibold">Dashboard</span>
+                </Link>
             </div>
 
             {/* ── FORM ── */}
@@ -593,7 +627,7 @@ export default function SwitchPage() {
                     >
                         <motion.div
                             initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
-                            className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-[0_24px_60px_rgba(16,17,20,0.2)]"
+                            className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-[0_24px_60px_rgba(16,17,20,0.2)] max-h-[88vh] overflow-y-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <p className="text-[9px] tracking-[0.24em] text-black/35 mb-5" style={{ fontFamily: mono }}>
@@ -618,8 +652,42 @@ export default function SwitchPage() {
                                 value={form.title}
                                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                                 placeholder="Brosur promo"
-                                className="w-full mb-6 px-4 py-3 rounded-xl bg-[#F2F3F5] border border-black/[0.08] text-sm outline-none focus:border-black/30"
+                                className="w-full mb-5 px-4 py-3 rounded-xl bg-[#F2F3F5] border border-black/[0.08] text-sm outline-none focus:border-black/30"
                             />
+
+                            <label className="block text-[11px] text-black/45 mb-1.5">Cara mendarat</label>
+                            <div className="flex gap-1 p-1 rounded-xl bg-[#F2F3F5] mb-1.5">
+                                {([
+                                    { id: 'direct' as const, label: 'Langsung' },
+                                    { id: 'intro' as const, label: 'Disambut dulu' },
+                                ]).map((opt) => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => setForm({ ...form, type: opt.id })}
+                                        className={`flex-1 py-2.5 rounded-lg text-[12px] font-semibold transition-colors ${form.type === opt.id ? 'bg-white text-[#101114] shadow-sm' : 'text-black/40'
+                                            }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-black/35 mb-5 leading-relaxed">
+                                {form.type === 'direct'
+                                    ? 'Pengunjung langsung mendarat di tujuan.'
+                                    : 'Pengunjung lihat nama & pesan kamu dulu, lalu tap buat lanjut.'}
+                            </p>
+
+                            {form.type === 'intro' && (
+                                <>
+                                    <label className="block text-[11px] text-black/45 mb-1.5">Pesan sambutan</label>
+                                    <input
+                                        value={form.message}
+                                        onChange={(e) => setForm({ ...form, message: e.target.value })}
+                                        placeholder="Cek promo bulan ini yuk"
+                                        className="w-full mb-5 px-4 py-3 rounded-xl bg-[#F2F3F5] border border-black/[0.08] text-sm outline-none focus:border-black/30"
+                                    />
+                                </>
+                            )}
 
                             <div className="flex gap-2">
                                 <button
