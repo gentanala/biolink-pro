@@ -34,7 +34,7 @@ const TILES = [
 
 const SLOT = 0.8
 const PULL_RANGE = 140      // jarak tarik maksimum
-const APPLY_THRESHOLD = 88  // lewat sini, kartu dilepas ke slot
+const APPLY_THRESHOLD = 68  // lewat sini, kartu dilepas ke slot
 
 // Serpihan yang tersedot naik. Nilainya tetap supaya render server & klien cocok.
 const DUST = [
@@ -538,7 +538,7 @@ export default function SwitchPage() {
                 <div
                     ref={railRef}
                     onScroll={onScroll}
-                    className="flex overflow-x-auto snap-x snap-mandatory"
+                    className="flex overflow-x-auto snap-x snap-mandatory pt-36 -mt-36"
                     style={{ scrollbarWidth: 'none' }}
                 >
                     <div className="shrink-0" style={{ width: `${(1 - SLOT) * 50}%` }} />
@@ -652,14 +652,13 @@ export default function SwitchPage() {
                             <div key={key} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
                                 <motion.div
                                     ref={isFocused ? focusedCardRef : undefined}
-                                    layout
                                     drag={isFocused && !saving ? 'y' : false}
                                     dragConstraints={{ top: -PULL_RANGE, bottom: 0 }}
-                                    dragElastic={{ top: 0.5, bottom: 0 }}
+                                    dragElastic={{ top: 0.35, bottom: 0 }}
+                                    dragSnapToOrigin
                                     onDrag={onDrag}
                                     onDragEnd={onDragEnd(card)}
                                     animate={{
-                                        y: 0,
                                         scale: isFocused ? 1 : 0.94,
                                         opacity: isSucking ? 0 : isFocused ? 1 : 0.5,
                                     }}
@@ -764,7 +763,7 @@ export default function SwitchPage() {
                             height: flight.height,
                             transformOrigin: 'center center',
                         }}
-                        initial={{ y: 0, scale: 0.74, opacity: 1 }}
+                        initial={{ y: 0, scale: 1, opacity: 1 }}
                         animate={{ y: flight.dy, scale: 0.02, opacity: [1, 1, 0.85, 0] }}
                         transition={{
                             duration: reduceMotion ? 0 : 0.5,
