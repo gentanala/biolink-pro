@@ -33,6 +33,27 @@ export function normalizeUrl(url) {
     return /^https?:\/\//i.test(url) ? url : 'https://' + url
 }
 
+/**
+ * Daftar tujuan pintasan yang disimpan user (theme.shortcuts).
+ *
+ * Sebelum fitur ini user cuma punya SATU tujuan (theme.redirect_url) yang diketik
+ * manual di dashboard. Kalau daftarnya masih kosong tapi tujuan lama itu ada,
+ * kita angkat jadi item pertama supaya setelan lama user tidak hilang.
+ */
+export function readShortcuts(theme) {
+    const saved = Array.isArray(theme?.shortcuts) ? theme.shortcuts : []
+    const clean = saved.filter((s) => s && s.url && String(s.url).trim())
+
+    if (clean.length) return clean
+
+    const legacy = theme?.redirect_url
+    if (legacy && String(legacy).trim()) {
+        return [{ id: 'legacy', title: 'Pintasan Link', url: String(legacy).trim() }]
+    }
+
+    return []
+}
+
 /** Pilihan durasi di halaman pintasan. null = sampai diganti sendiri. */
 export const DURATIONS = [
     { id: 'forever', label: 'Sampai diganti', hours: null },

@@ -1,6 +1,6 @@
 // Cek cepat aturan mode lempar + kadaluarsa. Jalankan: node src/lib/redirect-mode.test.mjs
 import assert from 'node:assert/strict'
-import { activeRedirectUrl, expiryFor, normalizeUrl } from './redirect-mode.mjs'
+import { activeRedirectUrl, expiryFor, normalizeUrl, readShortcuts } from './redirect-mode.mjs'
 
 const now = new Date('2026-08-11T10:00:00+07:00')
 const on = { active_mode: 'redirect', redirect_url: 'https://toko.com' }
@@ -30,5 +30,21 @@ assert.ok(expiryFor('today', now).startsWith('2026-08-11T16:59:59')) // 23:59:59
 // Skema URL dilengkapi kalau user cuma nulis domain.
 assert.equal(normalizeUrl('toko.com'), 'https://toko.com')
 assert.equal(normalizeUrl('http://toko.com'), 'http://toko.com')
+
+// Daftar tujuan pintasan.
+assert.deepEqual(readShortcuts(null), [])
+assert.deepEqual(readShortcuts({}), [])
+
+// Setelan lama (satu redirect_url manual) diangkat jadi item pertama, tidak hilang.
+assert.deepEqual(readShortcuts({ redirect_url: 'https://yt.be/a' }),
+    [{ id: 'legacy', title: 'Pintasan Link', url: 'https://yt.be/a' }])
+
+// Kalau daftar sudah ada, daftar itu yang dipakai — bukan setelan lama.
+assert.deepEqual(
+    readShortcuts({ redirect_url: 'https://yt.be/a', shortcuts: [{ id: '1', title: 'Brosur', url: 'https://b.co' }] }),
+    [{ id: '1', title: 'Brosur', url: 'https://b.co' }])
+
+// Item tanpa URL dibuang supaya tidak jadi kartu kosong.
+assert.deepEqual(readShortcuts({ shortcuts: [{ id: '1', title: 'Kosong', url: '  ' }] }), [])
 
 console.log('redirect-mode: semua cek lolos')
