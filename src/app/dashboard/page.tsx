@@ -23,12 +23,13 @@ import {
     TreeDeciduous,
     Smartphone,
     RefreshCw,
-    Loader2
+    Zap
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { downloadVCard } from '@/lib/vcard'
 import { createClient } from '@/lib/supabase/client'
 import { PWAHint } from '@/components/dashboard/PWAHint'
+import { activeRedirectUrl, readShortcuts } from '@/lib/redirect-mode.mjs'
 
 interface Profile {
     id: string
@@ -49,6 +50,8 @@ interface Profile {
     }
 }
 
+type LiveShortcut = { title: string; url: string; siteName?: string | null }
+
 export default function DashboardPage() {
     const router = useRouter()
     const supabase = createClient()
@@ -61,15 +64,6 @@ export default function DashboardPage() {
     const [showClaimSuccess, setShowClaimSuccess] = useState(false)
     const [showPWAHint, setShowPWAHint] = useState(false)
 
-    // Fitur Pintasan Link (Redirect Mode) State
-    const [redirectConfig, setRedirectConfig] = useState({
-        active_mode: 'profile' as 'profile' | 'redirect',
-        redirect_url: '',
-        redirect_type: 'direct' as 'direct' | 'intro',
-        redirect_message: ''
-    })
-    const [isSavingMode, setIsSavingMode] = useState(false)
-    const [modeSavedSuccess, setModeSavedSuccess] = useState(false)
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
@@ -141,14 +135,6 @@ export default function DashboardPage() {
 
                 setViewCount(viewsCount || 0)
                 setLinkClicks(clicksCount || 0)
-
-                // Initialize Redirect Config
-                setRedirectConfig({
-                    active_mode: uiTheme.active_mode || 'profile',
-                    redirect_url: uiTheme.redirect_url || '',
-                    redirect_type: uiTheme.redirect_type || 'direct',
-                    redirect_message: uiTheme.redirect_message || ''
-                })
             } else {
                 const fallbackSlug = 'user-' + Date.now().toString().slice(-6)
 
@@ -193,53 +179,13 @@ export default function DashboardPage() {
         router.push('/login')
     }
 
-    const handleSaveMode = async () => {
-        if (!user || !profile) return
-        setIsSavingMode(true)
-
-        try {
-            // Ambil theme saat ini agar field lain seperti welcome_word tidak hilang
-            const { data: currentProfile } = await supabase
-                .from('profiles')
-                .select('theme')
-                .eq('user_id', user.id)
-                .single()
-
-            const currentTheme = currentProfile?.theme || {}
-
-            const updatedTheme = {
-                ...currentTheme,
-                active_mode: redirectConfig.active_mode,
-                redirect_url: redirectConfig.redirect_url,
-                redirect_type: redirectConfig.redirect_type,
-                redirect_message: redirectConfig.redirect_message,
-                // Set manual dari dashboard = tanpa batas waktu. Buang sisa timer
-                // dari halaman /switch supaya mode ini tidak mati sendiri.
-                redirect_until: null,
-            }
-
-            const res = await fetch('/api/admin/users/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userId: user.id,
-                    theme: updatedTheme
-                })
-            })
-
-            if (!res.ok) {
-                throw new Error('Gagal menyimpan mode')
-            }
-
-            setModeSavedSuccess(true)
-            setTimeout(() => setModeSavedSuccess(false), 3000)
-        } catch (err: any) {
-            console.error('Save mode error:', err)
-            alert('Terjadi kesalahan saat menyimpan pengaturan mode: ' + err.message)
-        } finally {
-            setIsSavingMode(false)
-        }
-    }
+    // Cerminan saja: apa yang sedang dipakai link publik. Diatur di /switch.
+    const liveTheme = (profile as Profile & { theme?: Record<string, unknown> })?.theme || {}
+    const liveUrl: string | null = activeRedirectUrl(liveTheme)
+    const liveShortcut: LiveShortcut | null = liveUrl
+        ? ((readShortcuts(liveTheme) as LiveShortcut[]).find((s) => s.url === liveUrl)
+            || { title: 'Pintasan Link', url: liveUrl, siteName: null })
+        : null
 
     if (!profile) {
         return (
@@ -345,7 +291,7 @@ export default function DashboardPage() {
                     )}
                 </motion.div>
 
-                {/* --- Fungsi Kartu / Mode --- */}
+                {/* --- Fungsi Kartu / Mode — cerminan saja, atur di /switch --- */}
                 <motion.section
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -357,82 +303,37 @@ export default function DashboardPage() {
                             <RefreshCw className="w-5 h-5 text-blue-600" />
                             Fungsi Utama Link
                         </h2>
-                        {modeSavedSuccess && (
-                            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">Tersimpan! ✅</span>
-                        )}
                     </div>
-                    <p className="text-xs text-zinc-500 mb-6">Pilih apakah kartu Anda menampilkan profil, atau langsung redirect ke situs lain.</p>
+                    <p className="text-xs text-zinc-500 mb-5">
+                        Yang dilihat pengunjung saat membuka link kamu sekarang.
+                    </p>
 
-                    <div className="flex p-1 bg-zinc-100/80 rounded-xl mb-6 items-center">
-                        <button
-                            type="button"
-                            onClick={() => setRedirectConfig({ ...redirectConfig, active_mode: 'profile' })}
-                            className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${redirectConfig.active_mode === 'profile' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
-                        >
-                            Kartu Nama Digital
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setRedirectConfig({ ...redirectConfig, active_mode: 'redirect' })}
-                            className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${redirectConfig.active_mode === 'redirect' ? 'bg-white text-blue-600 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}
-                        >
-                            Pintasan Link
-                        </button>
-                    </div>
-
-                    {redirectConfig.active_mode === 'redirect' && (
-                        <div className="space-y-4 p-5 bg-blue-50/50 rounded-2xl border border-blue-100/50 mt-4 mb-4">
-                            <div>
-                                <label className="block text-xs font-bold text-zinc-700 mb-1 ml-1">URL Tujuan Redirect</label>
-                                <input
-                                    type="url"
-                                    value={redirectConfig.redirect_url}
-                                    onChange={(e) => setRedirectConfig({ ...redirectConfig, redirect_url: e.target.value })}
-                                    placeholder="https://youtube.com/..."
-                                    className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-bold text-zinc-700 mb-2 ml-1">Tipe Redirect</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <label className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${redirectConfig.redirect_type === 'direct' ? 'border-blue-500 bg-blue-50/50' : 'border-zinc-200 bg-white hover:border-blue-200'}`}>
-                                        <div className="flex items-center gap-2">
-                                            <input type="radio" checked={redirectConfig.redirect_type === 'direct'} onChange={() => setRedirectConfig({ ...redirectConfig, redirect_type: 'direct' })} className="w-4 h-4 text-blue-600" />
-                                            <span className="font-bold text-sm text-zinc-900">Langsung</span>
-                                        </div>
-                                    </label>
-                                    <label className={`cursor-pointer p-4 rounded-xl border-2 transition-all ${redirectConfig.redirect_type === 'intro' ? 'border-blue-500 bg-blue-50/50' : 'border-zinc-200 bg-white hover:border-blue-200'}`}>
-                                        <div className="flex items-center gap-2">
-                                            <input type="radio" checked={redirectConfig.redirect_type === 'intro'} onChange={() => setRedirectConfig({ ...redirectConfig, redirect_type: 'intro' })} className="w-4 h-4 text-blue-600" />
-                                            <span className="font-bold text-sm text-zinc-900">Efek Mengetik</span>
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
-
-                            {redirectConfig.redirect_type === 'intro' && (
-                                <div>
-                                    <label className="block text-xs font-bold text-zinc-700 mb-1 ml-1">Pesan Intro</label>
-                                    <input
-                                        type="text"
-                                        value={redirectConfig.redirect_message}
-                                        onChange={(e) => setRedirectConfig({ ...redirectConfig, redirect_message: e.target.value })}
-                                        placeholder="Tulis pesan penyambutan..."
-                                        className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none"
-                                    />
-                                </div>
-                            )}
+                    <div className="flex items-center gap-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-200/60 mb-4">
+                        <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+                            {liveShortcut ? <Zap className="w-5 h-5 text-blue-600" /> : <CreditCard className="w-5 h-5 text-blue-600" />}
                         </div>
-                    )}
+                        <div className="min-w-0">
+                            <p className="text-sm font-bold text-zinc-900 truncate">
+                                {liveShortcut ? liveShortcut.title : 'Kartu Nama Digital'}
+                            </p>
+                            <p className="text-xs text-zinc-500 truncate">
+                                {liveShortcut
+                                    ? `Pengunjung dilempar ke ${liveShortcut.siteName || liveShortcut.url}`
+                                    : 'Pengunjung melihat profil lengkap kamu'}
+                            </p>
+                        </div>
+                    </div>
 
-                    <button
-                        onClick={handleSaveMode}
-                        disabled={isSavingMode}
-                        className="w-full py-3 mt-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
+                    <Link
+                        href="/switch"
+                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
                     >
-                        {isSavingMode ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Simpan Pengaturan Fungsi'}
-                    </button>
+                        Atur pintasan
+                        <ExternalLink className="w-4 h-4" />
+                    </Link>
+                    <p className="text-[11px] text-zinc-400 text-center mt-2.5">
+                        Ganti tujuan, atur cara mendarat, dan pasang timer di halaman Pintasan.
+                    </p>
                 </motion.section>
 
                 {/* Stats Cards */}
