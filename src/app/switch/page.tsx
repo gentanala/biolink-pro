@@ -34,7 +34,8 @@ const TILES = [
 
 const SLOT = 0.8
 const PULL_RANGE = 112      // jarak tarik maksimum
-const APPLY_THRESHOLD = 52  // lewat sini, kartu dilepas ke slot
+const APPLY_THRESHOLD = 52     // lewat sini, kartu dilepas ke slot
+const FLICK_VELOCITY = -520    // lemparan cepat ke atas, tanpa perlu jarak penuh
 
 // Serpihan yang tersedot naik. Nilainya tetap supaya render server & klien cocok.
 const DUST = [
@@ -182,7 +183,7 @@ export default function SwitchPage() {
 
     const railRef = useRef<HTMLDivElement>(null)
     const mouthRef = useRef<HTMLDivElement>(null)
-    const focusedCardRef = useRef<HTMLDivElement>(null)
+    const cardEls = useRef<Map<string, HTMLElement>>(new Map())
     const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const slotWidth = () => (railRef.current?.clientWidth ?? 0) * SLOT
 
@@ -300,7 +301,15 @@ export default function SwitchPage() {
 
         const mouth = mouthRef.current?.getBoundingClientRect()
         const rect = cardEl?.getBoundingClientRect()
-        if (!mouth || !rect) return
+
+        // Kalau posisi kartunya gagal diukur, pergantian tetap dijalankan —
+        // cuma tanpa animasi terbang. Pelepasan tidak boleh berakhir diam.
+        if (!mouth || !rect) {
+            setSaving(true)
+            setSucking(idOf(card))
+            finishSuck(card)
+            return
+        }
 
         // Jarak tempuh dihitung sampai titik tengah mulut, jadi kartunya benar-benar
         // masuk ke tandanya — bukan sekadar naik keluar layar.
@@ -329,7 +338,9 @@ export default function SwitchPage() {
     const onDrag = (_: unknown, info: PanInfo) => pull.set(Math.max(0, -info.offset.y))
     const onDragEnd = (card: Card) => (_: unknown, info: PanInfo) => {
         pull.set(0)
-        if (-info.offset.y >= APPLY_THRESHOLD) suck(card, focusedCardRef.current)
+        const farEnough = -info.offset.y >= APPLY_THRESHOLD
+        const flickedUp = info.velocity.y <= FLICK_VELOCITY && -info.offset.y > 12
+        if (farEnough || flickedUp) suck(card, cardEls.current.get(idOf(card)) ?? null)
     }
 
     const onScroll = () => {
@@ -651,7 +662,10 @@ export default function SwitchPage() {
                         return (
                             <div key={key} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
                                 <motion.div
-                                    ref={isFocused ? focusedCardRef : undefined}
+                                    ref={(el) => {
+                                        if (el) cardEls.current.set(key, el)
+                                        else cardEls.current.delete(key)
+                                    }}
                                     drag={isFocused && !saving ? 'y' : false}
                                     dragConstraints={{ top: -PULL_RANGE, bottom: 0 }}
                                     dragElastic={{ top: 0.35, bottom: 0 }}
