@@ -33,8 +33,8 @@ const TILES = [
 ]
 
 const SLOT = 0.8
-const PULL_RANGE = 140      // jarak tarik maksimum
-const APPLY_THRESHOLD = 68  // lewat sini, kartu dilepas ke slot
+const PULL_RANGE = 112      // jarak tarik maksimum
+const APPLY_THRESHOLD = 52  // lewat sini, kartu dilepas ke slot
 
 // Serpihan yang tersedot naik. Nilainya tetap supaya render server & klien cocok.
 const DUST = [
@@ -539,7 +539,7 @@ export default function SwitchPage() {
                     ref={railRef}
                     onScroll={onScroll}
                     className="flex overflow-x-auto snap-x snap-mandatory pt-36 -mt-36"
-                    style={{ scrollbarWidth: 'none' }}
+                    style={{ scrollbarWidth: 'none', overflowY: 'hidden' }}
                 >
                     <div className="shrink-0" style={{ width: `${(1 - SLOT) * 50}%` }} />
 
@@ -553,7 +553,7 @@ export default function SwitchPage() {
                                     <motion.button
                                         layout
                                         onClick={openNew}
-                                        animate={{ scale: isFocused ? 1 : 0.94, opacity: isFocused ? 1 : 0.5 }}
+                                        animate={{ scale: isFocused ? 1 : 0.92, opacity: 1 }}
                                         transition={spring}
                                         className="w-full rounded-[24px] border-2 border-dashed border-black/[0.14] bg-white/45 hover:bg-white/70 transition-colors flex flex-col items-center justify-center gap-3 py-20"
                                     >
@@ -579,7 +579,7 @@ export default function SwitchPage() {
                                     <motion.div
                                         layout
                                         initial={reduceMotion ? false : { opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: isFocused ? 1 : 0.5, scale: isFocused ? 1 : 0.94 }}
+                                        animate={{ opacity: 1, scale: isFocused ? 1 : 0.92 }}
                                         transition={spring}
                                         className="rounded-[24px] border-2 border-dashed border-black/[0.16] bg-white/25 p-2.5 pb-3"
                                     >
@@ -659,8 +659,8 @@ export default function SwitchPage() {
                                     onDrag={onDrag}
                                     onDragEnd={onDragEnd(card)}
                                     animate={{
-                                        scale: isFocused ? 1 : 0.94,
-                                        opacity: isSucking ? 0 : isFocused ? 1 : 0.5,
+                                        scale: isFocused ? 1 : 0.92,
+                                        opacity: isSucking ? 0 : 1,
                                     }}
                                     transition={isSucking ? { duration: 0 } : spring}
                                     style={{ touchAction: 'pan-x' }}
