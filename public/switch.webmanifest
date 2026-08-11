@@ -1,0 +1,22 @@
+{
+    "name": "Pintasan Gentanala",
+    "short_name": "Pintasan",
+    "description": "Ganti fungsi kartu digital kamu dengan sekali geser",
+    "start_url": "/switch",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#09090A",
+    "theme_color": "#09090A",
+    "icons": [
+        {
+            "src": "/logo.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/logo.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}
