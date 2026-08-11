@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { ChevronLeft, ChevronUp, LayoutDashboard, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+    motion, AnimatePresence, useReducedMotion, useMotionValue, useTransform, type PanInfo,
+} from 'framer-motion'
+import { ChevronDown, ChevronLeft, ChevronUp, LayoutDashboard, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { activeRedirectUrl, DURATIONS, expiryFor, readShortcuts } from '@/lib/redirect-mode.mjs'
 
@@ -14,12 +16,10 @@ type Shortcut = {
     url: string
     image?: string | null
     siteName?: string | null
-    // Cara mendarat: langsung lempar, atau tampilkan pesan mengetik dulu.
     type?: 'direct' | 'intro'
     message?: string
 }
 
-// Kartu terakhir di rel bukan tujuan, tapi ajakan menambah.
 type Card =
     | { kind: 'profile' }
     | { kind: 'shortcut'; data: Shortcut }
@@ -33,7 +33,10 @@ const TILES = [
 ]
 
 const SLOT = 0.8
-const APPLY_THRESHOLD = -90
+const PULL_RANGE = 140      // jarak tarik maksimum
+const APPLY_THRESHOLD = 88  // lewat sini, kartu dilepas ke slot
+
+const idOf = (c: Card) => (c.kind === 'shortcut' ? c.data.id : c.kind)
 
 const newId = () =>
     typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
@@ -44,6 +47,41 @@ const hostOf = (url: string) => {
     } catch {
         return url
     }
+}
+
+
+// Thumbnail dipakai bersama oleh kartu di rel dan chip di slot. layoutId yang sama
+// membuat satu elemen ini mengecil dan naik, bukan hilang lalu muncul — itu inti rasanya.
+function Thumb({
+    id, src, tileBg, tileInk, letter, className, radius, big, transition, onError,
+}: {
+    id: string
+    src?: string | null
+    tileBg: string
+    tileInk: string
+    letter: string
+    className: string
+    radius: number
+    big?: boolean
+    transition: object
+    onError?: () => void
+}) {
+    return (
+        <motion.div
+            layoutId={`thumb-${id}`}
+            transition={transition}
+            className={`relative overflow-hidden shrink-0 flex items-center justify-center ${className}`}
+            style={{ borderRadius: radius, background: src ? '#EDEEF1' : tileBg }}
+        >
+            {src ? (
+                <img src={src} alt="" className="w-full h-full object-cover" onError={onError} />
+            ) : (
+                <span className="font-bold" style={{ color: tileInk, fontSize: big ? 40 : 16 }}>
+                    {letter}
+                </span>
+            )}
+        </motion.div>
+    )
 }
 
 export default function SwitchPage() {
@@ -58,7 +96,9 @@ export default function SwitchPage() {
     const [index, setIndex] = useState(0)
     const [liveId, setLiveId] = useState<string>('profile')
     const [duration, setDuration] = useState('forever')
-    const [phase, setPhase] = useState<'idle' | 'loading' | 'landed'>('idle')
+    const [saving, setSaving] = useState(false)
+    const [ripple, setRipple] = useState(0)
+    const [panelOpen, setPanelOpen] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({})
 
@@ -72,14 +112,27 @@ export default function SwitchPage() {
     const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const slotWidth = () => (railRef.current?.clientWidth ?? 0) * SLOT
 
-    const cards: Card[] = [
+    // Tarikan jari, dipakai langsung oleh slot di atas — bukan animasi kalengan,
+    // slotnya bereaksi seiring kartu naik.
+    const pull = useMotionValue(0)
+    const grip = useTransform(pull, [0, APPLY_THRESHOLD, PULL_RANGE], [0, 1, 1])
+    const slotScale = useTransform(grip, [0, 1], [1, 1.12])
+    const slotGlow = useTransform(grip, [0, 1], [0, 0.5])
+    const slotLift = useTransform(grip, [0, 1], [0, 4])
+    const slotEdge = useTransform(grip, [0, 1], [0.7, 1])
+    const hintFade = useTransform(grip, [0, 1], [1, 0.35])
+
+    // Urutan tetap. Kartu yang sedang terpasang diangkat ke slot, sisanya di rel.
+    const order: Card[] = [
         { kind: 'profile' },
         ...shortcuts.map((s) => ({ kind: 'shortcut' as const, data: s })),
         { kind: 'add' },
     ]
-    const focused = cards[index]
-    const focusedShortcut = focused?.kind === 'shortcut' ? focused.data : null
-    const focusedId = focused?.kind === 'shortcut' ? focused.data.id : focused?.kind ?? 'profile'
+    const docked = order.find((c) => idOf(c) === liveId) ?? order[0]
+    const railCards = order.filter((c) => idOf(c) !== liveId)
+    const focused = railCards[index]
+
+    const dockedShortcut = docked.kind === 'shortcut' ? docked.data : null
 
     const openNew = () => {
         setEditing({ id: 'new', title: '', url: '' })
@@ -117,8 +170,7 @@ export default function SwitchPage() {
             const currentUrl = activeRedirectUrl(theme)
             const found = currentUrl ? list.find((s) => s.url === currentUrl) : null
 
-            // Setelan cara mendarat sebelumnya masih global di profil; turunkan ke
-            // tujuan yang sedang aktif supaya tidak hilang saat disimpan ulang.
+            // Setelan cara mendarat lama masih global; turunkan ke tujuan aktif.
             if (found && !found.type && theme.redirect_type) {
                 found.type = theme.redirect_type === 'intro' ? 'intro' : 'direct'
                 found.message = theme.redirect_message || ''
@@ -127,7 +179,6 @@ export default function SwitchPage() {
             setProfile(dbProfile)
             setShortcuts(list)
             setLiveId(found ? found.id : 'profile')
-            setIndex(found ? list.indexOf(found) + 1 : 0)
             if (theme.redirect_until) setDuration('today')
             setLoading(false)
         }
@@ -135,12 +186,6 @@ export default function SwitchPage() {
         load()
     }, [router])
 
-    useEffect(() => {
-        if (railRef.current && !loading) railRef.current.scrollLeft = index * slotWidth()
-    }, [loading])
-
-    // Satu pintu untuk menulis: apa pun yang berubah, isi profil selalu dihitung
-    // dari daftar tujuan + tujuan mana yang sedang dipakai.
     const persist = async (list: Shortcut[], nextLiveId: string, durationId: string) => {
         if (!userId || !profile) return false
         setError(null)
@@ -171,29 +216,39 @@ export default function SwitchPage() {
         return true
     }
 
-    // Geser kartu ke atas = pasang. Ini satu-satunya cara link publik berubah.
-    const apply = async (card: Card) => {
-        if (phase !== 'idle' || card.kind === 'add') return
-        setPhase('loading')
+    // Lepas kartu ke slot. Kartu yang tadi terpasang turun balik ke rel,
+    // dan rel diarahkan ke sana supaya pertukarannya kelihatan.
+    const dock = async (card: Card) => {
+        if (saving || card.kind === 'add') return
+        const previous = liveId
+        const nextLive = idOf(card)
+        if (nextLive === previous) return
 
-        const nextLive = card.kind === 'shortcut' ? card.data.id : 'profile'
-        const ok = await persist(shortcuts, nextLive, duration)
-        if (!ok) {
-            setPhase('idle')
-            return
+        setSaving(true)
+        setLiveId(nextLive)
+        setPanelOpen(false)
+        setRipple((n) => n + 1)
+
+        const nextRail = order.filter((c) => idOf(c) !== nextLive)
+        const back = nextRail.findIndex((c) => idOf(c) === previous)
+        if (back >= 0) {
+            setIndex(back)
+            // Beri React satu frame untuk merender rel barunya sebelum digeser,
+            // kalau tidak posisinya dihitung dari tata letak yang lama.
+            setTimeout(() => {
+                railRef.current?.scrollTo({ left: back * slotWidth(), behavior: reduceMotion ? 'auto' : 'smooth' })
+            }, 60)
         }
 
-        setLiveId(nextLive)
-        setPhase('landed')
-        setTimeout(() => setPhase('idle'), reduceMotion ? 900 : 1700)
+        const ok = await persist(shortcuts, nextLive, duration)
+        if (!ok) setLiveId(previous)
+        setSaving(false)
     }
 
-    // Ganti cara mendarat. Kalau tujuan ini yang sedang dipakai, langsung berlaku.
-    const setLanding = async (target: Shortcut, type: 'direct' | 'intro') => {
-        if (target.type === type) return
-        const list = shortcuts.map((s) => (s.id === target.id ? { ...s, type } : s))
-        setShortcuts(list)
-        await persist(list, liveId, duration)
+    const onDrag = (_: unknown, info: PanInfo) => pull.set(Math.max(0, -info.offset.y))
+    const onDragEnd = (card: Card) => (_: unknown, info: PanInfo) => {
+        pull.set(0)
+        if (-info.offset.y >= APPLY_THRESHOLD) dock(card)
     }
 
     const onScroll = () => {
@@ -202,7 +257,7 @@ export default function SwitchPage() {
         if (settleTimer.current) clearTimeout(settleTimer.current)
         settleTimer.current = setTimeout(() => {
             const next = Math.round(el.scrollLeft / slotWidth())
-            if (next !== index && next < cards.length) setIndex(next)
+            if (next !== index && next < railCards.length) setIndex(next)
         }, 120)
     }
 
@@ -215,13 +270,11 @@ export default function SwitchPage() {
         if (!url) return
         setFetchingPreview(true)
 
-        // Ambil gambar & judul halaman tujuan supaya kartunya punya thumbnail.
-        // Gagal ambil bukan alasan gagal simpan — kartu jatuh ke tile huruf.
         let preview: { image?: string | null; title?: string | null; siteName?: string | null } = {}
         try {
             const res = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`)
             if (res.ok) preview = await res.json()
-        } catch { /* biarkan kosong */ }
+        } catch { /* preview itu pemanis, bukan syarat simpan */ }
 
         const patch = {
             title: form.title.trim() || preview.title?.trim() || 'Pintasan',
@@ -232,33 +285,36 @@ export default function SwitchPage() {
             message: form.type === 'intro' ? form.message.trim() : '',
         }
 
-        let list: Shortcut[]
-        let target: number
-        if (editing && editing.id !== 'new') {
-            list = shortcuts.map((s) => (s.id === editing.id ? { ...s, ...patch } : s))
-            target = shortcuts.findIndex((s) => s.id === editing.id) + 1
-        } else {
-            list = [...shortcuts, { id: newId(), ...patch }]
-            target = list.length
-        }
+        const list = editing && editing.id !== 'new'
+            ? shortcuts.map((s) => (s.id === editing.id ? { ...s, ...patch } : s))
+            : [...shortcuts, { id: newId(), ...patch }]
 
         setShortcuts(list)
         setFetchingPreview(false)
         setEditing(null)
         await persist(list, liveId, duration)
-        setIndex(target)
-        setTimeout(() => scrollTo(target), 60)
     }
 
     const remove = async (target: Shortcut) => {
         const list = shortcuts.filter((s) => s.id !== target.id)
         setShortcuts(list)
         setIndex(0)
-        // Menghapus tujuan yang sedang dipakai akan meninggalkan link mati.
         const nextLive = liveId === target.id ? 'profile' : liveId
         if (nextLive !== liveId) setLiveId('profile')
         await persist(list, nextLive, nextLive === 'profile' ? 'forever' : duration)
-        setTimeout(() => scrollTo(0), 60)
+    }
+
+    // Ubah setelan kartu yang sedang terpasang — berlaku saat itu juga.
+    const setLanding = async (type: 'direct' | 'intro') => {
+        if (!dockedShortcut || dockedShortcut.type === type) return
+        const list = shortcuts.map((s) => (s.id === dockedShortcut.id ? { ...s, type } : s))
+        setShortcuts(list)
+        await persist(list, liveId, duration)
+    }
+
+    const setTimer = async (durationId: string) => {
+        setDuration(durationId)
+        await persist(shortcuts, liveId, durationId)
     }
 
     if (loading) {
@@ -284,18 +340,31 @@ export default function SwitchPage() {
             : c.kind === 'profile'
                 ? profile.avatar_url
                 : null
-    const ambient = focused ? imageOf(focused) : null
+    const tileFor = (c: Card) =>
+        c.kind === 'shortcut' ? TILES[(shortcuts.indexOf(c.data) + 1) % TILES.length] : TILES[0]
+    const titleOf = (c: Card) =>
+        c.kind === 'shortcut' ? c.data.title : profile.display_name || profile.slug
+    const subOf = (c: Card) =>
+        c.kind === 'shortcut'
+            ? c.data.siteName || hostOf(c.data.url)
+            : profile.job_title || profile.company || `@${profile.slug}`
+
+    const dockedImg = imageOf(docked)
+    const dockedTile = tileFor(docked)
+    const spring = reduceMotion
+        ? { duration: 0 }
+        : { type: 'spring' as const, stiffness: 340, damping: 32, mass: 0.7 }
 
     return (
         <div className="min-h-screen h-screen flex flex-col overflow-hidden bg-[#F1F2F4] text-[#101114]">
 
-            {/* Latar mengambil warna dari tujuan yang sedang dipilih */}
+            {/* Latar mengambil warna dari kartu yang sedang terpasang */}
             <div aria-hidden className="pointer-events-none absolute left-[-18%] right-[-18%] top-[-18%] h-[70%]">
                 <AnimatePresence mode="wait">
-                    {ambient && (
+                    {dockedImg && (
                         <motion.img
-                            key={ambient}
-                            src={ambient}
+                            key={dockedImg}
+                            src={dockedImg}
                             alt=""
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 0.62 }}
@@ -315,37 +384,137 @@ export default function SwitchPage() {
                 />
             </div>
 
-            {/* ── PORT ── */}
-            <div className="relative pt-2.5 flex flex-col items-center shrink-0">
-                <motion.div
-                    className="relative w-[92px] h-11 flex items-end justify-center pb-1"
-                    animate={phase === 'landed' && !reduceMotion ? { scale: [1, 1.08, 1] } : { scale: 1 }}
-                    transition={{ duration: 0.6 }}
-                >
-                    <div
-                        className="absolute inset-0 border-[1.5px] border-t-0 border-dashed transition-colors duration-500"
+            {/* ── SLOT: kartu terpasang nyantol di sini ── */}
+            <div className="relative shrink-0 pt-3 px-6 flex flex-col items-center">
+                <motion.div style={{ scale: slotScale, y: slotLift }} className="relative">
+                    {/* Bibir slot, mengencang seiring kartu ditarik naik */}
+                    <motion.div
+                        aria-hidden
+                        className="absolute -inset-x-3 -top-3 h-[calc(100%+18px)] border-[1.5px] border-t-0 border-dashed pointer-events-none"
                         style={{
-                            borderRadius: '0 0 92px 92px / 0 0 44px 44px',
-                            background: 'rgba(255,255,255,0.45)',
-                            borderColor: phase === 'idle' ? 'rgba(16,17,20,0.20)' : 'rgba(16,17,20,0.55)',
+                            borderRadius: '0 0 28px 28px',
+                            borderColor: 'rgba(16,17,20,0.18)',
+                            opacity: slotEdge,
                         }}
                     />
-                    <ChevronUp className="w-4 h-4 relative" style={{ color: 'rgba(16,17,20,0.45)' }} />
+                    <motion.div
+                        aria-hidden
+                        className="absolute -inset-2 pointer-events-none"
+                        style={{
+                            borderRadius: 26,
+                            opacity: slotGlow,
+                            boxShadow: '0 12px 40px 6px rgba(16,17,20,0.28)',
+                        }}
+                    />
+
+                    {/* Denyut sekali saat kartu mendarat */}
+                    <AnimatePresence>
+                        {ripple > 0 && !reduceMotion && (
+                            <motion.div
+                                key={ripple}
+                                aria-hidden
+                                initial={{ opacity: 0.5, scale: 0.9 }}
+                                animate={{ opacity: 0, scale: 1.7 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.75, ease: 'easeOut' }}
+                                className="absolute -inset-2 rounded-[26px] border-2 border-[#101114] pointer-events-none"
+                            />
+                        )}
+                    </AnimatePresence>
+
+                    <motion.button
+                        layout
+                        transition={spring}
+                        onClick={() => dockedShortcut && setPanelOpen((v) => !v)}
+                        className="relative flex items-center gap-3 bg-white rounded-[18px] pl-2 pr-3.5 py-2 shadow-[0_10px_28px_rgba(16,17,20,0.14)]"
+                    >
+                        <Thumb
+                            id={idOf(docked)}
+                            src={dockedImg}
+                            tileBg={dockedTile.bg}
+                            tileInk={dockedTile.ink}
+                            letter={titleOf(docked)?.[0]?.toUpperCase() || '?'}
+                            className="w-11 h-11"
+                            radius={12}
+                            transition={spring}
+                        />
+                        <div className="text-left min-w-0 max-w-[46vw]">
+                            <p className="text-[13px] font-bold leading-tight truncate">{titleOf(docked)}</p>
+                            <p className="text-[10px] text-black/40 truncate">{subOf(docked)}</p>
+                        </div>
+                        {dockedShortcut && (
+                            <motion.span animate={{ rotate: panelOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                                <ChevronDown className="w-4 h-4 text-black/30" />
+                            </motion.span>
+                        )}
+                    </motion.button>
                 </motion.div>
 
-                <AnimatePresence mode="wait">
-                    <motion.p
-                        key={phase === 'landed' ? 'ok' : 'hint'}
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="mt-2 text-[9px] tracking-[0.18em]"
-                        style={{ fontFamily: mono, color: phase === 'landed' ? '#101114' : 'rgba(16,17,20,0.38)' }}
-                    >
-                        {phase === 'landed' ? 'KARTU BERPINDAH' : 'DEKATKAN JAM KE SINI'}
-                    </motion.p>
+                <p className="mt-2.5 text-[9px] tracking-[0.18em] text-black/35" style={{ fontFamily: mono }}>
+                    DEKATKAN JAM KE SINI
+                </p>
+
+                {/* Setelan kartu terpasang — dibuka dengan tap, bukan selalu nongol */}
+                <AnimatePresence initial={false}>
+                    {panelOpen && dockedShortcut && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.22 }}
+                            className="w-full max-w-[300px] overflow-hidden"
+                        >
+                            <div className="mt-3 rounded-2xl bg-white/70 backdrop-blur border border-white/70 p-3">
+                                <p className="text-[10px] text-black/40 mb-1.5">Cara mendarat</p>
+                                <div className="flex gap-1 p-1 rounded-xl bg-[#F2F3F5] mb-3">
+                                    {([
+                                        { id: 'direct' as const, label: 'Langsung' },
+                                        { id: 'intro' as const, label: 'Disambut' },
+                                    ]).map((opt) => (
+                                        <button
+                                            key={opt.id}
+                                            onClick={() => setLanding(opt.id)}
+                                            className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${(dockedShortcut.type ?? 'direct') === opt.id
+                                                ? 'bg-white text-[#101114] shadow-sm'
+                                                : 'text-black/40'
+                                                }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <p className="text-[10px] text-black/40 mb-1.5">Balik ke kartu nama</p>
+                                <div className="flex gap-1.5 mb-3">
+                                    {DURATIONS.map((d: any) => (
+                                        <button
+                                            key={d.id}
+                                            onClick={() => setTimer(d.id)}
+                                            className="flex-1 py-2 rounded-lg text-[10px] border transition-colors"
+                                            style={
+                                                duration === d.id
+                                                    ? { background: '#101114', color: '#fff', borderColor: '#101114' }
+                                                    : { background: '#fff', color: 'rgba(16,17,20,0.45)', borderColor: 'rgba(16,17,20,0.10)' }
+                                            }
+                                        >
+                                            {d.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={() => openEdit(dockedShortcut)}
+                                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
+                                >
+                                    <Pencil className="w-3 h-3" /> Ubah tujuan
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
                 </AnimatePresence>
             </div>
 
-            {/* ── RAIL ── */}
+            {/* ── REL: pilihan yang belum terpasang ── */}
             <div className="relative flex-1 min-h-0 flex flex-col justify-center">
                 <div
                     ref={railRef}
@@ -355,147 +524,91 @@ export default function SwitchPage() {
                 >
                     <div className="shrink-0" style={{ width: `${(1 - SLOT) * 50}%` }} />
 
-                    {cards.map((card, i) => {
+                    {railCards.map((card, i) => {
                         const isFocused = i === index
-                        const key = card.kind === 'shortcut' ? card.data.id : card.kind
+                        const key = idOf(card)
 
                         if (card.kind === 'add') {
                             return (
                                 <div key={key} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
                                     <motion.button
+                                        layout
                                         onClick={openNew}
                                         animate={{ scale: isFocused ? 1 : 0.94, opacity: isFocused ? 1 : 0.5 }}
-                                        transition={{ type: 'spring', stiffness: 260, damping: 30 }}
-                                        className="w-full rounded-[24px] border-2 border-dashed border-black/[0.14] bg-white/45 hover:bg-white/70 hover:border-black/25 transition-colors flex flex-col items-center justify-center gap-3 py-24"
+                                        transition={spring}
+                                        className="w-full rounded-[24px] border-2 border-dashed border-black/[0.14] bg-white/45 hover:bg-white/70 transition-colors flex flex-col items-center justify-center gap-3 py-20"
                                     >
                                         <span className="w-14 h-14 rounded-full bg-[#101114] text-white flex items-center justify-center">
                                             <Plus className="w-6 h-6" />
                                         </span>
                                         <span className="text-[15px] font-semibold">Tambah pintasan</span>
-                                        <span className="text-[11px] text-black/40 px-10 text-center leading-relaxed">
-                                            Tap buat nambah tujuan baru
-                                        </span>
+                                        <span className="text-[11px] text-black/40">Tap buat nambah tujuan baru</span>
                                     </motion.button>
                                 </div>
                             )
                         }
 
                         const shortcut = card.kind === 'shortcut' ? card.data : null
-                        const tile = TILES[shortcut ? (i - 1) % TILES.length : 0]
-                        const id = shortcut ? shortcut.id : 'profile'
-                        const isLive = liveId === id
-                        const img = imageOf(card)
-                        const label = shortcut ? shortcut.title : profile.display_name || profile.slug
-                        const landing = shortcut?.type ?? 'direct'
 
                         return (
                             <div key={key} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
                                 <motion.div
-                                    drag={isFocused && phase === 'idle' ? 'y' : false}
-                                    dragConstraints={{ top: -140, bottom: 0 }}
-                                    dragElastic={{ top: 0.55, bottom: 0 }}
-                                    onDragEnd={(_, info) => {
-                                        if (info.offset.y < APPLY_THRESHOLD) apply(card)
-                                    }}
-                                    animate={
-                                        phase !== 'idle' && isFocused
-                                            ? { y: -240, scale: 0.4, opacity: 0 }
-                                            : { y: 0, scale: isFocused ? 1 : 0.94, opacity: isFocused ? 1 : 0.5 }
-                                    }
-                                    transition={{ type: 'spring', stiffness: 260, damping: 30 }}
+                                    layout
+                                    drag={isFocused && !saving ? 'y' : false}
+                                    dragConstraints={{ top: -PULL_RANGE, bottom: 0 }}
+                                    dragElastic={{ top: 0.5, bottom: 0 }}
+                                    onDrag={onDrag}
+                                    onDragEnd={onDragEnd(card)}
+                                    animate={{ scale: isFocused ? 1 : 0.94, opacity: isFocused ? 1 : 0.5 }}
+                                    transition={spring}
                                     style={{ touchAction: 'pan-x' }}
-                                    className="cursor-grab active:cursor-grabbing"
+                                    className="bg-white rounded-[24px] p-2.5 pb-3 shadow-[0_18px_40px_rgba(16,17,20,0.13)] cursor-grab active:cursor-grabbing"
                                 >
-                                    <div
-                                        className="bg-white rounded-[24px] p-2.5 pb-3"
-                                        style={{
-                                            boxShadow: isFocused
-                                                ? '0 18px 40px rgba(16,17,20,0.13)'
-                                                : '0 8px 20px rgba(16,17,20,0.08)',
-                                        }}
-                                    >
-                                        <div
-                                            className="relative rounded-[18px] overflow-hidden flex items-center justify-center"
-                                            style={{ aspectRatio: shortcut ? '1 / 1' : '4 / 5', background: img ? '#EDEEF1' : tile.bg }}
-                                        >
-                                            {img ? (
-                                                <img
-                                                    src={img}
-                                                    alt=""
-                                                    className="w-full h-full object-cover"
-                                                    onError={() => shortcut && setBrokenImages((b) => ({ ...b, [shortcut.id]: true }))}
-                                                />
-                                            ) : (
-                                                <span className="text-[40px] font-bold tracking-tight" style={{ color: tile.ink }}>
-                                                    {label?.[0]?.toUpperCase() || '?'}
+                                    <Thumb
+                                        id={key}
+                                        src={imageOf(card)}
+                                        tileBg={tileFor(card).bg}
+                                        tileInk={tileFor(card).ink}
+                                        letter={titleOf(card)?.[0]?.toUpperCase() || '?'}
+                                        className="w-full aspect-[4/5]"
+                                        radius={18}
+                                        big
+                                        transition={spring}
+                                        onError={() => shortcut && setBrokenImages((b) => ({ ...b, [shortcut.id]: true }))}
+                                    />
+
+                                    <div className="px-2 pt-3">
+                                        <h2 className="text-lg font-bold tracking-tight leading-tight truncate">
+                                            {titleOf(card)}
+                                        </h2>
+                                        <div className="flex gap-1.5 mt-2">
+                                            <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55 truncate">
+                                                {subOf(card)}
+                                            </span>
+                                            {!shortcut && (
+                                                <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55">
+                                                    Kartu nama
                                                 </span>
                                             )}
+                                        </div>
 
-                                            {isLive && (
-                                                <span
-                                                    className="absolute top-2.5 left-2.5 bg-[#101114] text-white font-semibold rounded-full px-2.5 py-[5px] text-[9px] tracking-[0.16em]"
-                                                    style={{ fontFamily: mono }}
+                                        {shortcut && (
+                                            <div className="flex gap-1.5 mt-3">
+                                                <button
+                                                    onClick={() => openEdit(shortcut)}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
                                                 >
-                                                    DIPAKAI
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="px-2 pt-3">
-                                            <h2 className="text-lg font-bold tracking-tight leading-tight truncate">{label}</h2>
-
-                                            <div className="flex gap-1.5 mt-2">
-                                                <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55 truncate">
-                                                    {shortcut
-                                                        ? shortcut.siteName || hostOf(shortcut.url)
-                                                        : profile.job_title || profile.company || `@${profile.slug}`}
-                                                </span>
-                                                {!shortcut && (
-                                                    <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55">
-                                                        Kartu nama
-                                                    </span>
-                                                )}
+                                                    <Pencil className="w-3 h-3" /> Ubah
+                                                </button>
+                                                <button
+                                                    onClick={() => remove(shortcut)}
+                                                    aria-label={`Hapus ${shortcut.title}`}
+                                                    className="px-3 py-2 rounded-[10px] bg-[#F2F3F5] hover:bg-red-50 text-black/40 hover:text-red-500 transition-colors"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
                                             </div>
-
-                                            {shortcut && (
-                                                <>
-                                                    {/* Cara mendarat — pengunjung dilempar langsung, atau disambut dulu */}
-                                                    <div className="flex gap-1 mt-3 p-1 rounded-[11px] bg-[#F2F3F5]">
-                                                        {([
-                                                            { id: 'direct' as const, label: 'Langsung' },
-                                                            { id: 'intro' as const, label: 'Disambut' },
-                                                        ]).map((opt) => (
-                                                            <button
-                                                                key={opt.id}
-                                                                onClick={() => setLanding(shortcut, opt.id)}
-                                                                className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${landing === opt.id
-                                                                    ? 'bg-white text-[#101114] shadow-sm'
-                                                                    : 'text-black/40 hover:text-black/60'
-                                                                    }`}
-                                                            >
-                                                                {opt.label}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-
-                                                    <div className="flex gap-1.5 mt-2.5">
-                                                        <button
-                                                            onClick={() => openEdit(shortcut)}
-                                                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
-                                                        >
-                                                            <Pencil className="w-3 h-3" /> Ubah
-                                                        </button>
-                                                        <button
-                                                            onClick={() => remove(shortcut)}
-                                                            aria-label={`Hapus ${shortcut.title}`}
-                                                            className="px-3.5 py-2.5 rounded-[10px] bg-[#F2F3F5] hover:bg-red-50 text-black/40 hover:text-red-500 transition-colors"
-                                                        >
-                                                            <Trash2 className="w-3 h-3" />
-                                                        </button>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </div>
+                                        )}
                                     </div>
                                 </motion.div>
                             </div>
@@ -506,14 +619,14 @@ export default function SwitchPage() {
                 </div>
             </div>
 
-            {/* ── AKSI ── */}
+            {/* ── AJAKAN ── */}
             <div className="relative shrink-0 px-7 pt-1">
                 <div className="flex justify-center gap-1.5 mb-3">
-                    {cards.map((c, i) => (
+                    {railCards.map((c, i) => (
                         <button
-                            key={c.kind === 'shortcut' ? c.data.id : c.kind}
+                            key={idOf(c)}
                             onClick={() => scrollTo(i)}
-                            aria-label={`Kartu ${i + 1} dari ${cards.length}`}
+                            aria-label={`Kartu ${i + 1} dari ${railCards.length}`}
                             className="h-[5px] rounded-full transition-all"
                             style={{
                                 width: i === index ? 20 : 5,
@@ -523,40 +636,13 @@ export default function SwitchPage() {
                     ))}
                 </div>
 
-                <AnimatePresence mode="wait">
-                    {phase !== 'idle' ? (
-                        <motion.p
-                            key="applying"
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-10 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/45"
-                            style={{ fontFamily: mono }}
-                        >
-                            MEMASANG
-                        </motion.p>
-                    ) : focused?.kind === 'add' ? (
-                        <motion.p
-                            key="add"
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-10 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/35"
-                            style={{ fontFamily: mono }}
-                        >
+                <div className="h-11 flex items-center justify-center">
+                    {focused?.kind === 'add' ? (
+                        <p className="text-[10px] tracking-[0.2em] text-black/35" style={{ fontFamily: mono }}>
                             TAP KARTU BUAT NAMBAH
-                        </motion.p>
-                    ) : liveId === focusedId ? (
-                        <motion.p
-                            key="live"
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-10 flex items-center justify-center text-[10px] tracking-[0.2em] text-black/35"
-                            style={{ fontFamily: mono }}
-                        >
-                            SEDANG DIPAKAI
-                        </motion.p>
+                        </p>
                     ) : (
-                        <motion.div
-                            key="swipe"
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-10 flex flex-col items-center justify-center gap-0.5"
-                        >
+                        <motion.div style={{ opacity: hintFade }} className="flex flex-col items-center gap-0.5">
                             <div className="relative h-4 w-5">
                                 {[0, 1].map((n) => (
                                     <motion.div
@@ -574,39 +660,12 @@ export default function SwitchPage() {
                             </p>
                         </motion.div>
                     )}
-                </AnimatePresence>
-
-                <div className="h-10">
-                    <AnimatePresence>
-                        {focusedShortcut && phase === 'idle' && (
-                            <motion.div
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                className="flex gap-1.5"
-                            >
-                                {DURATIONS.map((d: any) => (
-                                    <button
-                                        key={d.id}
-                                        onClick={() => setDuration(d.id)}
-                                        className="flex-1 py-2.5 rounded-[11px] text-[11px] border transition-colors"
-                                        style={
-                                            duration === d.id
-                                                ? { background: '#101114', color: '#fff', borderColor: '#101114' }
-                                                : { background: 'rgba(255,255,255,0.6)', color: 'rgba(16,17,20,0.45)', borderColor: 'rgba(16,17,20,0.10)' }
-                                        }
-                                    >
-                                        {d.label}
-                                    </button>
-                                ))}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
                 </div>
 
-                {error && <p className="mt-1 text-center text-[11px] text-red-500">{error}</p>}
+                {error && <p className="text-center text-[11px] text-red-500">{error}</p>}
             </div>
 
-            {/* ── KEMBALI KE DASHBOARD — satu-satunya jalan keluar dari halaman ini ── */}
-            <div className="relative shrink-0 px-4 pt-2 pb-4">
+            <div className="relative shrink-0 px-4 pt-1 pb-4">
                 <Link
                     href="/dashboard"
                     className="flex items-center justify-center gap-2 py-3.5 rounded-3xl bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.1)] text-zinc-600 hover:text-zinc-900 transition-colors"
