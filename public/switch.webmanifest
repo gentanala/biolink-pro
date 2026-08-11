@@ -5,8 +5,8 @@
     "start_url": "/switch",
     "scope": "/",
     "display": "standalone",
-    "background_color": "#09090A",
-    "theme_color": "#09090A",
+    "background_color": "#F1F2F4",
+    "theme_color": "#F1F2F4",
     "icons": [
         {
             "src": "/logo.png",
