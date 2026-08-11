@@ -12,7 +12,6 @@ import {
     LogOut,
     CreditCard,
     ExternalLink,
-    Bot,
     BarChart3
 } from 'lucide-react'
 import PhonePreview from '@/components/dashboard/PhonePreview'
@@ -25,7 +24,8 @@ const navItems = [
     { href: '/dashboard/profile', icon: User, label: 'Edit Profil' },
     { href: '/dashboard/links', icon: Link2, label: 'Atur Link' },
     { href: '/dashboard/appearance', icon: Palette, label: 'Tampilan' },
-    { href: '/dashboard/ai-assistant', icon: Bot, label: 'AI Assistant', feature: 'ai_content' },
+    // AI Assistant disembunyikan dulu. Halamannya masih ada di
+    // /dashboard/ai-assistant — tinggal kembalikan barisnya kalau mau dipakai lagi.
 ]
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
