@@ -87,6 +87,68 @@ function Thumb({
     )
 }
 
+
+// Isi kartu. Dipakai kartu di rel maupun salinan yang terbang, supaya keduanya
+// benar-benar identik dan perpindahannya tidak terlihat sebagai penggantian.
+function CardFace({
+    card, title, sub, img, tile, onEdit, onRemove, onBrokenImage,
+}: {
+    card: Card
+    title: string
+    sub: string
+    img?: string | null
+    tile: { bg: string; ink: string }
+    onEdit?: () => void
+    onRemove?: () => void
+    onBrokenImage?: () => void
+}) {
+    const isShortcut = card.kind === 'shortcut'
+    return (
+        <>
+            <Thumb
+                src={img}
+                tileBg={tile.bg}
+                tileInk={tile.ink}
+                letter={title?.[0]?.toUpperCase() || '?'}
+                className="w-full aspect-[4/5]"
+                radius={18}
+                big
+                onError={onBrokenImage}
+            />
+            <div className="px-2 pt-3">
+                <h2 className="text-lg font-bold tracking-tight leading-tight truncate">{title}</h2>
+                <div className="flex gap-1.5 mt-2">
+                    <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55 truncate">
+                        {sub}
+                    </span>
+                    {!isShortcut && (
+                        <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55">
+                            Kartu nama
+                        </span>
+                    )}
+                </div>
+                {isShortcut && onEdit && onRemove && (
+                    <div className="flex gap-1.5 mt-3">
+                        <button
+                            onClick={onEdit}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
+                        >
+                            <Pencil className="w-3 h-3" /> Ubah
+                        </button>
+                        <button
+                            onClick={onRemove}
+                            aria-label={`Hapus ${title}`}
+                            className="px-3 py-2 rounded-[10px] bg-[#F2F3F5] hover:bg-red-50 text-black/40 hover:text-red-500 transition-colors"
+                        >
+                            <Trash2 className="w-3 h-3" />
+                        </button>
+                    </div>
+                )}
+            </div>
+        </>
+    )
+}
+
 export default function SwitchPage() {
     const router = useRouter()
     const supabase = createClient()
@@ -104,6 +166,11 @@ export default function SwitchPage() {
     // Kartu yang sedang disedot ke atas. Selama ini terisi, kartunya masih
     // dirender utuh supaya bisa dianimasikan lenyap sebelum jadi bekas.
     const [sucking, setSucking] = useState<string | null>(null)
+    // Salinan kartu yang sedang terbang. Dirender lepas dari rel supaya tidak
+    // terpotong batas gulir — potongan itu yang tampak seperti garis.
+    const [flight, setFlight] = useState<
+        { card: Card; left: number; top: number; width: number; height: number; dy: number } | null
+    >(null)
     const [error, setError] = useState<string | null>(null)
     const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({})
 
@@ -114,6 +181,8 @@ export default function SwitchPage() {
     const [fetchingPreview, setFetchingPreview] = useState(false)
 
     const railRef = useRef<HTMLDivElement>(null)
+    const mouthRef = useRef<HTMLDivElement>(null)
+    const focusedCardRef = useRef<HTMLDivElement>(null)
     const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const slotWidth = () => (railRef.current?.clientWidth ?? 0) * SLOT
 
@@ -127,6 +196,8 @@ export default function SwitchPage() {
     const suckGlow = useTransform(pull, [0, PULL_RANGE], [0, 1])
     const suckScale = useTransform(pull, [0, PULL_RANGE], [0.8, 1.35])
     const dustSpeed = useTransform(pull, [0, PULL_RANGE], [0, 1])
+    // Kartu sudah menyusut sambil ditarik, bukan cuma pas dilepas.
+    const dragShrink = useTransform(pull, [0, PULL_RANGE], [1, 0.74])
 
     // Urutan tetap. Kartu yang sedang terpasang diangkat ke slot, sisanya di rel.
     const order: Card[] = [
@@ -223,14 +294,21 @@ export default function SwitchPage() {
 
     // Lepas kartu ke atas: kartunya disedot sampai lenyap, lalu yang tersisa di
     // rel cuma bekasnya. Kartu yang tadi terpasang muncul kembali utuh.
-    const suck = async (card: Card) => {
+    const suck = (card: Card, cardEl: HTMLElement | null) => {
         if (saving || sucking || card.kind === 'add') return
-        const previous = liveId
-        const nextLive = idOf(card)
-        if (nextLive === previous) return
+        if (idOf(card) === liveId) return
 
-        setSucking(nextLive)
+        const mouth = mouthRef.current?.getBoundingClientRect()
+        const rect = cardEl?.getBoundingClientRect()
+        if (!mouth || !rect) return
+
+        // Jarak tempuh dihitung sampai titik tengah mulut, jadi kartunya benar-benar
+        // masuk ke tandanya — bukan sekadar naik keluar layar.
+        const dy = (mouth.top + mouth.height / 2) - (rect.top + rect.height / 2)
+
+        setSucking(idOf(card))
         setSaving(true)
+        setFlight({ card, left: rect.left, top: rect.top, width: rect.width, height: rect.height, dy })
     }
 
     // Dipanggil setelah animasi sedot selesai — baru di sini kartunya jadi bekas.
@@ -238,6 +316,7 @@ export default function SwitchPage() {
         const nextLive = idOf(card)
         const previous = liveId
 
+        setFlight(null)
         setLiveId(nextLive)
         setSucking(null)
         setRipple((n) => n + 1)
@@ -250,7 +329,7 @@ export default function SwitchPage() {
     const onDrag = (_: unknown, info: PanInfo) => pull.set(Math.max(0, -info.offset.y))
     const onDragEnd = (card: Card) => (_: unknown, info: PanInfo) => {
         pull.set(0)
-        if (-info.offset.y >= APPLY_THRESHOLD) suck(card)
+        if (-info.offset.y >= APPLY_THRESHOLD) suck(card, focusedCardRef.current)
     }
 
     const onScroll = () => {
@@ -414,6 +493,7 @@ export default function SwitchPage() {
 
                 {/* Bibir lubang */}
                 <motion.div
+                    ref={mouthRef}
                     className="relative w-[104px] h-[46px]"
                     style={{ scale: suckScale }}
                 >
@@ -571,72 +651,38 @@ export default function SwitchPage() {
                         return (
                             <div key={key} className="shrink-0 snap-center px-[7px]" style={{ width: `${SLOT * 100}%` }}>
                                 <motion.div
+                                    ref={isFocused ? focusedCardRef : undefined}
                                     layout
                                     drag={isFocused && !saving ? 'y' : false}
                                     dragConstraints={{ top: -PULL_RANGE, bottom: 0 }}
                                     dragElastic={{ top: 0.5, bottom: 0 }}
                                     onDrag={onDrag}
                                     onDragEnd={onDragEnd(card)}
-                                    // Disedot: mengecil sambil melesat ke mulut di atas.
-                                    // easeIn, bukan spring — dipercepat menjelang lubang.
-                                    animate={
-                                        isSucking
-                                            ? { y: -460, scale: 0.04, opacity: 0, rotate: -4 }
-                                            : { y: 0, scale: isFocused ? 1 : 0.94, opacity: isFocused ? 1 : 0.5, rotate: 0 }
-                                    }
-                                    transition={
-                                        isSucking
-                                            ? { duration: reduceMotion ? 0 : 0.52, ease: [0.55, 0, 0.85, 0.35] }
-                                            : spring
-                                    }
-                                    onAnimationComplete={() => { if (isSucking) finishSuck(card) }}
-                                    style={{ touchAction: 'pan-x', transformOrigin: 'top center' }}
-                                    className="bg-white rounded-[24px] p-2.5 pb-3 shadow-[0_18px_40px_rgba(16,17,20,0.13)] cursor-grab active:cursor-grabbing"
+                                    animate={{
+                                        y: 0,
+                                        scale: isFocused ? 1 : 0.94,
+                                        opacity: isSucking ? 0 : isFocused ? 1 : 0.5,
+                                    }}
+                                    transition={isSucking ? { duration: 0 } : spring}
+                                    style={{ touchAction: 'pan-x' }}
+                                    className="cursor-grab active:cursor-grabbing"
                                 >
-                                    <Thumb
-                                        src={imageOf(card)}
-                                        tileBg={tileFor(card).bg}
-                                        tileInk={tileFor(card).ink}
-                                        letter={titleOf(card)?.[0]?.toUpperCase() || '?'}
-                                        className="w-full aspect-[4/5]"
-                                        radius={18}
-                                        big
-                                        onError={() => shortcut && setBrokenImages((b) => ({ ...b, [shortcut.id]: true }))}
-                                    />
-
-                                    <div className="px-2 pt-3">
-                                        <h2 className="text-lg font-bold tracking-tight leading-tight truncate">
-                                            {titleOf(card)}
-                                        </h2>
-                                        <div className="flex gap-1.5 mt-2">
-                                            <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55 truncate">
-                                                {subOf(card)}
-                                            </span>
-                                            {!shortcut && (
-                                                <span className="text-[10px] px-2.5 py-1 rounded-full border border-black/[0.11] text-black/55">
-                                                    Kartu nama
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {shortcut && (
-                                            <div className="flex gap-1.5 mt-3">
-                                                <button
-                                                    onClick={() => openEdit(shortcut)}
-                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
-                                                >
-                                                    <Pencil className="w-3 h-3" /> Ubah
-                                                </button>
-                                                <button
-                                                    onClick={() => remove(shortcut)}
-                                                    aria-label={`Hapus ${shortcut.title}`}
-                                                    className="px-3 py-2 rounded-[10px] bg-[#F2F3F5] hover:bg-red-50 text-black/40 hover:text-red-500 transition-colors"
-                                                >
-                                                    <Trash2 className="w-3 h-3" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
+                                    {/* Lapis dalam: menyusut seiring jari naik */}
+                                    <motion.div
+                                        style={{ scale: isFocused ? dragShrink : 1, transformOrigin: 'center' }}
+                                        className="bg-white rounded-[24px] p-2.5 pb-3 shadow-[0_18px_40px_rgba(16,17,20,0.13)]"
+                                    >
+                                        <CardFace
+                                            card={card}
+                                            title={titleOf(card)}
+                                            sub={subOf(card)}
+                                            img={imageOf(card)}
+                                            tile={tileFor(card)}
+                                            onEdit={shortcut ? () => openEdit(shortcut) : undefined}
+                                            onRemove={shortcut ? () => remove(shortcut) : undefined}
+                                            onBrokenImage={() => shortcut && setBrokenImages((b) => ({ ...b, [shortcut.id]: true }))}
+                                        />
+                                    </motion.div>
                                 </motion.div>
                             </div>
                         )
@@ -702,6 +748,43 @@ export default function SwitchPage() {
                     <span className="text-[13px] font-semibold">Dashboard</span>
                 </Link>
             </div>
+
+            {/* Salinan kartu yang tersedot. Dirender fixed di atas segalanya supaya
+                tidak terpotong batas gulir rel, dan mengecil ke titik tengah — bukan
+                ke sisi atasnya, yang bikin kartunya gepeng jadi garis. */}
+            <AnimatePresence>
+                {flight && (
+                    <motion.div
+                        key="flight"
+                        className="fixed z-40 pointer-events-none"
+                        style={{
+                            left: flight.left,
+                            top: flight.top,
+                            width: flight.width,
+                            height: flight.height,
+                            transformOrigin: 'center center',
+                        }}
+                        initial={{ y: 0, scale: 0.74, opacity: 1 }}
+                        animate={{ y: flight.dy, scale: 0.02, opacity: [1, 1, 0.85, 0] }}
+                        transition={{
+                            duration: reduceMotion ? 0 : 0.5,
+                            ease: [0.5, 0, 0.75, 0.2],
+                            opacity: { times: [0, 0.55, 0.85, 1], duration: reduceMotion ? 0 : 0.5 },
+                        }}
+                        onAnimationComplete={() => finishSuck(flight.card)}
+                    >
+                        <div className="bg-white rounded-[24px] p-2.5 pb-3 shadow-[0_18px_40px_rgba(16,17,20,0.13)]">
+                            <CardFace
+                                card={flight.card}
+                                title={titleOf(flight.card)}
+                                sub={subOf(flight.card)}
+                                img={imageOf(flight.card)}
+                                tile={tileFor(flight.card)}
+                            />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ── FORM ── */}
             <AnimatePresence>
