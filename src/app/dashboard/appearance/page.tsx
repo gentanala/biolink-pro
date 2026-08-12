@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { motion } from 'framer-motion'
 import {
     Palette,
     Check,
@@ -15,6 +14,7 @@ import {
 } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/client'
+import DesktopPreview from '@/components/dashboard/DesktopPreview'
 
 const COLORS = [
     { name: 'Blue', value: '#3B82F6', class: 'bg-blue-500' },
@@ -155,193 +155,173 @@ export default function AppearancePage() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold mb-2 text-zinc-900">Tampilan</h1>
-                <p className="text-zinc-500">
-                    Kustomisasi warna, tema, dan filter profil Anda.
-                    <span className="hidden xl:inline"> Perubahan langsung terlihat di Live Preview →</span>
-                </p>
-            </div>
+        <div className="mx-auto flex max-w-[1200px] gap-8 px-5 pb-[150px] pt-6">
+          <div className="min-w-0 flex-1">
+            <header>
+                <h1 className="text-[26px] font-semibold tracking-[-0.03em]">Tampilan</h1>
+                <p className="mt-1.5 text-[13px] text-ink-2">Atur warna, tema, dan filter foto kartu publik kamu</p>
+            </header>
 
-            <div className="space-y-8">
-                {/* Theme Mode */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass rounded-3xl p-8"
-                >
-                    <div className="flex items-center gap-3 mb-6">
+            {/* Tema kartu publik */}
+            <section className="mt-5 rounded-card bg-surface p-5 shadow-card">
+                <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle text-ink-2">
                         {themeMode === 'dark' ? (
-                            <Moon className="w-5 h-5 text-blue-400" />
+                            <Moon className="h-[18px] w-[18px]" strokeWidth={1.8} />
                         ) : themeMode === 'liquid_glass' ? (
-                            <Sparkles className="w-5 h-5 text-cyan-400" />
+                            <Sparkles className="h-[18px] w-[18px]" strokeWidth={1.8} />
                         ) : (
-                            <Sun className="w-5 h-5 text-amber-400" />
+                            <Sun className="h-[18px] w-[18px]" strokeWidth={1.8} />
                         )}
-                        <h2 className="text-lg font-semibold text-zinc-900">Tema Tampilan</h2>
+                    </span>
+                    <div>
+                        <h2 className="text-[15px] font-semibold">Tema Kartu</h2>
+                        <p className="text-[12px] text-ink-2">Nuansa halaman publik kamu</p>
                     </div>
+                </div>
 
-                    <div className="grid grid-cols-3 bg-zinc-100 p-1 rounded-xl border border-zinc-200 gap-1">
-                        <button
-                            onClick={() => handleThemeModeChange('dark')}
-                            disabled={userTier === 'FREE'}
-                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'dark'
-                                ? 'bg-zinc-800 text-white shadow-sm'
-                                : userTier === 'FREE' ? 'text-zinc-300 cursor-not-allowed hidden' : 'text-zinc-400 hover:text-zinc-600'
-                                }`}
-                        >
-                            <Moon className="w-4 h-4" />
-                            Dark
-                        </button>
-                        <button
-                            onClick={() => handleThemeModeChange('light')}
-                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'light'
-                                ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200'
-                                : 'text-zinc-400 hover:text-zinc-600'
-                                }`}
-                        >
-                            <Sun className="w-4 h-4" />
-                            Light
-                        </button>
-                        <button
-                            onClick={() => handleThemeModeChange('liquid_glass')}
-                            disabled={userTier === 'FREE'}
-                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 ${themeMode === 'liquid_glass'
-                                ? 'bg-gradient-to-r from-cyan-50 to-blue-50 text-cyan-700 shadow-sm border border-cyan-200'
-                                : userTier === 'FREE' ? 'text-zinc-300 cursor-not-allowed hidden' : 'text-zinc-400 hover:text-zinc-600'
-                                }`}
-                        >
-                            <Sparkles className="w-4 h-4" />
-                            {userTier === 'FREE' ? <div className="flex items-center gap-1">Glass <span className="text-[10px] bg-amber-100 text-amber-600 px-1 rounded">PRO</span></div> : 'Glass'}
-                        </button>
-                        {userTier === 'FREE' && (
-                            <div className="flex items-center justify-center text-xs text-amber-600 font-medium bg-amber-50 rounded-lg border border-amber-100 col-span-2">
-                                Upgrade to unlock Dark & Glass
-                            </div>
-                        )}
-                    </div>
-
-                    {themeMode === 'liquid_glass' && (
-                        <p className="text-xs text-cyan-600 mt-3 font-medium">✨ Efek kaca transparan cembung — terlihat terbaik dengan foto profil</p>
-                    )}
-                </motion.section>
-
-                {/* Image Filter */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 }}
-                    className="glass rounded-3xl p-8"
-                >
-                    <div className="flex items-center gap-3 mb-6">
-                        <ImageIcon className="w-5 h-5 text-emerald-400" />
-                        <h2 className="text-lg font-semibold text-zinc-900">Filter Foto</h2>
-                    </div>
-
-                    <div className="flex bg-zinc-100 p-1 rounded-xl border border-zinc-200 relative overflow-hidden">
-                        <button
-                            onClick={() => handleImageFilterChange('normal')}
-                            className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'normal'
-                                ? 'bg-white text-zinc-900 shadow-sm'
-                                : 'text-zinc-400 hover:text-zinc-600'
-                                }`}
-                        >
-                            Normal
-                        </button>
-                        <button
-                            onClick={() => handleImageFilterChange('grayscale')}
-                            disabled={userTier === 'FREE'}
-                            className={`flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all ${imageFilter === 'grayscale'
-                                ? 'bg-white text-zinc-900 shadow-sm'
-                                : userTier === 'FREE' ? 'text-zinc-300 cursor-not-allowed' : 'text-zinc-400 hover:text-zinc-600'
-                                }`}
-                        >
-                            {userTier === 'FREE' ? <span className="flex items-center gap-1 justify-center">B&W <span className="text-[10px] bg-amber-100 text-amber-600 px-1 rounded">PRO</span></span> : 'B&W'}
-                        </button>
-                    </div>
-                </motion.section>
-
-                {/* Primary Color */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="glass rounded-3xl p-8"
-                >
-                    <div className="flex items-center gap-3 mb-4">
-                        <Palette className="w-5 h-5 text-blue-400" />
-                        <h2 className="text-lg font-semibold text-zinc-900">Warna Utama</h2>
-                    </div>
-                    <p className="text-xs text-zinc-500 mb-6">Warna ini akan digunakan pada tombol-tombol di halaman publik Anda</p>
-
-                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-4">
-                        {COLORS.map((color) => (
-                            <button
-                                key={color.value}
-                                onClick={() => handleColorChange(color.value)}
-                                disabled={userTier === 'FREE' && color.value !== '#3B82F6'}
-                                className={`w-full aspect-square rounded-2xl flex items-center justify-center transition-all ring-offset-4 ring-offset-white ${color.class
-                                    } ${primaryColor === color.value ? 'ring-2 ring-zinc-900 scale-110' : 'hover:scale-105'} ${userTier === 'FREE' && color.value !== '#3B82F6' ? 'opacity-20 cursor-not-allowed grayscale' : ''
-                                    }`}
-                            >
-                                {primaryColor === color.value && <Check className="w-5 h-5 text-white" />}
-                                {userTier === 'FREE' && color.value !== '#3B82F6' && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-
-                                    </div>
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                    {userTier === 'FREE' && (
-                        <p className="text-xs text-amber-600 mt-4 text-center bg-amber-50 py-2 rounded-lg border border-amber-100">
-                            Upgrade ke Premium untuk membuka semua warna!
-                        </p>
-                    )}
-                </motion.section>
-
-
-
-                {/* Typography placeholder */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="glass rounded-3xl p-8"
-                >
-                    <div className="flex items-center gap-3 mb-6">
-                        <Type className="w-5 h-5 text-pink-400" />
-                        <h2 className="text-lg font-semibold text-zinc-900">Tipografi (Coming Soon)</h2>
-                    </div>
-                    <div className="p-12 text-center border-2 border-dashed border-zinc-200 rounded-2xl">
-                        <p className="text-zinc-400">Fitur pilihan font akan segera hadir</p>
-                    </div>
-                </motion.section>
-
-                {/* Save Bar */}
-                <div className="sticky bottom-6 flex justify-center">
+                <div className="mt-4 grid grid-cols-3 gap-1 rounded-full bg-fill-subtle p-1">
                     <button
-                        onClick={handleSave}
-                        disabled={isLoading}
-                        className="btn-gradient px-12 py-4 rounded-2xl text-white font-bold shadow-2xl shadow-blue-500/30 flex items-center gap-3 active:scale-95 transition-all"
+                        onClick={() => handleThemeModeChange('light')}
+                        className={`flex items-center justify-center gap-1.5 rounded-full py-2.5 text-[12.5px] font-medium transition-colors ${themeMode === 'light' ? 'bg-ink text-white' : 'text-ink-2 hover:text-ink'
+                            }`}
                     >
-                        {isLoading ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : isSaved ? (
-                            <>
-                                <Check className="w-5 h-5" />
-                                Tersimpan!
-                            </>
-                        ) : (
-                            <>
-                                <Save className="w-5 h-5" />
-                                Simpan Tampilan
-                            </>
-                        )}
+                        <Sun className="h-4 w-4" strokeWidth={1.8} />
+                        Terang
+                    </button>
+                    <button
+                        onClick={() => handleThemeModeChange('dark')}
+                        disabled={userTier === 'FREE'}
+                        className={`flex items-center justify-center gap-1.5 rounded-full py-2.5 text-[12.5px] font-medium transition-colors ${themeMode === 'dark' ? 'bg-ink text-white' : userTier === 'FREE' ? 'cursor-not-allowed text-ink-3' : 'text-ink-2 hover:text-ink'
+                            }`}
+                    >
+                        <Moon className="h-4 w-4" strokeWidth={1.8} />
+                        Gelap
+                    </button>
+                    <button
+                        onClick={() => handleThemeModeChange('liquid_glass')}
+                        disabled={userTier === 'FREE'}
+                        className={`flex items-center justify-center gap-1.5 rounded-full py-2.5 text-[12.5px] font-medium transition-colors ${themeMode === 'liquid_glass' ? 'bg-ink text-white' : userTier === 'FREE' ? 'cursor-not-allowed text-ink-3' : 'text-ink-2 hover:text-ink'
+                            }`}
+                    >
+                        <Sparkles className="h-4 w-4" strokeWidth={1.8} />
+                        Kaca
                     </button>
                 </div>
+
+                {userTier === 'FREE' && (
+                    <p className="mt-3 rounded-row bg-coral-soft px-3 py-2 text-center text-[11.5px] font-medium text-coral-soft-ink">
+                        Tema Gelap & Kaca terbuka di paket Premium
+                    </p>
+                )}
+                {themeMode === 'liquid_glass' && (
+                    <p className="mt-3 text-[11.5px] text-ink-2">Efek kaca transparan — paling bagus kalau foto profil kamu terang</p>
+                )}
+            </section>
+
+            {/* Filter foto */}
+            <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
+                <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle text-ink-2">
+                        <ImageIcon className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                    </span>
+                    <div>
+                        <h2 className="text-[15px] font-semibold">Filter Foto</h2>
+                        <p className="text-[12px] text-ink-2">Gaya foto profil di kartu publik</p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-1 rounded-full bg-fill-subtle p-1">
+                    <button
+                        onClick={() => handleImageFilterChange('normal')}
+                        className={`rounded-full py-2.5 text-[12.5px] font-medium transition-colors ${imageFilter === 'normal' ? 'bg-ink text-white' : 'text-ink-2 hover:text-ink'
+                            }`}
+                    >
+                        Normal
+                    </button>
+                    <button
+                        onClick={() => handleImageFilterChange('grayscale')}
+                        disabled={userTier === 'FREE'}
+                        className={`rounded-full py-2.5 text-[12.5px] font-medium transition-colors ${imageFilter === 'grayscale' ? 'bg-ink text-white' : userTier === 'FREE' ? 'cursor-not-allowed text-ink-3' : 'text-ink-2 hover:text-ink'
+                            }`}
+                    >
+                        Hitam Putih{userTier === 'FREE' ? ' · Premium' : ''}
+                    </button>
+                </div>
+            </section>
+
+            {/* Warna utama */}
+            <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
+                <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle text-ink-2">
+                        <Palette className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                    </span>
+                    <div>
+                        <h2 className="text-[15px] font-semibold">Warna Utama</h2>
+                        <p className="text-[12px] text-ink-2">Dipakai buat tombol di halaman publik</p>
+                    </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-4 gap-3 sm:grid-cols-8">
+                    {COLORS.map((color) => (
+                        <button
+                            key={color.value}
+                            onClick={() => handleColorChange(color.value)}
+                            disabled={userTier === 'FREE' && color.value !== '#3B82F6'}
+                            aria-label={`Warna ${color.value}`}
+                            className={`flex aspect-square w-full items-center justify-center rounded-2xl transition-transform ${color.class} ${primaryColor === color.value ? 'ring-2 ring-ink ring-offset-2 ring-offset-surface' : 'hover:scale-105'
+                                } ${userTier === 'FREE' && color.value !== '#3B82F6' ? 'cursor-not-allowed opacity-20 grayscale' : ''}`}
+                        >
+                            {primaryColor === color.value && <Check className="h-5 w-5 text-white" strokeWidth={2.2} />}
+                        </button>
+                    ))}
+                </div>
+
+                {userTier === 'FREE' && (
+                    <p className="mt-4 rounded-row bg-coral-soft px-3 py-2 text-center text-[11.5px] font-medium text-coral-soft-ink">
+                        Upgrade ke Premium buat buka semua warna
+                    </p>
+                )}
+            </section>
+
+            {/* Tipografi — belum tersedia */}
+            <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
+                <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle text-ink-3">
+                        <Type className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                    </span>
+                    <div>
+                        <h2 className="text-[15px] font-semibold text-ink-2">Pilihan Font</h2>
+                        <p className="text-[12px] text-ink-3">Segera hadir</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Tombol simpan */}
+            <div className="sticky bottom-[110px] mt-5 flex justify-center">
+                <button
+                    onClick={handleSave}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 rounded-full bg-ink px-8 py-3.5 text-[13px] font-medium text-white shadow-ink transition-transform active:scale-[0.98]"
+                >
+                    {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : isSaved ? (
+                        <>
+                            <Check className="h-4 w-4" strokeWidth={2} />
+                            Tersimpan
+                        </>
+                    ) : (
+                        <>
+                            <Save className="h-4 w-4" strokeWidth={1.8} />
+                            Simpan Tampilan
+                        </>
+                    )}
+                </button>
             </div>
+          </div>
+
+            <DesktopPreview />
         </div>
     )
 }

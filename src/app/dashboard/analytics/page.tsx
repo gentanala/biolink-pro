@@ -4,33 +4,27 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import {
-    BarChart3,
     TrendingUp,
     Users,
     MousePointer2,
-    Calendar,
-    ArrowUpRight,
-    ArrowDownRight,
     Download,
     Loader2,
     Eye,
     MessageSquare,
     Phone,
     Mail,
-    CheckCircle2,
     Clock,
-    XCircle,
     ArrowUpDown
 } from 'lucide-react'
 import PremiumLock from '@/components/dashboard/PremiumLock'
 import { useTier } from '@/app/dashboard/tier-context'
 
-// Helper for status colors
+// Warna label status — memakai token hangat yang sama dengan beranda.
 const getStatusColor = (status: string) => {
     switch (status) {
-        case 'contacted': return 'bg-orange-100 text-orange-700 border-orange-200'
-        case 'converted': return 'bg-green-100 text-green-700 border-green-200'
-        default: return 'bg-blue-100 text-blue-700 border-blue-200'
+        case 'contacted': return 'bg-coral-soft text-coral-soft-ink'
+        case 'converted': return 'bg-success-soft text-success-soft-ink'
+        default: return 'bg-fill-subtle text-ink-2'
     }
 }
 
@@ -296,318 +290,274 @@ export default function AnalyticsPage() {
             featureName="Analytics & Leads"
             description="Unlock detailed visitor insights, lead capture forms, and traffic charts."
         >
-            <div className="max-w-6xl mx-auto space-y-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-zinc-900 mb-2">Analytics</h1>
-                        <p className="text-zinc-500">Track your profile performance and leads</p>
-                    </div>
-                    <div className="flex bg-white rounded-lg p-1 border border-zinc-200">
-                        {['7d', '30d', '90d'].map((range) => (
-                            <button
-                                key={range}
-                                onClick={() => setDateRange(range)}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${dateRange === range
-                                    ? 'bg-zinc-900 text-white shadow-sm'
-                                    : 'text-zinc-500 hover:text-zinc-900'
-                                    }`}
-                            >
-                                Last {range.replace('d', ' Days')}
-                            </button>
-                        ))}
-                    </div>
+            <div className="mx-auto max-w-[1200px] px-5 pb-[150px] pt-6">
+                <header>
+                    <h1 className="text-[26px] font-semibold tracking-[-0.03em]">Statistik</h1>
+                    <p className="mt-1.5 text-[13px] text-ink-2">Pantau performa kartu digital dan calon pelanggan kamu</p>
+                </header>
+
+                {/* Rentang waktu */}
+                <div className="mt-5 grid grid-cols-3 gap-1 rounded-full bg-surface p-1 shadow-row">
+                    {['7d', '30d', '90d'].map((range) => (
+                        <button
+                            key={range}
+                            onClick={() => setDateRange(range)}
+                            className={`rounded-full py-2.5 text-[12.5px] font-medium transition-colors ${dateRange === range ? 'bg-ink text-white' : 'text-ink-2 hover:text-ink'
+                                }`}
+                        >
+                            {range.replace('d', ' hari')}
+                        </button>
+                    ))}
                 </div>
 
-                {/* Lead Capture Settings Card */}
-                <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6 transition-all">
+                {/* Formulir penangkap calon pelanggan */}
+                <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
                     <div className="flex items-start gap-4">
-                        <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 transition-colors ${leadCaptureEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500'}`}>
-                            <Users className="w-6 h-6" />
-                        </div>
-                        <div className="space-y-4 w-full">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-semibold text-zinc-900 text-lg">Lead Capture Form</h3>
-                                    {leadCaptureEnabled && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Active</span>}
-                                </div>
-                                <p className="text-sm text-zinc-500">Collect visitor contact info (Name, WhatsApp, Email) on your public profile</p>
-                            </div>
-
-                            {/* Delay Slider */}
-                            {leadCaptureEnabled && (
-                                <div className="bg-zinc-50 p-4 rounded-xl max-w-sm space-y-3 border border-zinc-100">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="font-medium text-zinc-700 flex items-center gap-2">
-                                            <Clock className="w-4 h-4 text-zinc-400" />
-                                            Popup Delay
-                                        </span>
-                                        <span className="bg-white px-2 py-0.5 rounded border border-zinc-200 text-zinc-600 font-mono text-xs">
-                                            {leadCaptureDelay}s
-                                        </span>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="15"
-                                        step="1"
-                                        value={leadCaptureDelay}
-                                        onChange={(e) => setLeadCaptureDelay(parseInt(e.target.value))}
-                                        onMouseUp={(e) => saveDelaySettings(parseInt((e.target as HTMLInputElement).value))}
-                                        onTouchEnd={(e) => saveDelaySettings(parseInt((e.target as HTMLInputElement).value))}
-                                        className="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900 hover:accent-zinc-700 transition-all"
-                                    />
-                                    <div className="flex justify-between text-[10px] text-zinc-400 font-medium px-0.5">
-                                        <span>Fast (1s)</span>
-                                        <span>Slow (15s)</span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-4 md:pt-0 border-zinc-100 w-full md:w-auto">
-                        <span className="text-sm font-medium text-zinc-700 md:hidden">
-                            Enable Feature
+                        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${leadCaptureEnabled ? 'bg-success-soft text-success-soft-ink' : 'bg-fill-subtle text-ink-2'}`}>
+                            <Users className="h-5 w-5" strokeWidth={1.8} />
                         </span>
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-[15px] font-semibold">Formulir Kontak</h3>
+                                {leadCaptureEnabled && (
+                                    <span className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-success-soft-ink">
+                                        Aktif
+                                    </span>
+                                )}
+                            </div>
+                            <p className="mt-1 text-[12.5px] leading-snug text-ink-2">
+                                Kumpulkan nama, WhatsApp, dan email pengunjung dari kartu publik kamu
+                            </p>
+                        </div>
                         <button
                             onClick={toggleLeadCapture}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${leadCaptureEnabled ? 'bg-emerald-500' : 'bg-zinc-200'}`}
+                            aria-label="Aktifkan formulir kontak"
+                            className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors ${leadCaptureEnabled ? 'bg-ink' : 'bg-track'}`}
                         >
-                            <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${leadCaptureEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
+                            <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-row transition-transform ${leadCaptureEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
                         </button>
                     </div>
-                </div>
+
+                    {/* Jeda munculnya formulir */}
+                    {leadCaptureEnabled && (
+                        <div className="mt-4 rounded-row bg-fill-subtle p-4">
+                            <div className="flex items-center justify-between">
+                                <span className="flex items-center gap-2 text-[12.5px] font-medium text-ink-2">
+                                    <Clock className="h-4 w-4 text-ink-3" strokeWidth={1.8} />
+                                    Muncul setelah
+                                </span>
+                                <span
+                                    className="rounded-full bg-surface px-2.5 py-1 text-[11px] text-ink-2"
+                                    style={{ fontFamily: 'var(--font-mono)' }}
+                                >
+                                    {leadCaptureDelay}s
+                                </span>
+                            </div>
+                            <input
+                                type="range"
+                                min="1"
+                                max="15"
+                                step="1"
+                                value={leadCaptureDelay}
+                                onChange={(e) => setLeadCaptureDelay(parseInt(e.target.value))}
+                                onMouseUp={(e) => saveDelaySettings(parseInt((e.target as HTMLInputElement).value))}
+                                onTouchEnd={(e) => saveDelaySettings(parseInt((e.target as HTMLInputElement).value))}
+                                className="mt-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-track accent-ink"
+                            />
+                            <div className="mt-2 flex justify-between text-[10px] text-ink-3">
+                                <span>Cepat (1 detik)</span>
+                                <span>Lambat (15 detik)</span>
+                            </div>
+                        </div>
+                    )}
+                </section>
 
                 {loading ? (
-                    <div className="h-64 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+                    <div className="flex h-64 items-center justify-center">
+                        <Loader2 className="h-7 w-7 animate-spin text-ink-3" />
                     </div>
                 ) : (
                     <>
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <StatsCard
-                                title="Total Views"
-                                value={stats.totalViews}
-                                icon={<Eye className="w-5 h-5 text-blue-500" />}
-                            />
-                            <StatsCard
-                                title="Link Clicks"
-                                value={stats.totalClicks}
-                                icon={<MousePointer2 className="w-5 h-5 text-purple-500" />}
-                            />
-                            <StatsCard
-                                title="Total Leads"
-                                value={stats.totalLeads}
-                                icon={<Users className="w-5 h-5 text-emerald-500" />}
-                            />
-                            <StatsCard
-                                title="CTR"
+                        {/* Empat angka — satu kartu */}
+                        <section className="mt-3 grid grid-cols-2 gap-y-5 divide-x divide-ink/[0.08] rounded-card-sm bg-surface px-2 py-4 shadow-row md:grid-cols-4">
+                            <Stat icon={Eye} label="Total Views" value={stats.totalViews} />
+                            <Stat icon={MousePointer2} label="Link Clicks" value={stats.totalClicks} />
+                            <Stat icon={Users} label="Total Leads" value={stats.totalLeads} />
+                            <Stat
+                                icon={TrendingUp}
+                                label="CTR"
                                 value={`${stats.totalViews > 0 ? ((stats.totalClicks / stats.totalViews) * 100).toFixed(1) : 0}%`}
-                                icon={<TrendingUp className="w-5 h-5 text-orange-500" />}
                             />
-                        </div>
+                        </section>
 
-                        {/* Chart Section */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* Main Chart */}
-                            <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-zinc-100 shadow-sm">
-                                <div className="flex items-center justify-between mb-8">
-                                    <h3 className="font-semibold text-zinc-900">Traffic Overview</h3>
-                                    <div className="flex items-center gap-4 text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-3 h-3 rounded-full bg-blue-500" />
-                                            <span className="text-zinc-500">Views</span>
+                        {/* Grafik lalu lintas */}
+                        <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-[15px] font-semibold">Lalu Lintas</h3>
+                                <div className="flex items-center gap-4 text-[11.5px] text-ink-2">
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="h-2.5 w-2.5 rounded-full bg-track" />
+                                        Views
+                                    </span>
+                                    <span className="flex items-center gap-1.5">
+                                        <span className="h-2.5 w-2.5 rounded-full bg-coral" />
+                                        Clicks
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="mt-6 flex h-56 items-end gap-1.5">
+                                {chartData.map((item, i) => {
+                                    const maxVal = Math.max(...chartData.map(d => Math.max(d.views, d.clicks, 10)))
+                                    const viewHeight = (item.views / maxVal) * 100
+                                    const clickHeight = (item.clicks / maxVal) * 100
+
+                                    return (
+                                        <div key={i} className="group relative flex h-full flex-1 flex-col justify-end gap-1">
+                                            <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-ink px-2 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                                {item.date}: {item.views} views, {item.clicks} clicks
+                                            </div>
+
+                                            <motion.div
+                                                initial={{ height: 0 }}
+                                                animate={{ height: `${viewHeight}%` }}
+                                                className="relative w-full rounded-t-md bg-track"
+                                            >
+                                                <motion.div
+                                                    initial={{ height: 0 }}
+                                                    animate={{ height: `${clickHeight}%` }}
+                                                    className="absolute bottom-0 left-0 right-0 rounded-t-md bg-coral/70"
+                                                />
+                                            </motion.div>
+
+                                            {i % 5 === 0 && (
+                                                <span className="absolute left-1/2 top-full mt-2 w-max -translate-x-1/2 text-[10px] text-ink-3">
+                                                    {item.date}
+                                                </span>
+                                            )}
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-3 h-3 rounded-full bg-purple-500" />
-                                            <span className="text-zinc-500">Clicks</span>
-                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </section>
+
+                        {/* Daftar calon pelanggan */}
+                        <section className="mt-7">
+                            <div className="flex items-center justify-between gap-3">
+                                <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Calon Pelanggan</h2>
+                                <button
+                                    onClick={exportLeads}
+                                    className="flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-[12.5px] font-medium text-white shadow-ink transition-transform active:scale-[0.98]"
+                                >
+                                    <Download className="h-3.5 w-3.5" strokeWidth={1.8} />
+                                    Unduh
+                                </button>
+                            </div>
+
+                            <div className="mt-4 flex items-center gap-2.5">
+                                <div className="relative flex-1">
+                                    <select
+                                        value={statusFilter}
+                                        onChange={(e) => setStatusFilter(e.target.value)}
+                                        className="w-full cursor-pointer appearance-none rounded-row bg-surface py-3 pl-4 pr-9 text-[12.5px] text-ink shadow-row focus:outline-none"
+                                    >
+                                        <option value="all">Semua status</option>
+                                        <option value="new">Baru</option>
+                                        <option value="contacted">Sudah dihubungi</option>
+                                        <option value="converted">Jadi pelanggan</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-3">
+                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                                     </div>
                                 </div>
 
-                                {/* Custom Bar Chart using Framer Motion */}
-                                <div className="h-64 flex items-end gap-2">
-                                    {chartData.map((item, i) => {
-                                        const maxVal = Math.max(...chartData.map(d => Math.max(d.views, d.clicks, 10)))
-                                        const viewHeight = (item.views / maxVal) * 100
-                                        const clickHeight = (item.clicks / maxVal) * 100
+                                <button
+                                    onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                    className="flex shrink-0 items-center gap-2 rounded-row bg-surface px-4 py-3 text-[12.5px] font-medium text-ink-2 shadow-row"
+                                >
+                                    <ArrowUpDown className="h-4 w-4" strokeWidth={1.8} />
+                                    {sortOrder === 'desc' ? 'Terbaru' : 'Terlama'}
+                                </button>
+                            </div>
 
-                                        return (
-                                            <div key={i} className="flex-1 flex flex-col justify-end gap-1 group relative h-full">
-                                                {/* Tooltip */}
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-zinc-900 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                                                    {item.date}: {item.views} views, {item.clicks} clicks
+                            {loadingLeads ? (
+                                <div className="mt-4 flex justify-center py-12">
+                                    <Loader2 className="h-6 w-6 animate-spin text-ink-3" />
+                                </div>
+                            ) : recentLeads.length > 0 ? (
+                                <div className="mt-4 grid gap-2.5">
+                                    {recentLeads.map((lead: any) => (
+                                        <div key={lead.id} className="rounded-card-sm bg-surface p-4 shadow-row">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-[14.5px] font-medium">{lead.name || 'Tanpa nama'}</p>
+                                                    {lead.company && (
+                                                        <p className="mt-0.5 truncate text-[11px] uppercase tracking-wider text-ink-3">{lead.company}</p>
+                                                    )}
                                                 </div>
-
-                                                <motion.div
-                                                    initial={{ height: 0 }}
-                                                    animate={{ height: `${viewHeight}%` }}
-                                                    className="w-full bg-blue-100 rounded-t-sm group-hover:bg-blue-200 transition-colors relative"
+                                                <select
+                                                    value={lead.status || 'new'}
+                                                    onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
+                                                    className={`shrink-0 cursor-pointer appearance-none rounded-full px-2.5 py-1 text-[11px] font-semibold focus:outline-none ${getStatusColor(lead.status || 'new')}`}
                                                 >
-                                                    <motion.div
-                                                        initial={{ height: 0 }}
-                                                        animate={{ height: `${clickHeight}%` }}
-                                                        className="absolute bottom-0 left-0 right-0 bg-purple-400/50 rounded-t-sm"
-                                                    />
-                                                </motion.div>
+                                                    <option value="new">Baru</option>
+                                                    <option value="contacted">Dihubungi</option>
+                                                    <option value="converted">Pelanggan</option>
+                                                </select>
+                                            </div>
 
-                                                {/* X-Axis Label (show every 5th label on small screens) */}
-                                                {i % 5 === 0 && (
-                                                    <span className="text-[10px] text-zinc-400 absolute top-full mt-2 w-max -translate-x-1/2 left-1/2">
-                                                        {item.date}
+                                            <div className="mt-3 grid gap-1 text-[12.5px] text-ink-2">
+                                                <span className="flex items-center gap-2">
+                                                    <Phone className="h-3.5 w-3.5 shrink-0 text-ink-3" strokeWidth={1.8} />
+                                                    <span className="truncate">{lead.whatsapp}</span>
+                                                </span>
+                                                {lead.email && (
+                                                    <span className="flex items-center gap-2">
+                                                        <Mail className="h-3.5 w-3.5 shrink-0 text-ink-3" strokeWidth={1.8} />
+                                                        <span className="truncate">{lead.email}</span>
                                                     </span>
                                                 )}
                                             </div>
-                                        )
-                                    })}
-                                </div>
-                            </div>
 
-                            {/* Recent Leads Table */}
-                            <div className="lg:col-span-3 bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
-                                <div className="p-6 border-b border-zinc-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                    <h3 className="font-semibold text-zinc-900">Recent Leads</h3>
-
-                                    <div className="flex items-center gap-3">
-                                        {/* Status Filter */}
-                                        <div className="relative">
-                                            <select
-                                                value={statusFilter}
-                                                onChange={(e) => setStatusFilter(e.target.value)}
-                                                className="appearance-none bg-zinc-50 border border-zinc-200 text-zinc-700 text-sm rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-zinc-900 cursor-pointer"
-                                            >
-                                                <option value="all">All Status</option>
-                                                <option value="new">New</option>
-                                                <option value="contacted">Contacted</option>
-                                                <option value="converted">Converted</option>
-                                            </select>
-                                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-zinc-500">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                            <div className="mt-3 flex items-center justify-between gap-3 border-t border-ink/[0.08] pt-3">
+                                                <span className="text-[11px] text-ink-3">
+                                                    {new Date(lead.created_at).toLocaleDateString('id-ID')} ·{' '}
+                                                    {new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    {lead.whatsapp && (
+                                                        <a
+                                                            href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '').replace(/^0/, '62')}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex h-9 w-9 items-center justify-center rounded-full bg-fill-subtle text-ink-2 transition-colors hover:text-ink"
+                                                            title="Buka WhatsApp"
+                                                        >
+                                                            <Phone className="h-4 w-4" strokeWidth={1.8} />
+                                                        </a>
+                                                    )}
+                                                    {lead.email && (
+                                                        <a
+                                                            href={`mailto:${lead.email}`}
+                                                            className="flex h-9 w-9 items-center justify-center rounded-full bg-fill-subtle text-ink-2 transition-colors hover:text-ink"
+                                                            title="Kirim email"
+                                                        >
+                                                            <Mail className="h-4 w-4" strokeWidth={1.8} />
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-
-                                        {/* Sort Toggle */}
-                                        <button
-                                            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-                                            className="flex items-center gap-2 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors"
-                                            title={`Sort by Date (${sortOrder === 'desc' ? 'Newest First' : 'Oldest First'})`}
-                                        >
-                                            <ArrowUpDown className="w-4 h-4" />
-                                            <span className="hidden sm:inline">{sortOrder === 'desc' ? 'Newest' : 'Oldest'}</span>
-                                        </button>
-
-                                        <button onClick={exportLeads} className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors px-4 py-2 bg-emerald-50 rounded-lg">
-                                            <Download className="w-4 h-4" />
-                                            <span className="hidden sm:inline">Export</span>
-                                        </button>
-                                    </div>
+                                    ))}
                                 </div>
-
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-zinc-50 border-b border-zinc-100">
-                                            <tr>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900">Lead Details</th>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900">Contact Info</th>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900">
-                                                    <div className="flex items-center gap-1 cursor-pointer" onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}>
-                                                        Date
-                                                        <ArrowUpDown className="w-3 h-3 text-zinc-400" />
-                                                    </div>
-                                                </th>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900">Status</th>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-zinc-100 text-zinc-600">
-                                            {loadingLeads ? (
-                                                <tr>
-                                                    <td colSpan={5} className="px-6 py-12 text-center">
-                                                        <div className="flex justify-center">
-                                                            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ) : recentLeads.length > 0 ? (
-                                                recentLeads.map((lead: any) => (
-                                                    <tr key={lead.id} className="hover:bg-zinc-50/50 transition-colors">
-                                                        <td className="px-6 py-4">
-                                                            <div className="font-medium text-zinc-900">{lead.name || 'Anonymous'}</div>
-                                                            {lead.company && (
-                                                                <div className="text-xs text-zinc-400 mt-0.5 uppercase tracking-wide">{lead.company}</div>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="space-y-1">
-                                                                <div className="flex items-center gap-2 text-zinc-700">
-                                                                    <Phone className="w-3 h-3 text-zinc-400" />
-                                                                    {lead.whatsapp}
-                                                                </div>
-                                                                {lead.email && (
-                                                                    <div className="flex items-center gap-2 text-zinc-500 text-xs">
-                                                                        <Mail className="w-3 h-3 text-zinc-400" />
-                                                                        {lead.email}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            {new Date(lead.created_at).toLocaleDateString()}
-                                                            <div className="text-[10px] text-zinc-400">{new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <select
-                                                                value={lead.status || 'new'}
-                                                                onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
-                                                                className={`text-xs font-medium px-2 py-1 rounded-full border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-zinc-900 ${getStatusColor(lead.status || 'new')}`}
-                                                            >
-                                                                <option value="new">New Lead</option>
-                                                                <option value="contacted">Contacted</option>
-                                                                <option value="converted">Converted</option>
-                                                            </select>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                {lead.whatsapp && (
-                                                                    <a
-                                                                        href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '').replace(/^0/, '62')}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="p-2 hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors border border-transparent hover:border-emerald-100"
-                                                                        title="Open WhatsApp"
-                                                                    >
-                                                                        <Phone className="w-4 h-4" />
-                                                                    </a>
-                                                                )}
-                                                                {lead.email && (
-                                                                    <a
-                                                                        href={`mailto:${lead.email}`}
-                                                                        className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100"
-                                                                        title="Send Email"
-                                                                    >
-                                                                        <Mail className="w-4 h-4" />
-                                                                    </a>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">
-                                                        <div className="flex flex-col items-center gap-2">
-                                                            <MessageSquare className="w-8 h-8 opacity-20" />
-                                                            <p className="text-sm">No leads collected yet.</p>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
+                            ) : (
+                                <div className="mt-4 rounded-card border border-dashed border-ink/15 bg-surface/60 p-10 text-center">
+                                    <MessageSquare className="mx-auto mb-3 h-10 w-10 text-ink-3" strokeWidth={1.5} />
+                                    <h3 className="text-[15px] font-medium">Belum ada calon pelanggan</h3>
+                                    <p className="mt-1.5 text-[12.5px] text-ink-2">Aktifkan formulir kontak biar pengunjung bisa ninggalin nomor</p>
                                 </div>
-                            </div>
-                        </div>
+                            )}
+                        </section>
                     </>
                 )}
             </div>
@@ -615,29 +565,13 @@ export default function AnalyticsPage() {
     )
 }
 
-function StatsCard({ title, value, icon, trend, trendUp }: any) {
+/** Satu angka di dalam kartu ringkasan — pola yang sama dipakai beranda. */
+function Stat({ icon: Icon, label, value }: { icon: typeof Eye; label: string; value: number | string }) {
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-sm"
-        >
-            <div className="flex items-start justify-between mb-4">
-                <div className="p-2 bg-zinc-50 rounded-xl">
-                    {icon}
-                </div>
-                {trend && (
-                    <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                        }`}>
-                        {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                        {trend}
-                    </div>
-                )}
-            </div>
-            <div>
-                <p className="text-sm text-zinc-500 font-medium">{title}</p>
-                <h3 className="text-2xl font-bold text-zinc-900 mt-1">{value}</h3>
-            </div>
-        </motion.div>
+        <div className="flex flex-col items-center px-2">
+            <Icon className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+            <p className="mt-2 text-[22px] font-semibold leading-none tracking-[-0.03em]">{value}</p>
+            <p className="mt-1.5 text-center text-[11.5px] text-ink-2">{label}</p>
+        </div>
     )
 }

@@ -133,24 +133,25 @@ export default function LinkManager() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto pb-20">
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold mb-2 text-zinc-900">Kelola Link</h1>
-                    <p className="text-zinc-500">Tambahkan dan atur link sosial media Anda</p>
+        <div className="mx-auto max-w-[1200px] px-5 pb-[150px] pt-6">
+            <header className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <h1 className="text-[26px] font-semibold tracking-[-0.03em]">Atur Link</h1>
+                    <p className="mt-1.5 text-[13px] text-ink-2">Tambah dan urutkan link kartu digital kamu</p>
                     {tier === 'FREE' && (
-                        <p className="text-xs text-amber-600 mt-2 font-medium bg-amber-50 inline-block px-2 py-0.5 rounded-lg border border-amber-100">
-                            Free Tier: {links.length}/3 Link Terpakai
+                        <p className="mt-3 inline-block rounded-full bg-coral-soft px-2.5 py-1 text-[11px] font-semibold text-coral-soft-ink">
+                            Paket Gratis · {links.length}/3 link terpakai
                         </p>
                     )}
                 </div>
                 <button
                     onClick={() => setIsAdding(true)}
-                    className="btn-gradient p-3 rounded-2xl text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-transform"
+                    aria-label="Tambah link"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ink text-white shadow-ink transition-transform active:scale-95"
                 >
-                    <Plus className="w-6 h-6" />
+                    <Plus className="h-5 w-5" strokeWidth={2} />
                 </button>
-            </div>
+            </header>
 
             <AnimatePresence>
                 {isAdding && (
@@ -158,56 +159,57 @@ export default function LinkManager() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="mb-8 overflow-hidden"
+                        className="overflow-hidden"
                     >
-                        <div className="glass rounded-3xl p-6 border-blue-500/30">
-                            <form onSubmit={handleAddLink} className="space-y-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <h3 className="font-semibold text-zinc-900">Tambah Link Baru</h3>
-                                    <button type="button" onClick={() => setIsAdding(false)} className="text-zinc-400 hover:text-zinc-700">
-                                        <X className="w-5 h-5" />
+                        <div className="mt-5 rounded-card bg-surface p-5 shadow-card">
+                            <form onSubmit={handleAddLink}>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-[15px] font-semibold">Link Baru</h3>
+                                    <button type="button" onClick={() => setIsAdding(false)} aria-label="Tutup" className="text-ink-3 hover:text-ink">
+                                        <X className="h-5 w-5" strokeWidth={1.8} />
                                     </button>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="mt-4 grid gap-3">
                                     <div>
-                                        <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Judul</label>
+                                        <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Judul</label>
                                         <input
                                             type="text"
                                             value={newLink.title}
                                             onChange={e => setNewLink({ ...newLink, title: e.target.value })}
-                                            placeholder="Contoh: Instagram Saya"
-                                            className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 outline-none"
+                                            placeholder="Contoh: Instagram gue"
+                                            className="mt-1.5 w-full rounded-row bg-fill-subtle px-4 py-3 text-[14px] text-ink outline-none placeholder:text-ink-3"
                                         />
                                     </div>
+
                                     <div>
-                                        <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Ikon</label>
+                                        <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Ikon</label>
                                         <select
                                             value={newLink.icon}
                                             onChange={e => setNewLink({ ...newLink, icon: e.target.value })}
-                                            className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:border-blue-500 outline-none appearance-none"
+                                            className="mt-1.5 w-full appearance-none rounded-row bg-fill-subtle px-4 py-3 text-[14px] text-ink outline-none"
                                         >
                                             {ICON_OPTIONS.map(opt => (
                                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                                             ))}
                                         </select>
                                     </div>
-                                </div>
 
-                                <div>
-                                    <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">URL / Link</label>
-                                    <input
-                                        type="text"
-                                        value={newLink.url}
-                                        onChange={e => setNewLink({ ...newLink, url: e.target.value })}
-                                        placeholder="instagram.com/anda"
-                                        className="w-full px-4 py-3 bg-zinc-900/50 border border-zinc-800 rounded-xl text-white focus:border-blue-500 outline-none"
-                                    />
+                                    <div>
+                                        <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Alamat link</label>
+                                        <input
+                                            type="text"
+                                            value={newLink.url}
+                                            onChange={e => setNewLink({ ...newLink, url: e.target.value })}
+                                            placeholder="instagram.com/kamu"
+                                            className="mt-1.5 w-full rounded-row bg-fill-subtle px-4 py-3 text-[14px] text-ink outline-none placeholder:text-ink-3"
+                                        />
+                                    </div>
                                 </div>
 
                                 <button
                                     type="submit"
-                                    className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-2xl transition-colors"
+                                    className="mt-5 w-full rounded-full bg-ink py-3.5 text-[13px] font-medium text-white shadow-ink transition-transform active:scale-[0.99]"
                                 >
                                     Tambahkan Link
                                 </button>
@@ -217,11 +219,11 @@ export default function LinkManager() {
                 )}
             </AnimatePresence>
 
-            {/* Link List */}
+            {/* Daftar link — bisa digeser buat ganti urutan */}
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="links-list">
                     {(provided) => (
-                        <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
+                        <div {...provided.droppableProps} ref={provided.innerRef} className="mt-5 grid gap-2.5">
                             {links.map((link, index) => (
                                 <Draggable key={link.id} draggableId={link.id} index={index}>
                                     {(provided, snapshot) => (
@@ -231,34 +233,36 @@ export default function LinkManager() {
                                             initial={{ opacity: 0, x: -20 }}
                                             animate={{ opacity: 1, x: 0 }}
                                             transition={{ delay: index * 0.05 }}
-                                            className={`glass rounded-2xl p-4 flex items-center gap-4 group transition-all ${snapshot.isDragging ? 'shadow-2xl ring-2 ring-blue-500/50 z-50' : ''
+                                            className={`flex items-center gap-3 rounded-row bg-surface p-3.5 shadow-row ${snapshot.isDragging ? 'z-50 shadow-card' : ''
                                                 }`}
                                         >
-                                            <div {...provided.dragHandleProps} className="text-zinc-600 group-hover:text-zinc-400">
-                                                <GripVertical className="w-5 h-5" />
+                                            <div {...provided.dragHandleProps} className="shrink-0 text-ink-3">
+                                                <GripVertical className="h-5 w-5" strokeWidth={1.8} />
                                             </div>
 
-                                            <div className="w-12 h-12 rounded-xl bg-zinc-100 flex items-center justify-center text-blue-600 ring-1 ring-zinc-200">
+                                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-fill-subtle text-ink-2">
                                                 {renderIcon(link.icon)}
+                                            </span>
+
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="truncate text-[14px] font-medium">{link.title}</h3>
+                                                <p className="truncate text-[11.5px] text-ink-3">{link.url}</p>
                                             </div>
 
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="font-medium text-zinc-900 truncate">{link.title}</h3>
-                                                <p className="text-xs text-zinc-400 truncate">{link.url}</p>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex shrink-0 items-center gap-1">
                                                 <button
                                                     onClick={() => window.open(link.url, '_blank')}
-                                                    className="p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+                                                    aria-label="Buka link"
+                                                    className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-fill-subtle hover:text-ink"
                                                 >
-                                                    <ExternalLink className="w-4 h-4" />
+                                                    <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteLink(link.id)}
-                                                    className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                    aria-label="Hapus link"
+                                                    className="flex h-9 w-9 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-coral-soft hover:text-coral-soft-ink"
                                                 >
-                                                    <Trash2 className="w-4 h-4" />
+                                                    <Trash2 className="h-4 w-4" strokeWidth={1.8} />
                                                 </button>
                                             </div>
                                         </motion.div>
@@ -272,10 +276,10 @@ export default function LinkManager() {
             </DragDropContext>
 
             {links.length === 0 && !isAdding && (
-                <div className="text-center py-20 border-2 border-dashed border-zinc-200 rounded-3xl">
-                    <PlusCircle className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
-                    <h3 className="text-zinc-500 font-medium">Belum ada link</h3>
-                    <p className="text-zinc-400 text-sm mt-1">Klik tombol tambah untuk memulai</p>
+                <div className="mt-5 rounded-card border border-dashed border-ink/15 bg-surface/60 p-10 text-center">
+                    <PlusCircle className="mx-auto mb-3 h-10 w-10 text-ink-3" strokeWidth={1.5} />
+                    <h3 className="text-[15px] font-medium">Belum ada link</h3>
+                    <p className="mt-1.5 text-[12.5px] text-ink-2">Ketuk tombol tambah di kanan atas buat mulai</p>
                 </div>
             )}
         </div>
@@ -284,9 +288,9 @@ export default function LinkManager() {
 
 function renderIcon(iconName: string) {
     switch (iconName) {
-        case 'instagram': return <Instagram className="w-6 h-6" />
-        case 'twitter': return <Twitter className="w-6 h-6" />
-        case 'linkedin': return <Linkedin className="w-6 h-6" />
-        default: return <Globe className="w-6 h-6" />
+        case 'instagram': return <Instagram className="h-5 w-5" strokeWidth={1.8} />
+        case 'twitter': return <Twitter className="h-5 w-5" strokeWidth={1.8} />
+        case 'linkedin': return <Linkedin className="h-5 w-5" strokeWidth={1.8} />
+        default: return <Globe className="h-5 w-5" strokeWidth={1.8} />
     }
 }

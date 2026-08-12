@@ -43,34 +43,24 @@ function Skeleton() {
 
 /** Angka besar + satuan + catatan kecil — pola yang dipakai kartu Green Impact. */
 function Impact({
-    icon: Icon, tone, label, value, unit, note, chip,
+    icon: Icon, tone, label, value, unit,
 }: {
     icon: typeof Leaf
     tone: string
     label: string
     value: string
     unit: string
-    note: string
-    chip?: string
 }) {
     return (
-        <div className="rounded-card-sm bg-surface p-4 shadow-row">
-            <div className="mb-3.5 flex items-start justify-between">
-                <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${tone}`}>
-                    <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} />
-                </span>
-                {chip && (
-                    <span className="rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-success-soft-ink">
-                        {chip}
-                    </span>
-                )}
-            </div>
-            <p className="text-[11px] font-medium uppercase tracking-wider text-ink-2">{label}</p>
-            <p className="mt-1 flex items-baseline gap-1.5">
-                <span className="text-[26px] font-semibold tracking-[-0.03em]">{value}</span>
-                <span className="text-[13px] text-ink-3">{unit}</span>
+        <div className="flex flex-col items-center px-2 text-center">
+            <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}>
+                <Icon className="h-[17px] w-[17px]" strokeWidth={1.8} />
+            </span>
+            <p className="mt-2.5 text-[10px] font-medium uppercase leading-tight tracking-wider text-ink-2">{label}</p>
+            <p className="mt-1.5 flex items-baseline gap-1">
+                <span className="text-[22px] font-semibold leading-none tracking-[-0.03em]">{value}</span>
+                <span className="text-[11.5px] text-ink-3">{unit}</span>
             </p>
-            <p className="mt-2 text-[10px] italic text-ink-3">{note}</p>
         </div>
     )
 }
@@ -171,8 +161,47 @@ export default function DashboardPage() {
     const co2 = viewCount * 10
 
     const quickActions = [
-        { icon: User, label: 'Edit Profil', desc: 'Ubah foto, nama, dan bio', href: '/dashboard/profile' },
-        { icon: Link2, label: 'Kelola Link', desc: 'Tambah dan atur social links', href: '/dashboard/links' },
+        {
+            icon: User,
+            label: 'Edit Profil',
+            desc: 'Ubah foto, nama, dan bio',
+            href: '/dashboard/profile',
+            preview: (
+                <div className="flex items-center gap-2.5">
+                    {profile.avatar_url ? (
+                        <img src={profile.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-white" />
+                    ) : (
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-avatar text-[14px] font-semibold text-avatar-ink">
+                            {profile.display_name?.[0]?.toUpperCase() || 'U'}
+                        </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-[11.5px] text-ink-2">
+                        {profile.display_name || 'Belum ada nama'}
+                    </span>
+                </div>
+            ),
+        },
+        {
+            icon: Link2,
+            label: 'Kelola Link',
+            desc: 'Tambah dan atur social links',
+            href: '/dashboard/links',
+            preview: links.length ? (
+                <div className="grid gap-1">
+                    {links.slice(0, 3).map((l, i) => (
+                        <span key={l.id ?? i} className="flex items-center gap-1.5 truncate text-[11px] text-ink-2">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink/25" />
+                            <span className="truncate">{l.title || 'Tanpa nama'}</span>
+                        </span>
+                    ))}
+                    {links.length > 3 && (
+                        <span className="text-[11px] text-ink-3">+{links.length - 3} lainnya</span>
+                    )}
+                </div>
+            ) : (
+                <span className="text-[11px] text-ink-3">Belum ada link</span>
+            ),
+        },
         {
             icon: copied ? Check : ExternalLink,
             label: copied ? 'Link tersalin' : 'Salin Link Profil',
@@ -182,8 +211,27 @@ export default function DashboardPage() {
                 setCopied(true)
                 setTimeout(() => setCopied(false), 2000)
             },
+            preview: (
+                <span
+                    className="inline-block max-w-full break-all rounded-lg bg-fill-subtle px-2 py-1.5 text-[10.5px] leading-snug text-ink-2"
+                    style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                    {shareHost}
+                </span>
+            ),
         },
-        { icon: Eye, label: 'Lihat Profil Publik', desc: 'Buka kartu seperti pengunjung', href: `/${profile.slug}`, external: true },
+        {
+            icon: Eye,
+            label: 'Lihat Profil Publik',
+            desc: 'Buka kartu seperti pengunjung',
+            href: `/${profile.slug}`,
+            external: true,
+            preview: (
+                <span className="inline-block rounded-lg bg-white p-1.5 shadow-row">
+                    <QRCodeSVG value={shareUrl} size={44} level="L" includeMargin={false} />
+                </span>
+            ),
+        },
     ]
 
     return (
@@ -237,6 +285,49 @@ export default function DashboardPage() {
                 </button>
             </header>
 
+            {/* PROFIL ANDA */}
+            <section className="mt-6">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Profil Kamu</h2>
+                    <Link href="/dashboard/profile" className="flex items-center gap-1.5 text-[12.5px] font-medium text-ink-2">
+                        <Edit className="h-3.5 w-3.5" strokeWidth={1.8} />
+                        Edit Profil
+                    </Link>
+                </div>
+
+                <div className="mt-4 rounded-card bg-surface p-5 shadow-card">
+                    <div className="flex items-start gap-5">
+                        {profile.avatar_url ? (
+                            <img
+                                src={profile.avatar_url}
+                                alt=""
+                                className="h-20 w-20 shrink-0 rounded-full object-cover ring-4 ring-white"
+                            />
+                        ) : (
+                            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-avatar text-[22px] font-semibold text-avatar-ink">
+                                {profile.display_name?.[0]?.toUpperCase() || 'U'}
+                            </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                            <h3 className="text-[19px] font-semibold tracking-[-0.02em]">
+                                {profile.display_name || 'Belum ada nama'}
+                            </h3>
+                            {profile.bio && (
+                                <p className="mt-2 line-clamp-2 text-[13px] text-ink-2">{profile.bio}</p>
+                            )}
+                            <Link
+                                href={`/${profile.slug}`}
+                                target="_blank"
+                                className="mt-4 inline-flex items-center gap-2 text-[12.5px] text-ink-2 hover:text-ink"
+                            >
+                                <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.8} />
+                                <span className="truncate">{shareHost}</span>
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* FUNGSI UTAMA LINK — cerminan, diatur di /switch */}
             <Link
                 href="/switch"
@@ -259,47 +350,37 @@ export default function DashboardPage() {
                 <ArrowUpRight className="h-[18px] w-[18px] shrink-0 text-white/60" strokeWidth={2} />
             </Link>
 
-            {/* TIGA ANGKA */}
-            <section className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div className="flex items-center gap-4 rounded-card-sm bg-surface p-5 shadow-row">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-fill-subtle">
-                        <Eye className="h-5 w-5 text-ink-2" strokeWidth={1.8} />
-                    </span>
-                    <div>
-                        <p className="text-[24px] font-semibold leading-none tracking-[-0.03em]">{nf.format(viewCount)}</p>
-                        <p className="mt-1.5 text-[12px] text-ink-2">Profile Views</p>
-                    </div>
+            {/* TIGA ANGKA — satu kartu, tiga kolom */}
+            <section className="mt-3 grid grid-cols-3 divide-x divide-ink/[0.08] rounded-card-sm bg-surface px-2 py-4 shadow-row">
+                <div className="flex flex-col items-center px-2">
+                    <Eye className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                    <p className="mt-2 text-[22px] font-semibold leading-none tracking-[-0.03em]">{nf.format(viewCount)}</p>
+                    <p className="mt-1.5 text-center text-[11.5px] text-ink-2">Profile Views</p>
                 </div>
 
-                <div className="flex items-center gap-4 rounded-card-sm bg-surface p-5 shadow-row">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-fill-subtle">
-                        <Link2 className="h-5 w-5 text-ink-2" strokeWidth={1.8} />
-                    </span>
-                    <div>
-                        <p className="text-[24px] font-semibold leading-none tracking-[-0.03em]">{links.length}</p>
-                        <p className="mt-1.5 text-[12px] text-ink-2">Total Links</p>
-                    </div>
+                <div className="flex flex-col items-center px-2">
+                    <Link2 className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                    <p className="mt-2 text-[22px] font-semibold leading-none tracking-[-0.03em]">{links.length}</p>
+                    <p className="mt-1.5 text-center text-[11.5px] text-ink-2">Total Links</p>
                 </div>
 
-                <div className="flex items-center gap-4 rounded-card-sm bg-surface p-5 shadow-row">
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-fill-subtle">
-                        <BarChart3 className="h-5 w-5 text-ink-2" strokeWidth={1.8} />
-                    </span>
+                <div className="flex flex-col items-center px-2">
+                    <BarChart3 className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
                     {profile.tier === 'FREE' ? (
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="select-none text-[24px] font-semibold leading-none text-ink-3 blur-sm">123</span>
-                                <span className="rounded-full bg-coral-soft px-2 py-0.5 text-[10px] font-semibold text-coral-soft-ink">
+                        <>
+                            <div className="mt-2 flex items-center gap-1.5">
+                                <span className="select-none text-[22px] font-semibold leading-none text-ink-3 blur-sm">123</span>
+                                <span className="rounded-full bg-coral-soft px-1.5 py-0.5 text-[9px] font-semibold text-coral-soft-ink">
                                     PREMIUM
                                 </span>
                             </div>
-                            <p className="mt-1.5 text-[12px] text-ink-3">Link Clicks (terkunci)</p>
-                        </div>
+                            <p className="mt-1.5 text-center text-[11.5px] text-ink-3">Link Clicks</p>
+                        </>
                     ) : (
-                        <div>
-                            <p className="text-[24px] font-semibold leading-none tracking-[-0.03em]">{nf.format(linkClicks)}</p>
-                            <p className="mt-1.5 text-[12px] text-ink-2">Link Clicks</p>
-                        </div>
+                        <>
+                            <p className="mt-2 text-[22px] font-semibold leading-none tracking-[-0.03em]">{nf.format(linkClicks)}</p>
+                            <p className="mt-1.5 text-center text-[11.5px] text-ink-2">Link Clicks</p>
+                        </>
                     )}
                 </div>
             </section>
@@ -316,97 +397,56 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <Impact
-                        icon={BarChart3}
-                        tone="bg-success-soft text-success-soft-ink"
-                        chip="Eco-Friendly"
-                        label="Kertas Terselamatkan"
-                        value={nf.format(viewCount)}
-                        unit="Lembar"
-                        note="*1 view profil = 1 kartu nama kertas diselamatkan"
-                    />
-                    <Impact
-                        icon={Wind}
-                        tone="bg-fill-subtle text-ink-2"
-                        label="Emisi Karbon Dicegah"
-                        value={co2 >= 1000 ? (co2 / 1000).toFixed(2) : nf.format(co2)}
-                        unit={co2 >= 1000 ? 'kg' : 'gram'}
-                        note="*10 gram CO₂/kartu emisi produksi dicegah"
-                    />
-                    <Impact
-                        icon={TreeDeciduous}
-                        tone="bg-coral-soft text-coral-soft-ink"
-                        label="Pohon Dilindungi"
-                        value={(viewCount / 10000).toFixed(4)}
-                        unit="Pohon"
-                        note="*10.000 kartu = 1 pohon dewasa (sumber pulp)"
-                    />
+                <div className="mt-4 rounded-card-sm bg-surface px-2 py-4 shadow-row">
+                    <div className="grid grid-cols-3 divide-x divide-ink/[0.08]">
+                        <Impact
+                            icon={BarChart3}
+                            tone="bg-success-soft text-success-soft-ink"
+                            label="Kertas Terselamatkan"
+                            value={nf.format(viewCount)}
+                            unit="Lembar"
+                        />
+                        <Impact
+                            icon={Wind}
+                            tone="bg-fill-subtle text-ink-2"
+                            label="Emisi Karbon Dicegah"
+                            value={co2 >= 1000 ? (co2 / 1000).toFixed(2) : nf.format(co2)}
+                            unit={co2 >= 1000 ? 'kg' : 'gram'}
+                        />
+                        <Impact
+                            icon={TreeDeciduous}
+                            tone="bg-coral-soft text-coral-soft-ink"
+                            label="Pohon Dilindungi"
+                            value={(viewCount / 10000).toFixed(4)}
+                            unit="Pohon"
+                        />
+                    </div>
+                    <p className="mt-4 border-t border-ink/[0.08] px-2 pt-3 text-[10px] italic leading-relaxed text-ink-3">
+                        *1 view profil = 1 kartu nama kertas · 10 gram CO₂ per kartu · 10.000 kartu = 1 pohon dewasa
+                    </p>
                 </div>
             </section>
 
             <div className="mt-7 grid gap-7 lg:grid-cols-2">
 
-                {/* PROFIL ANDA */}
-                <section>
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Profil Kamu</h2>
-                        <Link href="/dashboard/profile" className="flex items-center gap-1.5 text-[12.5px] font-medium text-ink-2">
-                            <Edit className="h-3.5 w-3.5" strokeWidth={1.8} />
-                            Edit Profil
-                        </Link>
-                    </div>
-
-                    <div className="mt-4 rounded-card bg-surface p-5 shadow-card">
-                        <div className="flex items-start gap-5">
-                            {profile.avatar_url ? (
-                                <img
-                                    src={profile.avatar_url}
-                                    alt=""
-                                    className="h-20 w-20 shrink-0 rounded-full object-cover ring-4 ring-white"
-                                />
-                            ) : (
-                                <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-avatar text-[22px] font-semibold text-avatar-ink">
-                                    {profile.display_name?.[0]?.toUpperCase() || 'U'}
-                                </span>
-                            )}
-                            <div className="min-w-0 flex-1">
-                                <h3 className="text-[19px] font-semibold tracking-[-0.02em]">
-                                    {profile.display_name || 'Belum ada nama'}
-                                </h3>
-                                {profile.bio && (
-                                    <p className="mt-2 line-clamp-2 text-[13px] text-ink-2">{profile.bio}</p>
-                                )}
-                                <Link
-                                    href={`/${profile.slug}`}
-                                    target="_blank"
-                                    className="mt-4 inline-flex items-center gap-2 text-[12.5px] text-ink-2 hover:text-ink"
-                                >
-                                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.8} />
-                                    <span className="truncate">{shareHost}</span>
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
                 {/* AKSI CEPAT */}
                 <section>
                     <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Aksi Cepat</h2>
-                    <div className="mt-4 grid gap-2.5">
+                    <div className="mt-4 grid grid-cols-2 gap-2.5">
                         {quickActions.map((a) => {
                             const inner = (
                                 <>
-                                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-fill-subtle">
-                                        <a.icon className="h-5 w-5 text-ink-2" strokeWidth={1.8} />
+                                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle">
+                                        <a.icon className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
                                     </span>
-                                    <div className="min-w-0">
-                                        <p className="text-[14.5px] font-medium leading-tight">{a.label}</p>
-                                        <p className="mt-0.5 truncate text-[12px] text-ink-2">{a.desc}</p>
+                                    <div className="my-2 min-w-0 max-w-full overflow-hidden">{a.preview}</div>
+                                    <div className="mt-auto min-w-0 max-w-full">
+                                        <p className="truncate text-[14px] font-medium leading-tight">{a.label}</p>
+                                        <p className="mt-0.5 truncate text-[11.5px] text-ink-2">{a.desc}</p>
                                     </div>
                                 </>
                             )
-                            const cls = 'flex items-center gap-4 rounded-row bg-surface p-3.5 text-left shadow-row transition-transform active:scale-[0.99]'
+                            const cls = 'flex aspect-square flex-col items-start justify-between overflow-hidden rounded-card-sm bg-surface p-4 text-left shadow-row transition-transform active:scale-[0.99]'
                             return a.href ? (
                                 <Link
                                     key={a.label}
