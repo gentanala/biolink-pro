@@ -75,7 +75,7 @@ function Thumb({
     return (
         <div
             className={`relative overflow-hidden shrink-0 flex items-center justify-center ${className}`}
-            style={{ borderRadius: radius, background: src ? '#EDEEF1' : tileBg }}
+            style={{ borderRadius: radius, background: src ? '#F1EFEB' : tileBg }}
         >
             {src ? (
                 <img src={src} alt="" className="w-full h-full object-cover" onError={onError} />
@@ -132,14 +132,14 @@ function CardFace({
                     <div className="flex gap-1.5 mt-3">
                         <button
                             onClick={onEdit}
-                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] bg-[#F2F3F5] hover:bg-[#E9EAEE] text-[11px] text-black/60 transition-colors"
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] bg-fill-subtle hover:bg-track text-[11px] text-black/60 transition-colors"
                         >
                             <Pencil className="w-3 h-3" /> Ubah
                         </button>
                         <button
                             onClick={onRemove}
                             aria-label={`Hapus ${title}`}
-                            className="px-3 py-2 rounded-[10px] bg-[#F2F3F5] hover:bg-red-50 text-black/40 hover:text-red-500 transition-colors"
+                            className="px-3 py-2 rounded-[10px] bg-fill-subtle hover:bg-coral-soft text-black/40 hover:text-coral-soft-ink transition-colors"
                         >
                             <Trash2 className="w-3 h-3" />
                         </button>
@@ -411,7 +411,7 @@ export default function SwitchPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#F1F2F4] flex items-center justify-center">
+            <div className="min-h-screen bg-canvas flex items-center justify-center">
                 <Loader2 className="w-6 h-6 text-black/25 animate-spin" />
             </div>
         )
@@ -419,7 +419,7 @@ export default function SwitchPage() {
 
     if (error && !profile) {
         return (
-            <div className="min-h-screen bg-[#F1F2F4] flex items-center justify-center p-6 text-center">
+            <div className="min-h-screen bg-canvas flex items-center justify-center p-6 text-center">
                 <p className="text-black/50 text-sm">{error}</p>
             </div>
         )
@@ -447,7 +447,7 @@ export default function SwitchPage() {
         : { type: 'spring' as const, stiffness: 340, damping: 32, mass: 0.7 }
 
     return (
-        <div className="min-h-screen h-screen flex flex-col overflow-hidden bg-[#F1F2F4] text-[#101114]">
+        <div className="min-h-screen h-screen flex flex-col overflow-hidden bg-canvas font-kabut text-ink">
 
             {/* Latar mengambil warna dari kartu yang sedang terpasang */}
             <div aria-hidden className="pointer-events-none absolute left-[-18%] right-[-18%] top-[-18%] h-[70%]">
@@ -470,7 +470,7 @@ export default function SwitchPage() {
                     className="absolute inset-0"
                     style={{
                         background:
-                            'linear-gradient(180deg, rgba(241,242,244,.18) 0%, rgba(241,242,244,.86) 60%, #F1F2F4 100%)',
+                            'linear-gradient(180deg, rgba(237,235,231,.18) 0%, rgba(237,235,231,.86) 60%, #EDEBE7 100%)',
                     }}
                 />
             </div>
@@ -485,7 +485,7 @@ export default function SwitchPage() {
                         opacity: suckGlow,
                         scale: suckScale,
                         background:
-                            'radial-gradient(ellipse at 50% 100%, rgba(16,17,20,0.38), rgba(16,17,20,0.13) 40%, transparent 70%)',
+                            'radial-gradient(ellipse at 50% 100%, rgba(27,26,24,0.38), rgba(27,26,24,0.13) 40%, transparent 70%)',
                     }}
                 />
 
@@ -494,7 +494,7 @@ export default function SwitchPage() {
                     {DUST.map((d, i) => (
                         <motion.span
                             key={i}
-                            className="absolute rounded-full bg-[#101114]"
+                            className="absolute rounded-full bg-ink"
                             style={{ left: `${d.x}%`, bottom: 0, width: d.s, height: d.s }}
                             animate={reduceMotion ? { opacity: 0.3 } : { y: [0, -92], opacity: [0, 0.85, 0] }}
                             transition={{ duration: d.t, repeat: Infinity, delay: d.d, ease: 'easeIn' }}
@@ -512,13 +512,13 @@ export default function SwitchPage() {
                         className="absolute inset-0 border-[1.5px] border-t-0 border-dashed"
                         style={{
                             borderRadius: '0 0 104px 104px / 0 0 46px 46px',
-                            borderColor: '#101114',
+                            borderColor: '#1B1A18',
                             opacity: slotEdge,
                         }}
                     />
                     <motion.div
                         className="absolute inset-x-3 -top-1 h-2 rounded-full"
-                        style={{ opacity: suckGlow, background: '#101114', filter: 'blur(6px)' }}
+                        style={{ opacity: suckGlow, background: '#1B1A18', filter: 'blur(6px)' }}
                     />
                 </motion.div>
 
@@ -531,7 +531,7 @@ export default function SwitchPage() {
                             initial={{ opacity: 0.55, scale: 0.5 }}
                             animate={{ opacity: 0, scale: 2.4 }}
                             transition={{ duration: 0.8, ease: 'easeOut' }}
-                            className="absolute left-1/2 -translate-x-1/2 bottom-2 w-[104px] h-[104px] rounded-full border-2 border-[#101114] pointer-events-none"
+                            className="absolute left-1/2 -translate-x-1/2 bottom-2 w-[104px] h-[104px] rounded-full border-2 border-ink pointer-events-none"
                         />
                     )}
                 </AnimatePresence>
@@ -566,9 +566,9 @@ export default function SwitchPage() {
                                         onClick={openNew}
                                         animate={{ scale: isFocused ? 1 : 0.92, opacity: 1 }}
                                         transition={spring}
-                                        className="w-full rounded-[24px] border-2 border-dashed border-black/[0.14] bg-white/45 hover:bg-white/70 transition-colors flex flex-col items-center justify-center gap-3 py-20"
+                                        className="w-full rounded-[24px] border-2 border-dashed border-black/[0.14] bg-surface/60 hover:bg-surface/85 transition-colors flex flex-col items-center justify-center gap-3 py-20"
                                     >
-                                        <span className="w-14 h-14 rounded-full bg-[#101114] text-white flex items-center justify-center">
+                                        <span className="w-14 h-14 rounded-full bg-ink text-white flex items-center justify-center">
                                             <Plus className="w-6 h-6" />
                                         </span>
                                         <span className="text-[15px] font-semibold">Tambah pintasan</span>
@@ -592,11 +592,11 @@ export default function SwitchPage() {
                                         initial={reduceMotion ? false : { opacity: 0, scale: 0.9 }}
                                         animate={{ opacity: 1, scale: isFocused ? 1 : 0.92 }}
                                         transition={spring}
-                                        className="rounded-[24px] border-2 border-dashed border-black/[0.16] bg-white/25 p-2.5 pb-3"
+                                        className="rounded-[24px] border-2 border-dashed border-black/[0.16] bg-surface/45 p-2.5 pb-3"
                                     >
                                         <div
                                             className="w-full aspect-[4/5] rounded-[18px] overflow-hidden relative flex items-center justify-center"
-                                            style={{ background: 'rgba(255,255,255,0.35)' }}
+                                            style={{ background: 'rgba(248,247,245,0.55)' }}
                                         >
                                             {imageOf(card) ? (
                                                 <img src={imageOf(card) as string} alt="" className="w-full h-full object-cover opacity-[0.14]" />
@@ -625,7 +625,7 @@ export default function SwitchPage() {
                                                                 key={opt.id}
                                                                 onClick={() => setLanding(opt.id)}
                                                                 className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${(shortcut.type ?? 'direct') === opt.id
-                                                                    ? 'bg-white text-[#101114] shadow-sm'
+                                                                    ? 'bg-surface text-ink shadow-row'
                                                                     : 'text-black/35'
                                                                     }`}
                                                             >
@@ -641,8 +641,8 @@ export default function SwitchPage() {
                                                                 className="flex-1 py-2 rounded-lg text-[10px] border transition-colors"
                                                                 style={
                                                                     duration === d.id
-                                                                        ? { background: '#101114', color: '#fff', borderColor: '#101114' }
-                                                                        : { background: 'transparent', color: 'rgba(16,17,20,0.40)', borderColor: 'rgba(16,17,20,0.12)' }
+                                                                        ? { background: '#1B1A18', color: '#fff', borderColor: '#1B1A18' }
+                                                                        : { background: 'transparent', color: 'rgba(27,26,24,0.40)', borderColor: 'rgba(27,26,24,0.12)' }
                                                                 }
                                                             >
                                                                 {d.label}
@@ -683,7 +683,7 @@ export default function SwitchPage() {
                                     {/* Lapis dalam: menyusut seiring jari naik */}
                                     <motion.div
                                         style={{ scale: isFocused ? dragShrink : 1, transformOrigin: 'center' }}
-                                        className="bg-white rounded-[24px] p-2.5 pb-3 shadow-[0_18px_40px_rgba(16,17,20,0.13)]"
+                                        className="bg-surface rounded-[24px] p-2.5 pb-3 shadow-card"
                                     >
                                         <CardFace
                                             card={card}
@@ -716,7 +716,7 @@ export default function SwitchPage() {
                             className="h-[5px] rounded-full transition-all"
                             style={{
                                 width: i === index ? 20 : 5,
-                                background: i === index ? '#101114' : 'rgba(16,17,20,0.16)',
+                                background: i === index ? '#1B1A18' : 'rgba(27,26,24,0.16)',
                             }}
                         />
                     ))}
@@ -737,7 +737,7 @@ export default function SwitchPage() {
                                         animate={reduceMotion ? { opacity: 0.6 } : { y: [4, -5], opacity: [0, 1, 0] }}
                                         transition={{ duration: 1.5, repeat: Infinity, delay: n * 0.55, ease: 'easeOut' }}
                                     >
-                                        <ChevronUp className="w-4 h-4 text-[#101114]" />
+                                        <ChevronUp className="w-4 h-4 text-ink" />
                                     </motion.div>
                                 ))}
                             </div>
@@ -748,13 +748,13 @@ export default function SwitchPage() {
                     )}
                 </div>
 
-                {error && <p className="text-center text-[11px] text-red-500">{error}</p>}
+                {error && <p className="text-center text-[11px] text-coral-soft-ink">{error}</p>}
             </div>
 
             <div className="relative shrink-0 px-4 pt-1 pb-4">
                 <Link
                     href="/dashboard"
-                    className="flex items-center justify-center gap-2 py-3.5 rounded-3xl bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.1)] text-zinc-600 hover:text-zinc-900 transition-colors"
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/80 bg-white/[0.72] py-3.5 text-ink-2 shadow-nav backdrop-blur-[26px] backdrop-saturate-[1.7] transition-colors hover:text-ink"
                 >
                     <ChevronLeft className="w-4 h-4" />
                     <LayoutDashboard className="w-4 h-4" />
@@ -786,7 +786,7 @@ export default function SwitchPage() {
                         }}
                         onAnimationComplete={() => finishSuck(flight.card)}
                     >
-                        <div className="bg-white rounded-[24px] p-2.5 pb-3 shadow-[0_18px_40px_rgba(16,17,20,0.13)]">
+                        <div className="bg-surface rounded-[24px] p-2.5 pb-3 shadow-card">
                             <CardFace
                                 card={flight.card}
                                 title={titleOf(flight.card)}
@@ -809,7 +809,7 @@ export default function SwitchPage() {
                     >
                         <motion.div
                             initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }}
-                            className="w-full max-w-sm rounded-[24px] bg-white p-6 shadow-[0_24px_60px_rgba(16,17,20,0.2)] max-h-[88vh] overflow-y-auto"
+                            className="w-full max-w-sm rounded-[24px] bg-surface p-6 shadow-card max-h-[88vh] overflow-y-auto"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <p className="text-[9px] tracking-[0.24em] text-black/35 mb-5" style={{ fontFamily: mono }}>
@@ -823,7 +823,7 @@ export default function SwitchPage() {
                                 placeholder="tokopedia.com/tokogue"
                                 inputMode="url"
                                 autoCapitalize="none"
-                                className="w-full mb-4 px-4 py-3 rounded-xl bg-[#F2F3F5] border border-black/[0.08] text-sm outline-none focus:border-black/30"
+                                className="w-full mb-4 px-4 py-3 rounded-xl bg-fill-subtle border border-black/[0.08] text-sm outline-none focus:border-black/30"
                                 style={{ fontFamily: mono }}
                             />
 
@@ -834,11 +834,11 @@ export default function SwitchPage() {
                                 value={form.title}
                                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                                 placeholder="Brosur promo"
-                                className="w-full mb-5 px-4 py-3 rounded-xl bg-[#F2F3F5] border border-black/[0.08] text-sm outline-none focus:border-black/30"
+                                className="w-full mb-5 px-4 py-3 rounded-xl bg-fill-subtle border border-black/[0.08] text-sm outline-none focus:border-black/30"
                             />
 
                             <label className="block text-[11px] text-black/45 mb-1.5">Cara mendarat</label>
-                            <div className="flex gap-1 p-1 rounded-xl bg-[#F2F3F5] mb-1.5">
+                            <div className="flex gap-1 p-1 rounded-xl bg-fill-subtle mb-1.5">
                                 {([
                                     { id: 'direct' as const, label: 'Langsung' },
                                     { id: 'intro' as const, label: 'Disambut dulu' },
@@ -846,7 +846,7 @@ export default function SwitchPage() {
                                     <button
                                         key={opt.id}
                                         onClick={() => setForm({ ...form, type: opt.id })}
-                                        className={`flex-1 py-2.5 rounded-lg text-[12px] font-semibold transition-colors ${form.type === opt.id ? 'bg-white text-[#101114] shadow-sm' : 'text-black/40'
+                                        className={`flex-1 py-2.5 rounded-lg text-[12px] font-semibold transition-colors ${form.type === opt.id ? 'bg-surface text-ink shadow-row' : 'text-black/40'
                                             }`}
                                     >
                                         {opt.label}
@@ -866,7 +866,7 @@ export default function SwitchPage() {
                                         value={form.message}
                                         onChange={(e) => setForm({ ...form, message: e.target.value })}
                                         placeholder="Cek promo bulan ini yuk"
-                                        className="w-full mb-5 px-4 py-3 rounded-xl bg-[#F2F3F5] border border-black/[0.08] text-sm outline-none focus:border-black/30"
+                                        className="w-full mb-5 px-4 py-3 rounded-xl bg-fill-subtle border border-black/[0.08] text-sm outline-none focus:border-black/30"
                                     />
                                 </>
                             )}
@@ -875,14 +875,14 @@ export default function SwitchPage() {
                                 <button
                                     onClick={() => setEditing(null)}
                                     disabled={fetchingPreview}
-                                    className="flex-1 py-3 rounded-xl bg-[#F2F3F5] hover:bg-[#E9EAEE] text-sm text-black/55 disabled:opacity-40 transition-colors"
+                                    className="flex-1 py-3 rounded-xl bg-fill-subtle hover:bg-track text-sm text-black/55 disabled:opacity-40 transition-colors"
                                 >
                                     Batal
                                 </button>
                                 <button
                                     onClick={submitForm}
                                     disabled={!form.url.trim() || fetchingPreview}
-                                    className="flex-1 py-3 rounded-xl bg-[#101114] text-white text-sm font-semibold disabled:opacity-30 flex items-center justify-center gap-2 transition-opacity"
+                                    className="flex-1 py-3 rounded-xl bg-ink text-white text-sm font-semibold disabled:opacity-30 flex items-center justify-center gap-2 transition-opacity"
                                 >
                                     {fetchingPreview && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                                     {fetchingPreview ? 'Ambil gambar' : 'Simpan'}
