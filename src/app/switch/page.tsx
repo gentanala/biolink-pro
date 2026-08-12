@@ -441,39 +441,12 @@ export default function SwitchPage() {
             ? c.data.siteName || hostOf(c.data.url)
             : profile.job_title || profile.company || `@${profile.slug}`
 
-    const liveImg = imageOf(liveCard)
     const spring = reduceMotion
         ? { duration: 0 }
         : { type: 'spring' as const, stiffness: 340, damping: 32, mass: 0.7 }
 
     return (
         <div className="min-h-screen h-screen flex flex-col overflow-hidden bg-canvas font-kabut text-ink">
-
-            {/* Latar mengambil warna dari kartu yang sedang terpasang */}
-            <div aria-hidden className="pointer-events-none absolute left-[-18%] right-[-18%] top-[-18%] h-[70%]">
-                <AnimatePresence mode="wait">
-                    {liveImg && (
-                        <motion.img
-                            key={liveImg}
-                            src={liveImg}
-                            alt=""
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 0.62 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.5 }}
-                            className="w-full h-full object-cover"
-                            style={{ filter: 'blur(50px) saturate(2.2)' }}
-                        />
-                    )}
-                </AnimatePresence>
-                <div
-                    className="absolute inset-0"
-                    style={{
-                        background:
-                            'linear-gradient(180deg, rgba(237,235,231,.18) 0%, rgba(237,235,231,.86) 60%, #EDEBE7 100%)',
-                    }}
-                />
-            </div>
 
             {/* ── MULUT ISAP: yang menyala di atas saat kartu ditarik ── */}
             <div className="relative shrink-0 h-[104px] flex flex-col items-center justify-end pb-1">
