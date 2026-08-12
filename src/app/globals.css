@@ -1,39 +1,41 @@
 @import "tailwindcss";
 
-/* ── Kabut — token desain area dashboard ─────────────────────────────────
-   Dipakai lewat utility Tailwind (bg-canvas, text-ink, rounded-card, …)
-   supaya nilainya tidak tersebar sebagai angka mentah di dalam komponen.
+/* ── Token desain area dashboard ──────────────────────────────────────────
+   Palet hangat: kanvas krem, kartu putih hangat, satu aksen oranye.
+   Nama token sengaja tidak diubah supaya semua layar yang sudah memakainya
+   (dashboard, statistik) ikut berganti tema hanya dari berkas ini — tidak
+   ada nilai warna yang ditulis langsung di dalam komponen.
    Cakupannya hanya dashboard: kartu profil publik, /tap dan /switch tidak
    memakai token ini.                                                      */
 @theme {
-  --color-canvas: #DEDDE6;
-  --color-surface: #FFFFFF;
-  --color-ink: #17171E;
-  --color-ink-2: #6C6A79;
-  --color-ink-3: #9A98A8;
-  --color-hairline: rgba(23, 23, 30, 0.08);
-  --color-fill-subtle: #F1F0F5;
-  --color-track: #ECEBF2;
-  --color-avatar: #D9D7E4;
-  --color-avatar-ink: #4A4858;
-  --color-coral: #F58C84;
-  --color-coral-ink: #4A1E1A;
-  --color-coral-soft: #FCE3E0;
-  --color-coral-soft-ink: #8A342C;
-  --color-sky: #A6C4EE;
-  --color-butter: #F2CE6A;
-  --color-moss: #A5D4B6;
-  --color-success-soft: #E7F1E9;
-  --color-success-soft-ink: #1F5B33;
+  --color-canvas: #EDEBE7;
+  --color-surface: #F8F7F5;
+  --color-ink: #1B1A18;
+  --color-ink-2: #86827C;
+  --color-ink-3: #A9A59F;
+  --color-hairline: rgba(27, 26, 24, 0.08);
+  --color-fill-subtle: #F1EFEB;
+  --color-track: #E4E1DC;
+  --color-avatar: #DDD9D3;
+  --color-avatar-ink: #504C46;
+  --color-coral: #E8703A;
+  --color-coral-ink: #3A1508;
+  --color-coral-soft: #F7E2D6;
+  --color-coral-soft-ink: #8A3D1C;
+  --color-sky: #A8BFD8;
+  --color-butter: #E8C97A;
+  --color-moss: #A9C9A5;
+  --color-success-soft: #DFEBDA;
+  --color-success-soft-ink: #2F5A2C;
 
-  --radius-card: 30px;
-  --radius-card-sm: 26px;
-  --radius-row: 24px;
+  --radius-card: 26px;
+  --radius-card-sm: 22px;
+  --radius-row: 20px;
 
-  --shadow-card: 0 22px 44px -26px rgba(40, 38, 70, 0.55);
-  --shadow-row: 0 12px 26px -20px rgba(40, 38, 70, 0.55);
-  --shadow-ink: 0 22px 44px -24px rgba(23, 23, 30, 0.9);
-  --shadow-nav: 0 20px 40px -20px rgba(40, 38, 70, 0.5);
+  --shadow-card: 0 18px 38px -28px rgba(60, 52, 44, 0.55);
+  --shadow-row: 0 10px 24px -20px rgba(60, 52, 44, 0.5);
+  --shadow-ink: 0 18px 36px -20px rgba(27, 26, 24, 0.55);
+  --shadow-nav: 0 16px 36px -18px rgba(60, 52, 44, 0.45);
 
   --font-kabut: var(--font-kabut), ui-sans-serif, system-ui, sans-serif;
 }

@@ -3,7 +3,6 @@
 
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { motion } from 'framer-motion'
 import {
     User,
     Save,
@@ -24,9 +23,11 @@ import {
     Wand2,
     Bot,
     RefreshCw,
-    Mail
+    Mail,
+    LogOut
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import DesktopPreview from '@/components/dashboard/DesktopPreview'
 import { uploadAvatar, uploadGalleryImage, deleteFile } from '@/lib/storage'
 import { getAvailableSpecialEditions, SPECIAL_EDITIONS } from '@/lib/special-greeting.mjs'
 
@@ -111,6 +112,14 @@ export default function ProfileEditor() {
             setIsAvatarGenerating(false)
             if (avatarInputRef.current) avatarInputRef.current.value = ''
         }
+    }
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut()
+        localStorage.removeItem('genhub_user')
+        localStorage.removeItem('genhub_activated')
+        localStorage.removeItem('genhub_profile')
+        window.location.href = '/login'
     }
 
     const applyAiAvatar = async () => {
@@ -569,37 +578,38 @@ export default function ProfileEditor() {
     const selectedSpecialEdition = SPECIAL_EDITIONS.find((edition) => edition.id === formData.selected_special_greeting_anim)
 
     return (
-        <div className="max-w-2xl mx-auto pb-20">
-            <div className="mb-8 relative">
-                <h1 className="text-3xl font-bold mb-2 text-zinc-900">Editor Profil</h1>
-                <p className="hidden xl:block text-zinc-500">Perubahan langsung terlihat di Live Preview →</p>
-                <div className="mt-2 text-[10px] text-zinc-400 font-mono bg-zinc-50 border border-zinc-100 inline-block px-2 py-1 rounded">
-                    Tier: {userTier}
-                </div>
-            </div>
-
-            <form onSubmit={handleSave} className="space-y-8">
-                {/* Profile Photo Section */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass rounded-3xl p-6 overflow-hidden"
+        <div className="mx-auto flex max-w-[1200px] gap-8 px-5 pb-[150px] pt-6">
+          <div className="min-w-0 flex-1">
+            <header>
+                <h1 className="text-[26px] font-semibold tracking-[-0.03em]">Edit Profil</h1>
+                <p className="mt-1.5 text-[13px] text-ink-2">Isi data yang tampil di kartu digital kamu</p>
+                <span
+                    className="mt-3 inline-block rounded-full bg-fill-subtle px-2.5 py-1 text-[10px] uppercase tracking-wider text-ink-2"
+                    style={{ fontFamily: 'var(--font-mono)' }}
                 >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-zinc-900">
-                        <Camera className="w-5 h-5 text-blue-600" />
-                        Foto Profil
-                    </h2>
+                    Paket {userTier}
+                </span>
+            </header>
 
-                    <p className="text-xs text-zinc-500 mb-4">
-                        Foto ini akan menjadi <span className="text-blue-600 font-medium">hero banner</span> di halaman publik
-                    </p>
+            <form onSubmit={handleSave}>
+                {/* Foto profil */}
+                <section className="mt-5 rounded-card bg-surface p-5 shadow-card">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle text-ink-2">
+                            <Camera className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                        </span>
+                        <div>
+                            <h2 className="text-[15px] font-semibold">Foto Profil</h2>
+                            <p className="text-[12px] text-ink-2">Jadi gambar utama di halaman publik</p>
+                        </div>
+                    </div>
 
-                    <div className="flex items-start gap-6">
-                        <div className="relative flex-shrink-0">
+                    <div className="mt-4 flex items-start gap-4">
+                        <div className="relative shrink-0">
                             {formData.avatar_url ? (
-                                <div className="relative group">
+                                <div className="group relative">
                                     <div
-                                        className="w-32 h-32 rounded-2xl overflow-hidden ring-2 ring-zinc-200 bg-zinc-100"
+                                        className="h-28 w-28 overflow-hidden rounded-card-sm bg-fill-subtle"
                                         style={{
                                             backgroundImage: `url(${formData.avatar_url})`,
                                             backgroundSize: 'cover',
@@ -609,16 +619,17 @@ export default function ProfileEditor() {
                                     <button
                                         type="button"
                                         onClick={handleRemovePhoto}
-                                        className="absolute -top-2 -right-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                        aria-label="Hapus foto"
+                                        className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-coral-soft text-coral-soft-ink shadow-row"
                                     >
-                                        <X className="w-4 h-4 text-white" />
+                                        <X className="h-3.5 w-3.5" strokeWidth={2} />
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => fileInputRef.current?.click()}
-                                        className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="absolute inset-0 flex items-center justify-center rounded-card-sm bg-ink/45 opacity-0 transition-opacity group-hover:opacity-100"
                                     >
-                                        <Camera className="w-6 h-6 text-white" />
+                                        <Camera className="h-5 w-5 text-white" strokeWidth={1.8} />
                                     </button>
                                 </div>
                             ) : (
@@ -626,14 +637,14 @@ export default function ProfileEditor() {
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={isUploading}
-                                    className="w-32 h-32 rounded-2xl border-2 border-dashed border-zinc-300 hover:border-blue-500 bg-zinc-50 flex flex-col items-center justify-center gap-2 transition-colors"
+                                    className="flex h-28 w-28 flex-col items-center justify-center gap-2 rounded-card-sm border border-dashed border-ink/15 bg-fill-subtle"
                                 >
                                     {isUploading ? (
-                                        <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+                                        <Loader2 className="h-6 w-6 animate-spin text-ink-3" />
                                     ) : (
                                         <>
-                                            <Upload className="w-8 h-8 text-zinc-500" />
-                                            <span className="text-xs text-zinc-500">Upload Foto</span>
+                                            <Upload className="h-6 w-6 text-ink-3" strokeWidth={1.6} />
+                                            <span className="text-[11px] text-ink-2">Unggah</span>
                                         </>
                                     )}
                                 </button>
@@ -648,41 +659,35 @@ export default function ProfileEditor() {
                             />
                         </div>
 
-                        <div className="flex-1">
-                            <div className="text-sm text-zinc-400 space-y-2">
-                                <p className="flex items-center gap-2">
-                                    <ImageIcon className="w-4 h-4 text-zinc-500" />
-                                    Format: JPG, PNG, WebP
-                                </p>
-                                <p className="flex items-center gap-2">
-                                    <Upload className="w-4 h-4 text-zinc-500" />
-                                    Maksimal 5MB
-                                </p>
-                            </div>
-                            <p className="text-[10px] text-zinc-600 mt-3">
-                                💡 Tips: Gunakan foto portrait dengan rasio 3:4 untuk hasil terbaik.
+                        <div className="min-w-0 flex-1 text-[12px] text-ink-2">
+                            <p className="flex items-center gap-2">
+                                <ImageIcon className="h-3.5 w-3.5 text-ink-3" strokeWidth={1.8} />
+                                JPG, PNG, atau WebP
+                            </p>
+                            <p className="mt-1.5 flex items-center gap-2">
+                                <Upload className="h-3.5 w-3.5 text-ink-3" strokeWidth={1.8} />
+                                Maksimal 5MB
+                            </p>
+                            <p className="mt-3 text-[11px] leading-relaxed text-ink-3">
+                                Pakai foto tegak rasio 3:4 biar hasilnya paling rapi.
                             </p>
                         </div>
                     </div>
-                </motion.section>
+                </section>
 
-                {/* AI Avatar Generator Section (Hidden) */}
-                {/* AI Avatar Generator Section (Hidden) */}
-                {/* Profile Photo Section */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.15 }}
-                    className="glass rounded-3xl p-6"
-                >
-                    <h2 className="text-lg font-semibold mb-2 flex items-center gap-2 text-zinc-900">
-                        <span className="text-2xl">✨</span>
-                        Welcome Word
-                    </h2>
-                    <p className="text-xs text-zinc-500 mb-4">
-                        Kata sapaan ini akan muncul sebagai animasi saat pengunjung pertama kali membuka profil Anda.
-                    </p>
-                    <div className="relative">
+                {/* Kata sapaan */}
+                <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle text-ink-2">
+                            <Sparkles className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                        </span>
+                        <div>
+                            <h2 className="text-[15px] font-semibold">Kata Sapaan</h2>
+                            <p className="text-[12px] text-ink-2">Muncul saat kartu kamu pertama dibuka</p>
+                        </div>
+                    </div>
+
+                    <div className="relative mt-4">
                         <input
                             type="text"
                             value={formData.welcome_word}
@@ -690,158 +695,155 @@ export default function ProfileEditor() {
                             disabled={userTier === 'FREE'}
                             placeholder="hello"
                             maxLength={30}
-                            className={`w-full bg-zinc-50 border border-zinc-200 rounded-xl py-3 px-4 text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none transition-colors font-mono text-lg ${userTier === 'FREE' ? 'cursor-not-allowed opacity-70' : ''}`}
+                            className={`w-full rounded-row bg-fill-subtle px-4 py-3 text-[16px] text-ink outline-none placeholder:text-ink-3 ${userTier === 'FREE' ? 'cursor-not-allowed opacity-70' : ''}`}
                             style={{ fontFamily: "var(--font-mono), 'JetBrains Mono', monospace" }}
                         />
                         {userTier === 'FREE' && (
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                <span className="text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full border border-amber-200">PREMIUM</span>
-                            </div>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-coral-soft px-2 py-0.5 text-[10px] font-semibold text-coral-soft-ink">
+                                PREMIUM
+                            </span>
                         )}
                     </div>
-                    <p className="text-[10px] text-zinc-600 mt-2">Contoh: hello, halo, selamat datang, welcome, apa kabar</p>
-                    {availableSpecialEditions.length > 0 && (
-                        <div className="mt-6 pt-6 border-t border-zinc-100 space-y-4">
-                            <div>
-                                <h3 className="text-sm font-semibold text-zinc-900">Animasi Special Edition</h3>
-                                <p className="text-xs text-zinc-500 mt-0.5">Pilih salah satu animasi yang muncul di welcome screen.</p>
-                            </div>
+                    <p className="mt-2 text-[11px] text-ink-3">Contoh: hello, halo, selamat datang, apa kabar</p>
 
-                            <div className="grid gap-2">
+                    {availableSpecialEditions.length > 0 && (
+                        <div className="mt-5 border-t border-ink/[0.08] pt-5">
+                            <h3 className="text-[13.5px] font-semibold">Animasi Edisi Khusus</h3>
+                            <p className="mt-0.5 text-[12px] text-ink-2">Pilih animasi yang muncul di layar sapaan</p>
+
+                            <div className="mt-3 grid gap-2">
                                 <button
                                     type="button"
                                     onClick={() => updateSpecialGreetingSelection(null)}
-                                    className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
-                                        !formData.selected_special_greeting_anim
-                                            ? 'border-zinc-900 bg-zinc-900 text-white'
-                                            : 'border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
-                                    }`}
+                                    className={`w-full rounded-row px-4 py-3 text-left text-[13.5px] font-medium transition-colors ${!formData.selected_special_greeting_anim
+                                        ? 'bg-ink text-white'
+                                        : 'bg-fill-subtle text-ink-2'
+                                        }`}
                                 >
-                                    None
+                                    Tanpa animasi
                                 </button>
                                 {SPECIAL_EDITIONS.filter((edition) => availableSpecialEditions.includes(edition.id)).map((edition) => (
                                     <button
                                         key={edition.id}
                                         type="button"
                                         onClick={() => updateSpecialGreetingSelection(edition.id)}
-                                        className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
-                                            formData.selected_special_greeting_anim === edition.id
-                                                ? 'border-amber-500 bg-amber-50 text-amber-700'
-                                                : 'border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
-                                        }`}
+                                        className={`w-full rounded-row px-4 py-3 text-left text-[13.5px] font-medium transition-colors ${formData.selected_special_greeting_anim === edition.id
+                                            ? 'bg-ink text-white'
+                                            : 'bg-fill-subtle text-ink-2'
+                                            }`}
                                     >
                                         {edition.label}
                                     </button>
                                 ))}
                             </div>
 
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h4 className="text-sm font-semibold text-zinc-900">Aktifkan Animasi</h4>
-                                    <p className="text-xs text-zinc-500 mt-0.5">
-                                        {selectedSpecialEdition ? `Tampilkan ${selectedSpecialEdition.animationLabel} looping di welcome screen.` : 'Pilih animasi dulu untuk mengaktifkan.'}
+                            <div className="mt-4 flex items-center justify-between gap-4">
+                                <div className="min-w-0">
+                                    <h4 className="text-[13.5px] font-semibold">Aktifkan Animasi</h4>
+                                    <p className="mt-0.5 text-[12px] text-ink-2">
+                                        {selectedSpecialEdition ? `Tampilkan ${selectedSpecialEdition.animationLabel} berulang di layar sapaan.` : 'Pilih animasinya dulu.'}
                                     </p>
                                 </div>
                                 <button
                                     type="button"
                                     disabled={!formData.selected_special_greeting_anim}
                                     onClick={() => updateField('enable_special_greeting_anim', !formData.enable_special_greeting_anim)}
-                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                                        formData.enable_special_greeting_anim ? 'bg-amber-500' : 'bg-zinc-200'
-                                    }`}
+                                    aria-label="Aktifkan animasi edisi khusus"
+                                    className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${formData.enable_special_greeting_anim ? 'bg-ink' : 'bg-track'
+                                        }`}
                                 >
                                     <span
-                                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                            formData.enable_special_greeting_anim ? 'translate-x-5' : 'translate-x-0'
-                                        }`}
+                                        className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-row transition-transform ${formData.enable_special_greeting_anim ? 'translate-x-7' : 'translate-x-1'
+                                            }`}
                                     />
                                 </button>
                             </div>
                         </div>
                     )}
-                </motion.section>
+                </section>
 
-                {/* Gallery Section */}
-                <div className="glass rounded-2xl p-6 mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-zinc-900">Galeri Foto</h3>
-                        <label className="cursor-pointer bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 border border-zinc-200">
-                            <ImageIcon className="w-4 h-4" />
-                            <span>Upload</span>
+                {/* Galeri foto */}
+                <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-[15px] font-semibold">Galeri Foto</h2>
+                        <label className="flex cursor-pointer items-center gap-1.5 rounded-full bg-fill-subtle px-3.5 py-2 text-[12px] font-medium text-ink-2">
+                            <ImageIcon className="h-3.5 w-3.5" strokeWidth={1.8} />
+                            Unggah
                             <input type="file" className="hidden" accept="image/*" onChange={handleGalleryUpload} />
                         </label>
                     </div>
 
                     {formData.gallery.length === 0 ? (
-                        <div className="text-center py-8 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-400 text-sm">
+                        <div className="mt-4 rounded-row border border-dashed border-ink/15 p-8 text-center text-[12.5px] text-ink-3">
                             Belum ada foto di galeri
                         </div>
                     ) : (
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="mt-4 grid grid-cols-3 gap-2.5">
                             {formData.gallery.map(item => (
-                                <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden group border border-zinc-200">
-                                    <img src={item.url} alt="Gallery" className="w-full h-full object-cover" />
+                                <div key={item.id} className="group relative aspect-square overflow-hidden rounded-row bg-fill-subtle">
+                                    <img src={item.url} alt="" className="h-full w-full object-cover" />
                                     <button
                                         type="button"
                                         onClick={() => removeGalleryItem(item.id)}
-                                        className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        aria-label="Hapus foto galeri"
+                                        className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-ink/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
                                     >
-                                        <X className="w-3 h-3" />
+                                        <X className="h-3 w-3" strokeWidth={2} />
                                     </button>
                                 </div>
                             ))}
                         </div>
                     )}
-                </div>
+                </section>
 
-                {/* Files / Documents Section */}
-                <div className="glass rounded-2xl p-6 mb-8">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-zinc-900">Dokumen & Link</h3>
+                {/* Dokumen & link */}
+                <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-[15px] font-semibold">Dokumen & Link</h2>
                         <button
                             type="button"
                             onClick={() => setShowAddFile(!showAddFile)}
-                            className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-2 border border-zinc-200"
+                            className="flex items-center gap-1.5 rounded-full bg-fill-subtle px-3.5 py-2 text-[12px] font-medium text-ink-2"
                         >
-                            <FileText className="w-4 h-4" />
-                            <span>+ Tambah Link</span>
+                            <FileText className="h-3.5 w-3.5" strokeWidth={1.8} />
+                            Tambah
                         </button>
                     </div>
 
                     {showAddFile && (
-                        <div className="mb-4 p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3">
+                        <div className="mt-4 rounded-row bg-fill-subtle p-4">
                             <div>
-                                <label className="block text-xs font-medium text-zinc-500 uppercase mb-1">Judul Dokumen</label>
+                                <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Judul dokumen</label>
                                 <input
                                     type="text"
                                     value={newFileTitle}
                                     onChange={(e) => setNewFileTitle(e.target.value)}
                                     placeholder="Contoh: Sertifikat Keaslian"
-                                    className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:border-blue-500"
+                                    className="mt-1.5 w-full rounded-row bg-surface px-4 py-2.5 text-[13.5px] text-ink outline-none placeholder:text-ink-3"
                                 />
                             </div>
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-500 uppercase mb-1">URL Link</label>
+                            <div className="mt-3">
+                                <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Alamat link</label>
                                 <input
                                     type="text"
                                     value={newFileUrl}
                                     onChange={(e) => setNewFileUrl(e.target.value)}
                                     placeholder="https://drive.google.com/file/..."
-                                    className="w-full bg-white border border-zinc-200 rounded-lg px-3 py-2 text-zinc-900 text-sm focus:outline-none focus:border-blue-500"
+                                    className="mt-1.5 w-full rounded-row bg-surface px-4 py-2.5 text-[13.5px] text-ink outline-none placeholder:text-ink-3"
                                 />
                             </div>
-                            <div className="flex gap-2">
+                            <div className="mt-4 flex gap-2">
                                 <button
                                     type="button"
                                     onClick={addFileLink}
-                                    className="bg-amber-500 hover:bg-amber-600 text-black px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                                    className="flex-1 rounded-full bg-ink py-2.5 text-[12.5px] font-medium text-white"
                                 >
                                     Simpan
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => { setShowAddFile(false); setNewFileTitle(''); setNewFileUrl('') }}
-                                    className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                                    className="rounded-full bg-surface px-5 py-2.5 text-[12.5px] font-medium text-ink-2"
                                 >
                                     Batal
                                 </button>
@@ -850,288 +852,286 @@ export default function ProfileEditor() {
                     )}
 
                     {formData.files.length === 0 ? (
-                        <div className="text-center py-8 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-400 text-sm">
-                            Belum ada dokumen. Tambahkan link ke Google Drive, PDF, atau file lainnya.
+                        <div className="mt-4 rounded-row border border-dashed border-ink/15 p-8 text-center text-[12.5px] text-ink-3">
+                            Belum ada dokumen. Tambahkan link Google Drive, PDF, atau berkas lain.
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="mt-4 grid gap-2.5">
                             {formData.files.map(file => (
-                                <div key={file.id} className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-200 rounded-xl">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
-                                            <FileText className="w-5 h-5" />
-                                        </div>
+                                <div key={file.id} className="flex items-center justify-between gap-3 rounded-row bg-fill-subtle p-3">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface text-ink-2">
+                                            <FileText className="h-4 w-4" strokeWidth={1.8} />
+                                        </span>
                                         <div className="min-w-0">
-                                            <p className="text-sm font-medium text-zinc-900 truncate">{file.title}</p>
-                                            <p className="text-xs text-zinc-400 truncate">{file.url}</p>
+                                            <p className="truncate text-[13.5px] font-medium">{file.title}</p>
+                                            <p className="truncate text-[11px] text-ink-3">{file.url}</p>
                                         </div>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={() => removeFileItem(file.id)}
-                                        className="text-zinc-500 hover:text-red-500 p-2 transition-colors"
+                                        aria-label="Hapus dokumen"
+                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-ink-3 transition-colors hover:bg-coral-soft hover:text-coral-soft-ink"
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        <Trash2 className="h-4 w-4" strokeWidth={1.8} />
                                     </button>
                                 </div>
                             ))}
                         </div>
                     )}
-                </div>
+                </section>
 
-                {/* Basic Info */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="glass rounded-3xl p-6"
-                >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-zinc-900">
-                        <User className="w-5 h-5 text-purple-600" />
-                        Informasi Dasar
-                    </h2>
+                {/* Informasi dasar */}
+                <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle text-ink-2">
+                            <User className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                        </span>
+                        <h2 className="text-[15px] font-semibold">Informasi Dasar</h2>
+                    </div>
 
-                    <div className="space-y-4">
-                        <div className="grid sm:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Nama Tampilan</label>
-                                <input
-                                    type="text"
-                                    value={formData.display_name}
-                                    onChange={(e) => updateField('display_name', e.target.value)}
-                                    placeholder="Nama lengkap Anda"
-                                    className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Custom URL</label>
-                                <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">my.gentanala.com/</span>
-                                    <input
-                                        type="text"
-                                        value={formData.slug}
-                                        onChange={(e) => updateField('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                                        disabled={userTier === 'FREE'}
-                                        placeholder="username"
-                                        className={`w-full pl-[9rem] pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none ${userTier === 'FREE' ? 'cursor-not-allowed opacity-70' : ''}`}
-                                    />
-                                    {userTier === 'FREE' && (
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                            <span className="text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full border border-amber-200">PREMIUM</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Nama tampilan</label>
+                            <input
+                                type="text"
+                                value={formData.display_name}
+                                onChange={(e) => updateField('display_name', e.target.value)}
+                                placeholder="Nama lengkap kamu"
+                                className="mt-1.5 w-full rounded-row bg-fill-subtle px-4 py-3 text-[14px] text-ink outline-none placeholder:text-ink-3"
+                            />
                         </div>
 
-                        <div className="grid sm:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Perusahaan</label>
-                                <div className="relative">
-                                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                                    <input
-                                        type="text"
-                                        value={formData.company}
-                                        onChange={(e) => updateField('company', e.target.value)}
-                                        placeholder="Nama perusahaan"
-                                        className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Jabatan</label>
-                                <div className="relative">
-                                    <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                                    <input
-                                        type="text"
-                                        value={formData.job_title}
-                                        onChange={(e) => updateField('job_title', e.target.value)}
-                                        placeholder="CEO, Manager, dll"
-                                        className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
-                                    />
-                                </div>
+                        <div>
+                            <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Alamat kartu</label>
+                            <div className="relative mt-1.5">
+                                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[13px] text-ink-3">
+                                    my.gentanala.com/
+                                </span>
+                                <input
+                                    type="text"
+                                    value={formData.slug}
+                                    onChange={(e) => updateField('slug', e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                                    disabled={userTier === 'FREE'}
+                                    placeholder="namakamu"
+                                    className={`w-full rounded-row bg-fill-subtle py-3 pl-[8.6rem] pr-4 text-[14px] text-ink outline-none placeholder:text-ink-3 ${userTier === 'FREE' ? 'cursor-not-allowed opacity-70' : ''}`}
+                                />
+                                {userTier === 'FREE' && (
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-coral-soft px-2 py-0.5 text-[10px] font-semibold text-coral-soft-ink">
+                                        PREMIUM
+                                    </span>
+                                )}
                             </div>
                         </div>
 
                         <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="block text-xs font-medium text-zinc-500 uppercase tracking-wider">Bio Singkat</label>
-                                {userTier !== 'FREE' && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAIModal(true)}
-                                        className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-full transition-all border border-blue-100"
-                                    >
-                                        <Sparkles className="w-3 h-3" />
-                                        Tulis Pake AI
-                                    </button>
-                                )}
-                            </div>
-
-                            {showAIModal && (
-                                <motion.div
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="mb-4 p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3"
-                                >
-                                    <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Apa yang pengen lo highlight?</p>
-                                    <input
-                                        type="text"
-                                        value={aiKeywords}
-                                        onChange={(e) => setAiKeywords(e.target.value)}
-                                        placeholder="Misal: Arsitek, Founder Jam Tangan, Suka Golf"
-                                        className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-500"
-                                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), generateAIBio())}
-                                    />
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={generateAIBio}
-                                            disabled={isGenerating}
-                                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                                        >
-                                            {isGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
-                                            {isGenerating ? 'Lagi Mikir...' : 'Generate Bio'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowAIModal(false)}
-                                            className="px-4 py-2 bg-white border border-zinc-200 text-zinc-600 text-xs font-bold rounded-lg hover:bg-zinc-50 transition-colors"
-                                        >
-                                            Batal
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            <div className="relative">
-                                <textarea
-                                    value={formData.bio}
-                                    onChange={(e) => updateField('bio', e.target.value)}
-                                    placeholder="Tuliskan bio singkat Anda..."
-                                    rows={3}
-                                    maxLength={200}
-                                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none resize-none"
+                            <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Perusahaan</label>
+                            <div className="relative mt-1.5">
+                                <Building2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" strokeWidth={1.8} />
+                                <input
+                                    type="text"
+                                    value={formData.company}
+                                    onChange={(e) => updateField('company', e.target.value)}
+                                    placeholder="Nama perusahaan"
+                                    className="w-full rounded-row bg-fill-subtle py-3 pl-11 pr-4 text-[14px] text-ink outline-none placeholder:text-ink-3"
                                 />
-                                <div className="absolute bottom-3 right-3 text-[10px] font-mono text-zinc-400">
-                                    {formData.bio.length}/200
-                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Jabatan</label>
+                            <div className="relative mt-1.5">
+                                <Briefcase className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" strokeWidth={1.8} />
+                                <input
+                                    type="text"
+                                    value={formData.job_title}
+                                    onChange={(e) => updateField('job_title', e.target.value)}
+                                    placeholder="CEO, Manager, dll"
+                                    className="w-full rounded-row bg-fill-subtle py-3 pl-11 pr-4 text-[14px] text-ink outline-none placeholder:text-ink-3"
+                                />
                             </div>
                         </div>
                     </div>
-                </motion.section>
 
-                {/* Contact Info */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="glass rounded-3xl p-6"
-                >
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-zinc-900">
-                        <Phone className="w-5 h-5 text-green-600" />
-                        Kontak Langsung
-                    </h2>
+                    <div className="mt-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Bio singkat</label>
+                            {userTier !== 'FREE' && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAIModal(true)}
+                                    className="flex items-center gap-1.5 rounded-full bg-fill-subtle px-3 py-1.5 text-[11px] font-medium text-ink-2"
+                                >
+                                    <Sparkles className="h-3 w-3" strokeWidth={1.8} />
+                                    Tulis pakai AI
+                                </button>
+                            )}
+                        </div>
 
-                    <div className="space-y-4">
+                        {showAIModal && (
+                            <div className="mt-3 rounded-row bg-fill-subtle p-4">
+                                <p className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Mau nonjolin apa?</p>
+                                <input
+                                    type="text"
+                                    value={aiKeywords}
+                                    onChange={(e) => setAiKeywords(e.target.value)}
+                                    placeholder="Misal: Arsitek, Founder jam tangan, suka golf"
+                                    className="mt-2 w-full rounded-row bg-surface px-4 py-2.5 text-[13.5px] text-ink outline-none placeholder:text-ink-3"
+                                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), generateAIBio())}
+                                />
+                                <div className="mt-3 flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={generateAIBio}
+                                        disabled={isGenerating}
+                                        className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ink py-2.5 text-[12.5px] font-medium text-white disabled:opacity-50"
+                                    >
+                                        {isGenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" strokeWidth={1.8} />}
+                                        {isGenerating ? 'Lagi mikir...' : 'Buatkan bio'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAIModal(false)}
+                                        className="rounded-full bg-surface px-5 py-2.5 text-[12.5px] font-medium text-ink-2"
+                                    >
+                                        Batal
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="relative mt-1.5">
+                            <textarea
+                                value={formData.bio}
+                                onChange={(e) => updateField('bio', e.target.value)}
+                                placeholder="Tulis bio singkat kamu..."
+                                rows={3}
+                                maxLength={200}
+                                className="w-full resize-none rounded-row bg-fill-subtle px-4 py-3 text-[14px] text-ink outline-none placeholder:text-ink-3"
+                            />
+                            <span
+                                className="absolute bottom-3 right-3 text-[10px] text-ink-3"
+                                style={{ fontFamily: 'var(--font-mono)' }}
+                            >
+                                {formData.bio.length}/200
+                            </span>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Kontak langsung */}
+                <section className="mt-3 rounded-card bg-surface p-5 shadow-card">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle text-ink-2">
+                            <Phone className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                        </span>
+                        <h2 className="text-[15px] font-semibold">Kontak Langsung</h2>
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
                         <div>
-                            <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Nomor HP</label>
-                            <div className="relative">
-                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                            <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Nomor HP</label>
+                            <div className="relative mt-1.5">
+                                <Phone className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" strokeWidth={1.8} />
                                 <input
                                     type="tel"
                                     value={formData.phone}
                                     onChange={(e) => updateField('phone', e.target.value)}
                                     placeholder="+62 812 3456 7890"
-                                    className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
+                                    className="w-full rounded-row bg-fill-subtle py-3 pl-11 pr-4 text-[14px] text-ink outline-none placeholder:text-ink-3"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Nomor WhatsApp</label>
-                            <div className="relative">
-                                <MessageCircle className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500" />
+                            <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Nomor WhatsApp</label>
+                            <div className="relative mt-1.5">
+                                <MessageCircle className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" strokeWidth={1.8} />
                                 <input
                                     type="tel"
                                     value={formData.whatsapp}
                                     onChange={(e) => updateField('whatsapp', e.target.value)}
                                     placeholder="6281234567890"
-                                    className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-green-500 transition-all outline-none"
+                                    className="w-full rounded-row bg-fill-subtle py-3 pl-11 pr-4 text-[14px] text-ink outline-none placeholder:text-ink-3"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-medium text-zinc-500 uppercase mb-2">Email</label>
-                            <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                            <label className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Email</label>
+                            <div className="relative mt-1.5">
+                                <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" strokeWidth={1.8} />
                                 <input
                                     type="email"
                                     value={formData.email}
                                     onChange={(e) => updateField('email', e.target.value)}
                                     placeholder="nama@email.com"
-                                    className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:border-blue-500 transition-all outline-none"
+                                    className="w-full rounded-row bg-fill-subtle py-3 pl-11 pr-4 text-[14px] text-ink outline-none placeholder:text-ink-3"
                                 />
                             </div>
                         </div>
                     </div>
-                </motion.section>
+                </section>
 
-                {/* Notifications */}
-                <div className="h-6">
+                {/* Pemberitahuan */}
+                <div className="mt-4 h-6">
                     {error && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-red-500 text-sm">
-                            <AlertCircle className="w-4 h-4" />
+                        <p className="flex items-center gap-2 text-[12.5px] text-coral-soft-ink">
+                            <AlertCircle className="h-4 w-4" strokeWidth={1.8} />
                             {error}
-                        </motion.div>
+                        </p>
                     )}
                     {isSaved && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2 text-green-500 text-sm">
-                            <CheckCircle className="w-4 h-4" />
-                            Tersimpan!
-                        </motion.div>
+                        <p className="flex items-center gap-2 text-[12.5px] text-success-soft-ink">
+                            <CheckCircle className="h-4 w-4" strokeWidth={1.8} />
+                            Tersimpan
+                        </p>
                     )}
                 </div>
 
-                {/* Submit Button */}
                 <button
                     type="submit"
                     disabled={isLoading}
-                    className="w-full btn-gradient py-4 rounded-2xl text-white font-semibold flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-transform"
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-ink py-4 text-[13px] font-medium text-white shadow-ink transition-transform active:scale-[0.99] disabled:opacity-50"
                 >
                     {isLoading ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                         <>
-                            <Save className="w-5 h-5" />
+                            <Save className="h-4 w-4" strokeWidth={1.8} />
                             Simpan Perubahan
                         </>
                     )}
                 </button>
             </form>
 
-            {/* Kartu Saya & Danger Zone */}
-            <div className="mt-12 pt-8 border-t border-zinc-200">
-                <h3 className="text-lg font-bold text-zinc-900 mb-1">Kartu NFC Saya</h3>
-                <p className="text-sm text-zinc-500 mb-4">
-                    Daftar semua kartu yang terhubung ke akun Anda. Anda bisa melepaskan kartu tertentu tanpa mengganggu akun dan kartu lainnya.
+            {/* Kartu NFC yang terhubung */}
+            <section className="mt-7">
+                <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Kartu NFC Saya</h2>
+                <p className="mt-1.5 text-[12.5px] text-ink-2">
+                    Semua kartu yang terhubung ke akun kamu. Bisa dilepas satu per satu tanpa ganggu kartu lain.
                 </p>
 
                 {mySerials.length === 0 ? (
-                    <div className="text-center py-6 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-400 text-sm">
-                        Belum ada kartu yang terhubung ke akun Anda.
+                    <div className="mt-4 rounded-card border border-dashed border-ink/15 bg-surface/60 p-8 text-center text-[12.5px] text-ink-3">
+                        Belum ada kartu yang terhubung
                     </div>
                 ) : (
-                    <div className="space-y-3">
+                    <div className="mt-4 grid gap-2.5">
                         {mySerials.map((serial, idx) => (
-                            <div key={serial.id} className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between gap-4">
-                                <div className="flex-1 min-w-0">
+                            <div key={serial.id} className="flex items-center justify-between gap-3 rounded-card-sm bg-surface p-4 shadow-row">
+                                <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-zinc-400">#{idx + 1}</span>
-                                        <span className="text-sm font-mono text-blue-600 truncate">{serial.serial_uuid.substring(0, 18)}...</span>
+                                        <span className="text-[11px] font-semibold text-ink-3">#{idx + 1}</span>
+                                        <span
+                                            className="truncate text-[12.5px] text-ink-2"
+                                            style={{ fontFamily: 'var(--font-mono)' }}
+                                        >
+                                            {serial.serial_uuid.substring(0, 18)}...
+                                        </span>
                                     </div>
-                                    <p className="text-[10px] text-zinc-400 mt-1">
+                                    <p className="mt-1 text-[11px] text-ink-3">
                                         Diklaim {new Date(serial.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                                     </p>
                                 </div>
@@ -1157,20 +1157,33 @@ export default function ProfileEditor() {
                                             alert('Gagal melepaskan kartu. Coba lagi nanti.')
                                         }
                                     }}
-                                    className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-bold rounded-lg transition-colors border border-red-200 whitespace-nowrap"
+                                    className="shrink-0 whitespace-nowrap rounded-full bg-coral-soft px-3.5 py-2 text-[11.5px] font-semibold text-coral-soft-ink transition-transform active:scale-[0.98]"
                                 >
-                                    Lepaskan Kartu
+                                    Lepaskan
                                 </button>
                             </div>
                         ))}
                     </div>
                 )}
 
-                <p className="text-[10px] text-zinc-400 mt-3 leading-relaxed">
-                    💡 <strong>Tip:</strong> "Lepaskan Kartu" hanya melepas kartu tersebut dari akun Anda. Profil dan kartu-kartu lain Anda tidak akan terpengaruh.
-                    Kartu yang dilepas akan kembali kosong dan bisa diklaim oleh orang lain dengan email baru.
+                <p className="mt-3 text-[11px] leading-relaxed text-ink-3">
+                    Melepas kartu cuma mencabut kartu itu dari akun kamu. Profil dan kartu lain tetap aman —
+                    kartu yang dilepas jadi kosong dan bisa diklaim orang lain.
                 </p>
-            </div>
+            </section>
+
+            {/* Keluar akun — satu-satunya pintu logout setelah cangkang lama dilepas. */}
+            <button
+                type="button"
+                onClick={handleLogout}
+                className="mt-7 flex w-full items-center justify-center gap-2 rounded-full bg-surface py-3.5 text-[13px] font-medium text-ink-2 shadow-row transition-transform active:scale-[0.99]"
+            >
+                <LogOut className="h-4 w-4" strokeWidth={1.8} />
+                Keluar dari akun
+            </button>
+          </div>
+
+            <DesktopPreview />
         </div>
     )
 }

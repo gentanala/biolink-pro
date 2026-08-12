@@ -4,73 +4,63 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-    Bell, ChevronRight, CreditCard, Link2, Mail, Pencil,
-    QrCode, Share2, UserPlus,
+    ArrowUpRight, BarChart3, Check, Edit, ExternalLink, Eye, Leaf, Link2,
+    Plus, QrCode, Smartphone, TreeDeciduous, User, Wind, Zap,
 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { createClient } from '@/lib/supabase/client'
+import { PWAHint } from '@/components/dashboard/PWAHint'
+import { activeRedirectUrl, readShortcuts } from '@/lib/redirect-mode.mjs'
 
 type LinkRow = { id?: string; title?: string; url?: string; is_active?: boolean }
 type DashProfile = {
     id: string
     slug: string
     display_name: string | null
+    bio: string | null
     avatar_url: string | null
+    tier?: 'FREE' | 'PREMIUM' | 'B2B'
+    links?: LinkRow[] | null
     social_links?: LinkRow[] | null
-    theme?: { links?: LinkRow[] } | null
+    theme?: { links?: LinkRow[]; shortcuts?: { url?: string; title?: string }[] } | null
+    company?: { name: string; logo_url: string | null } | null
 }
-type Lead = { id: string; name: string | null; created_at: string }
-type Segment = { label: string; count: number; tone: string }
-type Task = { id: string; title: string; meta: string; icon: typeof Mail; href: string; chip?: string }
-
-const WEEK = 7 * 24 * 60 * 60 * 1000
-const SEGMENT_TONES = ['bg-sky', 'bg-butter', 'bg-moss', 'bg-coral']
-
-const initials = (name?: string | null) =>
-    (name || '?')
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((w) => w[0]?.toUpperCase() ?? '')
-        .join('') || '?'
 
 const nf = new Intl.NumberFormat('id-ID')
 
-/** Nama sumber yang bisa dibaca orang dari referrer yang tersimpan. */
-function sourceLabel(referrer?: string) {
-    if (!referrer || referrer === 'direct') return 'Langsung'
-    try {
-        const host = new URL(referrer).hostname.replace(/^www\./, '')
-        if (host.includes('instagram')) return 'Instagram'
-        if (host.includes('linkedin')) return 'LinkedIn'
-        if (host.includes('wa.me') || host.includes('whatsapp')) return 'WhatsApp'
-        if (host.includes('google')) return 'Google'
-        return host
-    } catch {
-        return 'Lainnya'
-    }
-}
-
-/** Angka besar + satuan + label — pola data inti desain ini. */
-function Metric({ value, unit, label }: { value: string; unit: string; label: string }) {
+function Skeleton() {
     return (
-        <div>
-            <p className="flex items-baseline gap-1.5">
-                <span className="text-[28px] font-medium tracking-[-0.035em] leading-none">{value}</span>
-                <span className="text-[13px] font-medium text-ink-3">{unit}</span>
-            </p>
-            <p className="mt-1.5 text-[11.5px] text-ink-2">{label}</p>
+        <div className="mx-auto max-w-[1200px] px-5 pb-[150px] pt-6">
+            <div className="h-9 w-56 rounded-full bg-track" />
+            <div className="mt-6 h-[88px] rounded-card bg-track" />
+            <div className="mt-3 grid grid-cols-3 gap-3">
+                {[0, 1, 2].map((i) => <div key={i} className="h-[84px] rounded-card-sm bg-track" />)}
+            </div>
+            <div className="mt-6 h-[190px] rounded-card bg-track" />
         </div>
     )
 }
 
-function Skeleton() {
+/** Angka besar + satuan + catatan kecil — pola yang dipakai kartu Green Impact. */
+function Impact({
+    icon: Icon, tone, label, value, unit,
+}: {
+    icon: typeof Leaf
+    tone: string
+    label: string
+    value: string
+    unit: string
+}) {
     return (
-        <div className="mx-auto max-w-[1200px] px-[18px] pb-[130px] pt-5">
-            <div className="h-12 w-40 rounded-full bg-track" />
-            <div className="mt-6 h-20 w-64 rounded-3xl bg-track" />
-            <div className="mt-6 h-[380px] rounded-card bg-track" />
-            <div className="mt-6 space-y-2.5">
-                {[0, 1, 2].map((i) => <div key={i} className="h-[74px] rounded-row bg-track" />)}
-            </div>
+        <div className="flex flex-col items-center px-2 text-center">
+            <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${tone}`}>
+                <Icon className="h-[17px] w-[17px]" strokeWidth={1.8} />
+            </span>
+            <p className="mt-2.5 text-[10px] font-medium uppercase leading-tight tracking-wider text-ink-2">{label}</p>
+            <p className="mt-1.5 flex items-baseline gap-1">
+                <span className="text-[22px] font-semibold leading-none tracking-[-0.03em]">{value}</span>
+                <span className="text-[11.5px] text-ink-3">{unit}</span>
+            </p>
         </div>
     )
 }
@@ -81,15 +71,21 @@ export default function DashboardPage() {
 
     const [loading, setLoading] = useState(true)
     const [profile, setProfile] = useState<DashProfile | null>(null)
-    const [tapsWeek, setTapsWeek] = useState(0)
-    const [tapsPrevWeek, setTapsPrevWeek] = useState(0)
-    const [contactsTotal, setContactsTotal] = useState(0)
-    const [newContacts, setNewContacts] = useState<Lead[]>([])
-    const [cardCount, setCardCount] = useState(0)
-    const [serial, setSerial] = useState<string | null>(null)
-    const [segments, setSegments] = useState<Segment[]>([])
+    const [viewCount, setViewCount] = useState(0)
+    const [linkClicks, setLinkClicks] = useState(0)
+    const [showPWAHint, setShowPWAHint] = useState(false)
+    const [copied, setCopied] = useState(false)
+
+    // Dibaca sekali saat state pertama dibentuk, bukan di dalam effect. Menulis
+    // state langsung di badan effect memicu render berantai.
+    const [showClaimSuccess] = useState(() => {
+        if (typeof window === 'undefined') return false
+        return new URLSearchParams(window.location.search).get('claim_success') === 'true'
+    })
 
     useEffect(() => {
+        if (showClaimSuccess) window.history.replaceState({}, '', '/dashboard')
+
         const load = async () => {
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) {
@@ -99,7 +95,7 @@ export default function DashboardPage() {
 
             const { data: dbProfile } = await supabase
                 .from('profiles')
-                .select('id, slug, display_name, avatar_url, social_links, theme')
+                .select('*, company:companies(name, logo_url)')
                 .eq('user_id', user.id)
                 .single()
 
@@ -109,325 +105,437 @@ export default function DashboardPage() {
             }
             setProfile(dbProfile as DashProfile)
 
-            const since = new Date(Date.now() - WEEK).toISOString()
-            const prevSince = new Date(Date.now() - 2 * WEEK).toISOString()
-
-            const [week, prev, contacts, fresh, serials, sources] = await Promise.all([
+            const [views, clicks] = await Promise.all([
                 supabase.from('analytics').select('*', { count: 'exact', head: true })
-                    .eq('profile_id', dbProfile.id).eq('event_type', 'view').gte('created_at', since),
+                    .eq('profile_id', dbProfile.id).eq('event_type', 'view'),
                 supabase.from('analytics').select('*', { count: 'exact', head: true })
-                    .eq('profile_id', dbProfile.id).eq('event_type', 'view')
-                    .gte('created_at', prevSince).lt('created_at', since),
-                supabase.from('leads').select('*', { count: 'exact', head: true })
-                    .eq('profile_id', dbProfile.id),
-                supabase.from('leads').select('id, name, created_at')
-                    .eq('profile_id', dbProfile.id).gte('created_at', since)
-                    .order('created_at', { ascending: false }).limit(20),
-                supabase.from('serial_numbers').select('serial_uuid').eq('owner_id', user.id),
-                supabase.from('analytics').select('meta')
-                    .eq('profile_id', dbProfile.id).eq('event_type', 'view')
-                    .gte('created_at', since).limit(1000),
+                    .eq('profile_id', dbProfile.id).eq('event_type', 'click'),
             ])
 
-            setTapsWeek(week.count || 0)
-            setTapsPrevWeek(prev.count || 0)
-            setContactsTotal(contacts.count || 0)
-            setNewContacts((fresh.data as Lead[]) || [])
-            setCardCount(serials.data?.length || 0)
-            setSerial(serials.data?.[0]?.serial_uuid?.slice(0, 8).toUpperCase() ?? null)
-
-            // Sumber kunjungan dihitung dari referrer yang memang sudah dicatat.
-            // Tidak ada pembedaan NFC vs QR di data, jadi keduanya jatuh ke "Langsung"
-            // dan labelnya tidak mengklaim lebih dari itu.
-            const tally = new Map<string, number>()
-            for (const row of (sources.data as { meta?: { referrer?: string } }[]) || []) {
-                const key = sourceLabel(row.meta?.referrer)
-                tally.set(key, (tally.get(key) || 0) + 1)
-            }
-            const ranked = [...tally.entries()].sort((a, b) => b[1] - a[1])
-            const top = ranked.slice(0, 3)
-            const restCount = ranked.slice(3).reduce((sum, [, n]) => sum + n, 0)
-            setSegments([
-                ...top.map(([label, count], i) => ({ label, count, tone: SEGMENT_TONES[i] })),
-                ...(restCount ? [{ label: 'Lainnya', count: restCount, tone: SEGMENT_TONES[3] }] : []),
-            ])
-
+            setViewCount(views.count || 0)
+            setLinkClicks(clicks.count || 0)
             setLoading(false)
         }
 
         load()
     }, [router])
 
+    const downloadQr = () => {
+        const svg = document.getElementById('dashboard-qr')
+        if (!svg) return
+        const data = new XMLSerializer().serializeToString(svg)
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        const img = new Image()
+        img.onload = () => {
+            canvas.width = img.width
+            canvas.height = img.height
+            ctx?.drawImage(img, 0, 0)
+            const a = document.createElement('a')
+            a.download = `qrcode-${profile?.slug}.png`
+            a.href = canvas.toDataURL('image/png')
+            a.click()
+        }
+        img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(data)))
+    }
+
     if (loading) return <Skeleton />
 
     if (!profile) {
         return (
-            <div className="flex min-h-screen items-center justify-center px-[18px] text-center">
+            <div className="flex min-h-screen items-center justify-center px-5 text-center">
                 <p className="text-sm text-ink-2">Profil belum ada. Klaim kartu kamu dulu.</p>
             </div>
         )
     }
 
-    const links: LinkRow[] = (profile.social_links?.length ? profile.social_links : profile.theme?.links) || []
-    const activeLinks = links.filter((l) => l.is_active !== false)
-    const hiddenLinks = links.filter((l) => l.is_active === false)
-    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/${profile.slug}` : `/${profile.slug}`
-    const segmentTotal = segments.reduce((sum, s) => sum + s.count, 0)
+    const theme = profile.theme || {}
+    const liveUrl = activeRedirectUrl(theme)
+    const shortcuts = readShortcuts(theme) as { url?: string; title?: string }[]
+    const live = liveUrl ? shortcuts.find((s) => s.url === liveUrl) : null
 
-    // "Perlu ditindak" dibangun dari kondisi yang benar-benar bisa dicek,
-    // bukan daftar tetap. Kalau tidak ada yang perlu, bagiannya tidak muncul.
-    const tasks: Task[] = []
-    if (newContacts.length) {
-        tasks.push({
-            id: 'contacts',
-            title: newContacts[0].name || 'Kontak baru',
-            meta: `${newContacts.length} kontak baru minggu ini`,
-            icon: UserPlus,
-            href: '/dashboard/analytics',
-            chip: 'Lihat',
-        })
-    }
-    if (hiddenLinks.length) {
-        tasks.push({
-            id: 'hidden',
-            title: `${hiddenLinks.length} tautan disembunyikan`,
-            meta: 'Tidak tampil di kartu kamu',
-            icon: Link2,
-            href: '/dashboard/links',
-        })
-    }
-    if (!links.length) {
-        tasks.push({
-            id: 'nolinks',
-            title: 'Belum ada tautan',
-            meta: 'Tambah tautan pertama kamu',
-            icon: Link2,
-            href: '/dashboard/links',
-        })
-    }
-    if (!profile.avatar_url) {
-        tasks.push({
-            id: 'avatar',
-            title: 'Foto profil belum dipasang',
-            meta: 'Kartu terasa lebih personal dengan foto',
-            icon: Pencil,
+    const links: LinkRow[] = (profile.social_links?.length ? profile.social_links : profile.links) || []
+    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/${profile.slug}` : `/${profile.slug}`
+    const shareHost = typeof window !== 'undefined' ? `${window.location.host}/${profile.slug}` : `/${profile.slug}`
+    const isB2B = profile.tier === 'B2B' && profile.company
+    const co2 = viewCount * 10
+
+    const quickActions = [
+        {
+            icon: User,
+            label: 'Edit Profil',
+            desc: 'Ubah foto, nama, dan bio',
             href: '/dashboard/profile',
-        })
-    }
+            preview: (
+                <div className="flex items-center gap-2.5">
+                    {profile.avatar_url ? (
+                        <img src={profile.avatar_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-white" />
+                    ) : (
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-avatar text-[14px] font-semibold text-avatar-ink">
+                            {profile.display_name?.[0]?.toUpperCase() || 'U'}
+                        </span>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-[11.5px] text-ink-2">
+                        {profile.display_name || 'Belum ada nama'}
+                    </span>
+                </div>
+            ),
+        },
+        {
+            icon: Link2,
+            label: 'Kelola Link',
+            desc: 'Tambah dan atur social links',
+            href: '/dashboard/links',
+            preview: links.length ? (
+                <div className="grid gap-1">
+                    {links.slice(0, 3).map((l, i) => (
+                        <span key={l.id ?? i} className="flex items-center gap-1.5 truncate text-[11px] text-ink-2">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ink/25" />
+                            <span className="truncate">{l.title || 'Tanpa nama'}</span>
+                        </span>
+                    ))}
+                    {links.length > 3 && (
+                        <span className="text-[11px] text-ink-3">+{links.length - 3} lainnya</span>
+                    )}
+                </div>
+            ) : (
+                <span className="text-[11px] text-ink-3">Belum ada link</span>
+            ),
+        },
+        {
+            icon: copied ? Check : ExternalLink,
+            label: copied ? 'Link tersalin' : 'Salin Link Profil',
+            desc: 'Bagikan URL kartu kamu',
+            onClick: () => {
+                navigator.clipboard.writeText(shareUrl)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+            },
+            preview: (
+                <span
+                    className="inline-block max-w-full break-all rounded-lg bg-fill-subtle px-2 py-1.5 text-[10.5px] leading-snug text-ink-2"
+                    style={{ fontFamily: 'var(--font-mono)' }}
+                >
+                    {shareHost}
+                </span>
+            ),
+        },
+        {
+            icon: Eye,
+            label: 'Lihat Profil Publik',
+            desc: 'Buka kartu seperti pengunjung',
+            href: `/${profile.slug}`,
+            external: true,
+            preview: (
+                <span className="inline-block rounded-lg bg-white p-1.5 shadow-row">
+                    <QRCodeSVG value={shareUrl} size={44} level="L" includeMargin={false} />
+                </span>
+            ),
+        },
+    ]
 
     return (
-        <div className="mx-auto max-w-[1200px] px-[18px] pb-[130px] pt-5">
+        <div className="mx-auto max-w-[1200px] px-5 pb-[150px] pt-6">
 
-            {/* HEADER */}
-            <header className="flex items-center justify-between">
-                <Link href="/" className="flex items-center gap-2.5">
-                    <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-ink text-[12px] font-semibold text-white">
-                        GT
+            {showClaimSuccess && (
+                <div className="mb-5 flex items-center gap-3 rounded-card-sm bg-surface p-4 shadow-row">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-soft">
+                        <Check className="h-[18px] w-[18px] text-success-soft-ink" strokeWidth={2} />
                     </span>
-                    <span className="text-[16px] font-semibold tracking-[-0.01em]">biolink</span>
-                </Link>
+                    <p className="text-[14px] font-medium">Klaim berhasil. Selamat datang! 🎉</p>
+                </div>
+            )}
 
-                <div className="flex items-center gap-2.5">
-                    <Link
-                        href="/dashboard/analytics"
-                        aria-label="Notifikasi"
-                        className="relative flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95"
-                    >
-                        <Bell className="h-[19px] w-[19px]" strokeWidth={1.8} />
-                        {newContacts.length > 0 && (
-                            <span className="absolute right-3 top-3 h-[9px] w-[9px] rounded-full bg-coral ring-2 ring-white" />
-                        )}
-                    </Link>
-                    <button
-                        onClick={() => {
-                            if (navigator.share) navigator.share({ url: shareUrl }).catch(() => { })
-                            else navigator.clipboard.writeText(shareUrl)
-                        }}
-                        aria-label="Bagikan kartu"
-                        className="flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95"
-                    >
-                        <Share2 className="h-[19px] w-[19px]" strokeWidth={1.8} />
-                    </button>
-                    <Link
-                        href="/dashboard/profile"
-                        aria-label="Profil"
-                        className="h-12 w-12 overflow-hidden rounded-full bg-avatar ring-2 ring-white"
-                    >
-                        {profile.avatar_url ? (
-                            <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+            {/* SAPAAN */}
+            <header>
+                {isB2B ? (
+                    <div className="flex items-center gap-4">
+                        {profile.company?.logo_url ? (
+                            <img src={profile.company.logo_url} alt="" className="h-14 w-14 object-contain" />
                         ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[13px] font-medium text-avatar-ink">
-                                {initials(profile.display_name || profile.slug)}
+                            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-fill-subtle text-[20px] font-semibold">
+                                {profile.company?.name?.[0]}
                             </span>
                         )}
-                    </Link>
-                </div>
+                        <div className="min-w-0">
+                            <h1 className="truncate text-[26px] font-semibold tracking-[-0.03em]">
+                                Dashboard {profile.company?.name}
+                            </h1>
+                            <p className="mt-1 text-[13px] text-ink-2">Selamat datang, {profile.display_name}</p>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <h1 className="text-[26px] font-semibold tracking-[-0.03em]">
+                            Selamat datang, {profile.display_name || 'kamu'}! 👋
+                        </h1>
+                        <p className="mt-1.5 text-[13px] text-ink-2">
+                            Kelola profil kartu nama digital kamu dari sini
+                        </p>
+                    </>
+                )}
+
+                <button
+                    onClick={() => setShowPWAHint(true)}
+                    className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-ink-2"
+                >
+                    <Smartphone className="h-3.5 w-3.5" strokeWidth={1.8} />
+                    Akses lebih cepat & praktis?
+                    <span className="font-semibold text-ink underline">Pasang di HP</span>
+                </button>
             </header>
 
-            {/* JUDUL */}
-            <h1 className="mt-6 text-[34px] font-medium leading-[1.03] tracking-[-0.032em] lg:text-[44px]">
-                Aktivitas
-                <br />
-                kartu kamu
-            </h1>
+            {/* PROFIL ANDA */}
+            <section className="mt-6">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Profil Kamu</h2>
+                    <Link href="/dashboard/profile" className="flex items-center gap-1.5 text-[12.5px] font-medium text-ink-2">
+                        <Edit className="h-3.5 w-3.5" strokeWidth={1.8} />
+                        Edit Profil
+                    </Link>
+                </div>
 
-            <div className="mt-6 md:grid md:grid-cols-2 md:gap-6 lg:grid-cols-3">
-
-                {/* KARTU UTAMA — tumpukan berlapis */}
-                <section className="relative md:col-span-2 lg:col-span-3">
-                    {/* Lapisan belakang: hiasan kedalaman, bukan konten */}
-                    <div aria-hidden className="absolute inset-x-3 top-[26px] h-full rounded-card bg-white/50" />
-                    <div
-                        aria-hidden
-                        className="absolute inset-x-6 top-[44px] flex h-full items-end justify-center rounded-card bg-white/[0.34] pb-3 text-[13px] text-ink-2"
-                    >
-                        Minggu lalu · {nf.format(tapsPrevWeek)} tap
-                    </div>
-
-                    <div className="relative rounded-card bg-surface p-5 shadow-card">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h2 className="text-[20px] font-medium tracking-[-0.025em]">Kartu utama</h2>
-                                <p className="mt-1 text-[12px] tracking-[0.04em] text-ink-2" style={{ fontFamily: 'var(--font-mono)' }}>
-                                    {serial ? `GTN-${serial}` : 'Belum terhubung'}
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <Link
-                                    href="/dashboard/profile"
-                                    aria-label="Edit kartu"
-                                    className="flex h-11 w-11 items-center justify-center rounded-full bg-fill-subtle transition-colors hover:bg-track"
-                                >
-                                    <Pencil className="h-[17px] w-[17px]" strokeWidth={1.8} />
-                                </Link>
-                                <Link
-                                    href={shareUrl}
-                                    target="_blank"
-                                    aria-label="Lihat kartu publik"
-                                    className="flex h-11 w-11 items-center justify-center rounded-full bg-fill-subtle transition-colors hover:bg-track"
-                                >
-                                    <QrCode className="h-[17px] w-[17px]" strokeWidth={1.8} />
-                                </Link>
-                            </div>
-                        </div>
-
-                        {/* Kontak baru minggu ini */}
-                        <div className="mt-5">
-                            {newContacts.length ? (
-                                <div className="flex items-center gap-[9px]">
-                                    {newContacts.slice(0, 5).map((lead) => (
-                                        <div
-                                            key={lead.id}
-                                            className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-avatar text-[14px] font-medium text-avatar-ink"
-                                        >
-                                            {initials(lead.name)}
-                                        </div>
-                                    ))}
-                                    {newContacts.length > 5 && (
-                                        <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-dashed border-ink/25 text-[12px] text-ink-2">
-                                            +{newContacts.length - 5}
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-dashed border-ink/20 text-ink-3">
-                                    <UserPlus className="h-4 w-4" strokeWidth={1.8} />
-                                </div>
+                <div className="mt-4 rounded-card bg-surface p-5 shadow-card">
+                    <div className="flex items-start gap-5">
+                        {profile.avatar_url ? (
+                            <img
+                                src={profile.avatar_url}
+                                alt=""
+                                className="h-20 w-20 shrink-0 rounded-full object-cover ring-4 ring-white"
+                            />
+                        ) : (
+                            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-avatar text-[22px] font-semibold text-avatar-ink">
+                                {profile.display_name?.[0]?.toUpperCase() || 'U'}
+                            </span>
+                        )}
+                        <div className="min-w-0 flex-1">
+                            <h3 className="text-[19px] font-semibold tracking-[-0.02em]">
+                                {profile.display_name || 'Belum ada nama'}
+                            </h3>
+                            {profile.bio && (
+                                <p className="mt-2 line-clamp-2 text-[13px] text-ink-2">{profile.bio}</p>
                             )}
-                            <p className="mt-2.5 text-[13px] text-ink-2">
-                                {newContacts.length ? 'Kontak baru minggu ini' : 'Belum ada kontak baru minggu ini'}
-                            </p>
-                        </div>
-
-                        {/* Sumber kunjungan */}
-                        <div className="mt-5">
-                            <div className="flex h-2 gap-1.5 overflow-hidden rounded-full">
-                                {segmentTotal ? (
-                                    segments.map((s) => (
-                                        <span key={s.label} className={`rounded-full ${s.tone}`} style={{ flex: s.count }} />
-                                    ))
-                                ) : (
-                                    <span className="flex-1 rounded-full bg-track" />
-                                )}
-                            </div>
-                            <p className="mt-2.5 truncate text-[13px] text-ink-2">
-                                {segmentTotal
-                                    ? `Sumber kunjungan · ${segments.map((s) => s.label).join(', ')}`
-                                    : 'Sumber kunjungan · belum ada data'}
-                            </p>
-                        </div>
-
-                        {/* Angka inti */}
-                        <div className="mt-5 flex gap-10">
-                            <Metric value={nf.format(tapsWeek)} unit="tap" label="Total minggu ini" />
-                            <Metric value={nf.format(contactsTotal)} unit="orang" label="Kontak tersimpan" />
-                        </div>
-
-                        {/* Footer */}
-                        <div className="mt-5 flex items-center justify-between border-t border-hairline pt-5">
-                            <div className="flex gap-8">
-                                <div className="flex items-center gap-2.5">
-                                    <Link2 className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
-                                    <div>
-                                        <p className="text-[15px] font-medium leading-tight">{activeLinks.length} tautan</p>
-                                        <p className="text-[11.5px] text-ink-2">aktif</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2.5">
-                                    <CreditCard className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
-                                    <div>
-                                        <p className="text-[15px] font-medium leading-tight">{cardCount} kartu</p>
-                                        <p className="text-[11.5px] text-ink-2">terhubung</p>
-                                    </div>
-                                </div>
-                            </div>
                             <Link
-                                href="/switch"
-                                aria-label="Atur kartu"
-                                className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-ink text-white shadow-ink transition-transform active:scale-95"
+                                href={`/${profile.slug}`}
+                                target="_blank"
+                                className="mt-4 inline-flex items-center gap-2 text-[12.5px] text-ink-2 hover:text-ink"
                             >
-                                <ChevronRight className="h-5 w-5" strokeWidth={2} />
+                                <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.8} />
+                                <span className="truncate">{shareHost}</span>
                             </Link>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            {/* FUNGSI UTAMA LINK — cerminan, diatur di /switch */}
+            <Link
+                href="/switch"
+                className="mt-6 flex items-center gap-3.5 rounded-card-sm bg-ink p-4 text-white shadow-ink transition-transform active:scale-[0.99]"
+            >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.14]">
+                    <Zap className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                </span>
+                <div className="min-w-0 flex-1">
+                    <p
+                        className="text-[10px] uppercase tracking-[0.14em] text-white/55"
+                        style={{ fontFamily: 'var(--font-mono)' }}
+                    >
+                        FUNGSI UTAMA LINK
+                    </p>
+                    <p className="mt-1 truncate text-[15px] font-medium">
+                        {live ? live.title || 'Pintasan Link' : 'Kartu Nama Digital'}
+                    </p>
+                </div>
+                <ArrowUpRight className="h-[18px] w-[18px] shrink-0 text-white/60" strokeWidth={2} />
+            </Link>
+
+            {/* TIGA ANGKA — satu kartu, tiga kolom */}
+            <section className="mt-3 grid grid-cols-3 divide-x divide-ink/[0.08] rounded-card-sm bg-surface px-2 py-4 shadow-row">
+                <div className="flex flex-col items-center px-2">
+                    <Eye className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                    <p className="mt-2 text-[22px] font-semibold leading-none tracking-[-0.03em]">{nf.format(viewCount)}</p>
+                    <p className="mt-1.5 text-center text-[11.5px] text-ink-2">Profile Views</p>
+                </div>
+
+                <div className="flex flex-col items-center px-2">
+                    <Link2 className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                    <p className="mt-2 text-[22px] font-semibold leading-none tracking-[-0.03em]">{links.length}</p>
+                    <p className="mt-1.5 text-center text-[11.5px] text-ink-2">Total Links</p>
+                </div>
+
+                <div className="flex flex-col items-center px-2">
+                    <BarChart3 className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                    {profile.tier === 'FREE' ? (
+                        <>
+                            <div className="mt-2 flex items-center gap-1.5">
+                                <span className="select-none text-[22px] font-semibold leading-none text-ink-3 blur-sm">123</span>
+                                <span className="rounded-full bg-coral-soft px-1.5 py-0.5 text-[9px] font-semibold text-coral-soft-ink">
+                                    PREMIUM
+                                </span>
+                            </div>
+                            <p className="mt-1.5 text-center text-[11.5px] text-ink-3">Link Clicks</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="mt-2 text-[22px] font-semibold leading-none tracking-[-0.03em]">{nf.format(linkClicks)}</p>
+                            <p className="mt-1.5 text-center text-[11.5px] text-ink-2">Link Clicks</p>
+                        </>
+                    )}
+                </div>
+            </section>
+
+            {/* GREEN IMPACT */}
+            <section className="mt-7">
+                <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-success-soft">
+                        <Leaf className="h-[18px] w-[18px] text-success-soft-ink" strokeWidth={1.8} />
+                    </span>
+                    <div>
+                        <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Gentanala Green Impact</h2>
+                        <p className="text-[12.5px] text-ink-2">Kontribusi kamu terhadap lingkungan</p>
+                    </div>
+                </div>
+
+                <div className="mt-4 rounded-card-sm bg-surface px-2 py-4 shadow-row">
+                    <div className="grid grid-cols-3 divide-x divide-ink/[0.08]">
+                        <Impact
+                            icon={BarChart3}
+                            tone="bg-success-soft text-success-soft-ink"
+                            label="Kertas Terselamatkan"
+                            value={nf.format(viewCount)}
+                            unit="Lembar"
+                        />
+                        <Impact
+                            icon={Wind}
+                            tone="bg-fill-subtle text-ink-2"
+                            label="Emisi Karbon Dicegah"
+                            value={co2 >= 1000 ? (co2 / 1000).toFixed(2) : nf.format(co2)}
+                            unit={co2 >= 1000 ? 'kg' : 'gram'}
+                        />
+                        <Impact
+                            icon={TreeDeciduous}
+                            tone="bg-coral-soft text-coral-soft-ink"
+                            label="Pohon Dilindungi"
+                            value={(viewCount / 10000).toFixed(4)}
+                            unit="Pohon"
+                        />
+                    </div>
+                    <p className="mt-4 border-t border-ink/[0.08] px-2 pt-3 text-[10px] italic leading-relaxed text-ink-3">
+                        *1 view profil = 1 kartu nama kertas · 10 gram CO₂ per kartu · 10.000 kartu = 1 pohon dewasa
+                    </p>
+                </div>
+            </section>
+
+            <div className="mt-7 grid gap-7 lg:grid-cols-2">
+
+                {/* AKSI CEPAT */}
+                <section>
+                    <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Aksi Cepat</h2>
+                    <div className="mt-4 grid grid-cols-2 gap-2.5">
+                        {quickActions.map((a) => {
+                            const inner = (
+                                <>
+                                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-fill-subtle">
+                                        <a.icon className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                                    </span>
+                                    <div className="my-2 min-w-0 max-w-full overflow-hidden">{a.preview}</div>
+                                    <div className="mt-auto min-w-0 max-w-full">
+                                        <p className="truncate text-[14px] font-medium leading-tight">{a.label}</p>
+                                        <p className="mt-0.5 truncate text-[11.5px] text-ink-2">{a.desc}</p>
+                                    </div>
+                                </>
+                            )
+                            const cls = 'flex aspect-square flex-col items-start justify-between overflow-hidden rounded-card-sm bg-surface p-4 text-left shadow-row transition-transform active:scale-[0.99]'
+                            return a.href ? (
+                                <Link
+                                    key={a.label}
+                                    href={a.href}
+                                    target={a.external ? '_blank' : undefined}
+                                    className={cls}
+                                >
+                                    {inner}
+                                </Link>
+                            ) : (
+                                <button key={a.label} onClick={a.onClick} className={cls}>{inner}</button>
+                            )
+                        })}
+                    </div>
                 </section>
 
-                {/* PERLU DITINDAK */}
-                {tasks.length > 0 && (
-                    <section className="mt-[86px] md:col-span-2 md:mt-16 lg:col-span-3">
-                        <div className="flex items-baseline justify-between">
-                            <h2 className="text-[20px] font-medium tracking-[-0.025em]">Perlu ditindak</h2>
-                            <span className="text-[13px] text-ink-2">{tasks.length} hal</span>
-                        </div>
+                {/* LINK ANDA */}
+                <section>
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Link Kamu</h2>
+                        <Link href="/dashboard/links" className="flex items-center gap-1.5 text-[12.5px] font-medium text-ink-2">
+                            <Plus className="h-3.5 w-3.5" strokeWidth={2} />
+                            Tambah Link
+                        </Link>
+                    </div>
 
-                        <ul className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
-                            {tasks.map((t) => (
-                                <li key={t.id}>
-                                    <Link
-                                        href={t.href}
-                                        className="flex items-center gap-3.5 rounded-row bg-surface p-3.5 shadow-row transition-transform active:scale-[0.99] md:hover:-translate-y-px"
-                                    >
-                                        <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-fill-subtle">
-                                            <t.icon className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                    {links.length ? (
+                        <div className="mt-4 grid gap-2.5">
+                            {links.slice(0, 5).map((l, i) => (
+                                <div
+                                    key={l.id ?? i}
+                                    className="flex items-center justify-between gap-3 rounded-row bg-surface p-3.5 shadow-row"
+                                >
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-fill-subtle">
+                                            <Link2 className="h-4 w-4 text-ink-2" strokeWidth={1.8} />
                                         </span>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[15px] font-medium leading-tight">{t.title}</p>
-                                            <p className="mt-0.5 truncate text-[11.5px] text-ink-2">{t.meta}</p>
-                                        </div>
-                                        {t.chip ? (
-                                            <span className="shrink-0 rounded-full bg-coral-soft px-3 py-1.5 text-[12px] font-medium text-coral-soft-ink">
-                                                {t.chip}
-                                            </span>
-                                        ) : (
-                                            <ChevronRight className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={1.8} />
-                                        )}
-                                    </Link>
-                                </li>
+                                        <span className="truncate text-[14px] font-medium">{l.title || 'Tanpa nama'}</span>
+                                    </div>
+                                    <ExternalLink className="h-4 w-4 shrink-0 text-ink-3" strokeWidth={1.8} />
+                                </div>
                             ))}
-                        </ul>
-                    </section>
-                )}
+                            {links.length > 5 && (
+                                <p className="mt-1 text-center text-[11.5px] text-ink-3">
+                                    Lihat semua link di menu Atur Link
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="mt-4 rounded-card border border-dashed border-ink/15 bg-surface/60 p-10 text-center">
+                            <Link2 className="mx-auto mb-3 h-10 w-10 text-ink-3" strokeWidth={1.5} />
+                            <h3 className="text-[15px] font-medium">Belum ada link</h3>
+                            <p className="mt-1.5 text-[12.5px] text-ink-2">Tambahkan social media dan link custom kamu</p>
+                            <Link
+                                href="/dashboard/links"
+                                className="mt-5 inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-[13px] font-medium text-white"
+                            >
+                                <Plus className="h-4 w-4" strokeWidth={2} />
+                                Tambah Link Pertama
+                            </Link>
+                        </div>
+                    )}
+                </section>
+
+                {/* QR CODE */}
+                <section>
+                    <div className="flex items-center gap-2">
+                        <QrCode className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                        <h2 className="text-[19px] font-semibold tracking-[-0.025em]">QR Code Profil</h2>
+                    </div>
+
+                    <div className="mt-4 flex flex-col items-center rounded-card bg-surface p-5 shadow-card">
+                        <div className="rounded-2xl bg-white p-4 shadow-row">
+                            <QRCodeSVG id="dashboard-qr" value={shareUrl} size={168} level="H" includeMargin={false} />
+                        </div>
+                        <p className="mt-5 px-4 text-center text-[12.5px] text-ink-2">
+                            Scan untuk melihat kartu nama digital kamu secara instan
+                        </p>
+                        <button
+                            onClick={downloadQr}
+                            className="mt-5 w-full rounded-full bg-fill-subtle py-3 text-[13px] font-medium text-ink transition-colors hover:bg-track"
+                        >
+                            Download QR Code
+                        </button>
+                    </div>
+                </section>
             </div>
+
+            <PWAHint isOpen={showPWAHint} onClose={() => setShowPWAHint(false)} />
         </div>
     )
 }
