@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import PhonePreview from '@/components/dashboard/PhonePreview'
 import { useTier } from '@/app/dashboard/tier-context'
+import KabutNav from '@/components/dashboard/KabutNav'
 import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
@@ -27,6 +28,11 @@ const navItems = [
     // AI Assistant disembunyikan dulu. Halamannya masih ada di
     // /dashboard/ai-assistant — tinggal kembalikan barisnya kalau mau dipakai lagi.
 ]
+
+// Rute yang sudah dipindahkan ke arah desain Kabut. Layar di daftar ini memakai
+// kanvas + navigasi baru; sisanya tetap pakai cangkang lama sampai gilirannya
+// dikerjakan. Daftar ini menyusut jadi tidak perlu begitu semua layar pindah.
+const KABUT_ROUTES = ['/dashboard']
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<any>(null)
@@ -47,6 +53,15 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         localStorage.removeItem('genhub_activated')
         localStorage.removeItem('genhub_profile')
         router.push('/login')
+    }
+
+    if (KABUT_ROUTES.includes(pathname)) {
+        return (
+            <div className="min-h-screen bg-canvas font-kabut text-ink">
+                {children}
+                <KabutNav />
+            </div>
+        )
     }
 
     return (
