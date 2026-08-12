@@ -1,462 +1,433 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
 import {
-    CreditCard,
-    User,
-    Link2,
-    ExternalLink,
-    Edit,
-    Plus,
-    Share2,
-    Download,
-    Check,
-    Leaf,
-    Smartphone,
-    Zap,
-    ArrowUpRight,
-    ChevronRight
+    Bell, ChevronRight, CreditCard, Link2, Mail, Pencil,
+    QrCode, Share2, UserPlus,
 } from 'lucide-react'
-import { QRCodeSVG } from 'qrcode.react'
-import { downloadVCard } from '@/lib/vcard'
 import { createClient } from '@/lib/supabase/client'
-import { PWAHint } from '@/components/dashboard/PWAHint'
-import { activeRedirectUrl, readShortcuts } from '@/lib/redirect-mode.mjs'
 
-interface Profile {
+type LinkRow = { id?: string; title?: string; url?: string; is_active?: boolean }
+type DashProfile = {
     id: string
-    user_id: string
     slug: string
-    display_name: string
-    bio: string
-    email: string | null
-    links: any[]
-    social_links?: any[]
-    avatar_url?: string | null
-    // PLG
-    tier?: 'FREE' | 'PREMIUM' | 'B2B'
-    company_id?: string | null
-    company?: {
-        name: string
-        logo_url: string | null
+    display_name: string | null
+    avatar_url: string | null
+    social_links?: LinkRow[] | null
+    theme?: { links?: LinkRow[] } | null
+}
+type Lead = { id: string; name: string | null; created_at: string }
+type Segment = { label: string; count: number; tone: string }
+type Task = { id: string; title: string; meta: string; icon: typeof Mail; href: string; chip?: string }
+
+const WEEK = 7 * 24 * 60 * 60 * 1000
+const SEGMENT_TONES = ['bg-sky', 'bg-butter', 'bg-moss', 'bg-coral']
+
+const initials = (name?: string | null) =>
+    (name || '?')
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase() ?? '')
+        .join('') || '?'
+
+const nf = new Intl.NumberFormat('id-ID')
+
+/** Nama sumber yang bisa dibaca orang dari referrer yang tersimpan. */
+function sourceLabel(referrer?: string) {
+    if (!referrer || referrer === 'direct') return 'Langsung'
+    try {
+        const host = new URL(referrer).hostname.replace(/^www\./, '')
+        if (host.includes('instagram')) return 'Instagram'
+        if (host.includes('linkedin')) return 'LinkedIn'
+        if (host.includes('wa.me') || host.includes('whatsapp')) return 'WhatsApp'
+        if (host.includes('google')) return 'Google'
+        return host
+    } catch {
+        return 'Lainnya'
     }
 }
 
-type LiveShortcut = { title: string; url: string; siteName?: string | null }
-type ProfileWithTheme = Profile & { theme?: { shortcuts?: unknown[] } }
+/** Angka besar + satuan + label — pola data inti desain ini. */
+function Metric({ value, unit, label }: { value: string; unit: string; label: string }) {
+    return (
+        <div>
+            <p className="flex items-baseline gap-1.5">
+                <span className="text-[28px] font-medium tracking-[-0.035em] leading-none">{value}</span>
+                <span className="text-[13px] font-medium text-ink-3">{unit}</span>
+            </p>
+            <p className="mt-1.5 text-[11.5px] text-ink-2">{label}</p>
+        </div>
+    )
+}
 
-const MONO = "var(--font-mono), 'JetBrains Mono', ui-monospace, monospace"
+function Skeleton() {
+    return (
+        <div className="mx-auto max-w-[1200px] px-[18px] pb-[130px] pt-5">
+            <div className="h-12 w-40 rounded-full bg-track" />
+            <div className="mt-6 h-20 w-64 rounded-3xl bg-track" />
+            <div className="mt-6 h-[380px] rounded-card bg-track" />
+            <div className="mt-6 space-y-2.5">
+                {[0, 1, 2].map((i) => <div key={i} className="h-[74px] rounded-row bg-track" />)}
+            </div>
+        </div>
+    )
+}
 
 export default function DashboardPage() {
     const router = useRouter()
     const supabase = createClient()
-    const [profile, setProfile] = useState<Profile | null>(null)
-    const [user, setUser] = useState<any>(null)
-    const [viewCount, setViewCount] = useState(0)
-    const [linkClicks, setLinkClicks] = useState(0)
-    const [isLoading, setIsLoading] = useState(true)
 
-    const [showClaimSuccess, setShowClaimSuccess] = useState(false)
-    const [showPWAHint, setShowPWAHint] = useState(false)
-    const [copied, setCopied] = useState(false)
-
+    const [loading, setLoading] = useState(true)
+    const [profile, setProfile] = useState<DashProfile | null>(null)
+    const [tapsWeek, setTapsWeek] = useState(0)
+    const [tapsPrevWeek, setTapsPrevWeek] = useState(0)
+    const [contactsTotal, setContactsTotal] = useState(0)
+    const [newContacts, setNewContacts] = useState<Lead[]>([])
+    const [cardCount, setCardCount] = useState(0)
+    const [serial, setSerial] = useState<string | null>(null)
+    const [segments, setSegments] = useState<Segment[]>([])
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search)
-        if (params.get('claim_success') === 'true') {
-            setShowClaimSuccess(true)
-            window.history.replaceState({}, '', '/dashboard')
-        }
-
-        const checkUserAndProfile = async () => {
-            setIsLoading(true)
-            const { data: { user: authUser } } = await supabase.auth.getUser()
-
-            if (!authUser) {
-                const localUser = localStorage.getItem('genhub_user')
-                const localProfile = localStorage.getItem('genhub_profile')
-
-                if (localUser && localProfile) {
-                    const parsedUser = JSON.parse(localUser)
-                    const parsedProfile = JSON.parse(localProfile)
-
-                    setUser(parsedUser as any)
-                    setProfile({
-                        id: parsedProfile.id || parsedUser.id,
-                        user_id: parsedUser.id,
-                        slug: parsedProfile.slug || 'owner',
-                        display_name: parsedProfile.display_name || 'Gentanala Owner',
-                        bio: parsedProfile.bio || '',
-                        email: parsedProfile.email || parsedUser.email || null,
-                        links: parsedProfile.links || [],
-                        avatar_url: parsedProfile.avatar_url || null,
-                        tier: parsedProfile.tier || 'FREE',
-                        company_id: parsedProfile.company_id || null,
-                        company: parsedProfile.company || null
-                    })
-                    setIsLoading(false)
-                    return
-                }
-
+        const load = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) {
                 router.push('/login')
                 return
             }
 
-            setUser(authUser)
-
-            const { data: dbProfile, error: profileError } = await supabase
+            const { data: dbProfile } = await supabase
                 .from('profiles')
-                .select('*, company:companies(name, logo_url)')
-                .eq('user_id', authUser.id)
+                .select('id, slug, display_name, avatar_url, social_links, theme')
+                .eq('user_id', user.id)
                 .single()
 
-            if (dbProfile) {
-                const uiTheme = dbProfile.theme || {}
-                // ... (Update localStorage logic later if needed, but for now just set state)
-                localStorage.setItem('genhub_profile', JSON.stringify(dbProfile)) // Sync fresh data
-                setProfile(dbProfile as any)
-
-                // Analytics
-                const { count: viewsCount } = await supabase
-                    .from('analytics')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('profile_id', dbProfile.id)
-                    .eq('event_type', 'view')
-
-                const { count: clicksCount } = await supabase
-                    .from('analytics')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('profile_id', dbProfile.id)
-                    .eq('event_type', 'click')
-
-                setViewCount(viewsCount || 0)
-                setLinkClicks(clicksCount || 0)
-            } else {
-                const fallbackSlug = 'user-' + Date.now().toString().slice(-6)
-
-                const { data: newProfile } = await supabase.from('profiles').upsert({
-                    user_id: authUser.id,
-                    slug: fallbackSlug,
-                    display_name: 'User',
-                    bio: 'Gentanala Owner',
-                    email: authUser.email,
-                    tier: 'FREE', // Default tier for new profiles
-                }, { onConflict: 'user_id' }).select().single()
-
-                const processedProfile: Profile = {
-                    id: newProfile?.id || authUser.id,
-                    user_id: authUser.id,
-                    slug: newProfile?.slug || fallbackSlug,
-                    display_name: newProfile?.display_name || 'User',
-                    bio: newProfile?.bio || 'Gentanala Owner',
-                    email: authUser.email || null,
-                    links: [],
-                    avatar_url: newProfile?.avatar_url || null,
-                    tier: newProfile?.tier || 'FREE',
-                    company_id: newProfile?.company_id || null,
-                    company: newProfile?.company || null
-                }
-                setProfile(processedProfile)
-
-                localStorage.setItem('genhub_profile', JSON.stringify(processedProfile))
-                localStorage.setItem('genhub_user', JSON.stringify(authUser))
-                localStorage.setItem('genhub_activated', 'true')
+            if (!dbProfile) {
+                setLoading(false)
+                return
             }
+            setProfile(dbProfile as DashProfile)
 
-            setIsLoading(false)
+            const since = new Date(Date.now() - WEEK).toISOString()
+            const prevSince = new Date(Date.now() - 2 * WEEK).toISOString()
+
+            const [week, prev, contacts, fresh, serials, sources] = await Promise.all([
+                supabase.from('analytics').select('*', { count: 'exact', head: true })
+                    .eq('profile_id', dbProfile.id).eq('event_type', 'view').gte('created_at', since),
+                supabase.from('analytics').select('*', { count: 'exact', head: true })
+                    .eq('profile_id', dbProfile.id).eq('event_type', 'view')
+                    .gte('created_at', prevSince).lt('created_at', since),
+                supabase.from('leads').select('*', { count: 'exact', head: true })
+                    .eq('profile_id', dbProfile.id),
+                supabase.from('leads').select('id, name, created_at')
+                    .eq('profile_id', dbProfile.id).gte('created_at', since)
+                    .order('created_at', { ascending: false }).limit(20),
+                supabase.from('serial_numbers').select('serial_uuid').eq('owner_id', user.id),
+                supabase.from('analytics').select('meta')
+                    .eq('profile_id', dbProfile.id).eq('event_type', 'view')
+                    .gte('created_at', since).limit(1000),
+            ])
+
+            setTapsWeek(week.count || 0)
+            setTapsPrevWeek(prev.count || 0)
+            setContactsTotal(contacts.count || 0)
+            setNewContacts((fresh.data as Lead[]) || [])
+            setCardCount(serials.data?.length || 0)
+            setSerial(serials.data?.[0]?.serial_uuid?.slice(0, 8).toUpperCase() ?? null)
+
+            // Sumber kunjungan dihitung dari referrer yang memang sudah dicatat.
+            // Tidak ada pembedaan NFC vs QR di data, jadi keduanya jatuh ke "Langsung"
+            // dan labelnya tidak mengklaim lebih dari itu.
+            const tally = new Map<string, number>()
+            for (const row of (sources.data as { meta?: { referrer?: string } }[]) || []) {
+                const key = sourceLabel(row.meta?.referrer)
+                tally.set(key, (tally.get(key) || 0) + 1)
+            }
+            const ranked = [...tally.entries()].sort((a, b) => b[1] - a[1])
+            const top = ranked.slice(0, 3)
+            const restCount = ranked.slice(3).reduce((sum, [, n]) => sum + n, 0)
+            setSegments([
+                ...top.map(([label, count], i) => ({ label, count, tone: SEGMENT_TONES[i] })),
+                ...(restCount ? [{ label: 'Lainnya', count: restCount, tone: SEGMENT_TONES[3] }] : []),
+            ])
+
+            setLoading(false)
         }
 
-        checkUserAndProfile()
+        load()
     }, [router])
 
-    // Cerminan saja: apa yang sedang dipakai link publik. Diatur di /switch.
-    const liveTheme = (profile as Profile & { theme?: Record<string, unknown> })?.theme || {}
-    const liveUrl: string | null = activeRedirectUrl(liveTheme)
-    const liveShortcut: LiveShortcut | null = liveUrl
-        ? ((readShortcuts(liveTheme) as LiveShortcut[]).find((s) => s.url === liveUrl)
-            || { title: 'Pintasan Link', url: liveUrl, siteName: null })
-        : null
+    if (loading) return <Skeleton />
 
     if (!profile) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full" />
+            <div className="flex min-h-screen items-center justify-center px-[18px] text-center">
+                <p className="text-sm text-ink-2">Profil belum ada. Klaim kartu kamu dulu.</p>
             </div>
         )
     }
 
-    const isB2B = profile.tier === 'B2B' && profile.company
-
+    const links: LinkRow[] = (profile.social_links?.length ? profile.social_links : profile.theme?.links) || []
+    const activeLinks = links.filter((l) => l.is_active !== false)
+    const hiddenLinks = links.filter((l) => l.is_active === false)
     const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/${profile.slug}` : `/${profile.slug}`
-    const linkList = (profile.social_links?.length ? profile.social_links : profile.links) || []
-    const shortcutCount = Array.isArray((profile as ProfileWithTheme).theme?.shortcuts)
-        ? ((profile as ProfileWithTheme).theme!.shortcuts as unknown[]).length
-        : 0
+    const segmentTotal = segments.reduce((sum, s) => sum + s.count, 0)
 
-    // Setiap segmen diberi lebar minimum, kalau tidak angka terbesar menelan
-    // sisanya dan batangnya terbaca sebagai satu warna saja.
-    const seg = (n: number) => Math.max(n, Math.max(viewCount, linkClicks, shortcutCount, 1) * 0.06)
-
-    // Dampak lingkungan: satu kartu cetak ~5 g kertas, ~1,7 g CO2 per lembar.
-    const cardsAvoided = viewCount
-    const paperKg = (cardsAvoided * 5) / 1000
-    const co2Kg = (cardsAvoided * 1.7) / 1000
-
-    const quickActions = [
-        { icon: Edit, label: 'Edit Profil', href: '/dashboard/profile' },
-        { icon: Link2, label: 'Kelola Link', href: '/dashboard/links' },
-        {
-            icon: copied ? Check : Share2,
-            label: copied ? 'Tersalin' : 'Salin Link',
-            onClick: () => {
-                navigator.clipboard.writeText(shareUrl)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 2000)
-            },
-        },
-        {
-            icon: Download,
-            label: 'vCard',
-            onClick: () => downloadVCard({
-                displayName: profile.display_name,
-                bio: profile.bio,
-                slug: profile.slug,
-                links: profile.links,
-                email: profile.email || undefined,
-            }),
-        },
-    ]
+    // "Perlu ditindak" dibangun dari kondisi yang benar-benar bisa dicek,
+    // bukan daftar tetap. Kalau tidak ada yang perlu, bagiannya tidak muncul.
+    const tasks: Task[] = []
+    if (newContacts.length) {
+        tasks.push({
+            id: 'contacts',
+            title: newContacts[0].name || 'Kontak baru',
+            meta: `${newContacts.length} kontak baru minggu ini`,
+            icon: UserPlus,
+            href: '/dashboard/analytics',
+            chip: 'Lihat',
+        })
+    }
+    if (hiddenLinks.length) {
+        tasks.push({
+            id: 'hidden',
+            title: `${hiddenLinks.length} tautan disembunyikan`,
+            meta: 'Tidak tampil di kartu kamu',
+            icon: Link2,
+            href: '/dashboard/links',
+        })
+    }
+    if (!links.length) {
+        tasks.push({
+            id: 'nolinks',
+            title: 'Belum ada tautan',
+            meta: 'Tambah tautan pertama kamu',
+            icon: Link2,
+            href: '/dashboard/links',
+        })
+    }
+    if (!profile.avatar_url) {
+        tasks.push({
+            id: 'avatar',
+            title: 'Foto profil belum dipasang',
+            meta: 'Kartu terasa lebih personal dengan foto',
+            icon: Pencil,
+            href: '/dashboard/profile',
+        })
+    }
 
     return (
-        <div className="min-h-screen bg-[#EDEEF3] text-[#14151A] pb-28">
-            <div className="max-w-2xl mx-auto px-5 pt-6">
+        <div className="mx-auto max-w-[1200px] px-[18px] pb-[130px] pt-5">
 
-                {showClaimSuccess && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-                        className="mb-5 rounded-2xl bg-white p-4 flex items-center gap-3 shadow-[0_10px_26px_rgba(20,21,26,0.07)]"
-                    >
-                        <span className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                            <Check className="w-4 h-4 text-emerald-600" />
-                        </span>
-                        <p className="text-[13px] font-semibold">Kartu berhasil diklaim. Selamat datang!</p>
-                    </motion.div>
-                )}
+            {/* HEADER */}
+            <header className="flex items-center justify-between">
+                <Link href="/" className="flex items-center gap-2.5">
+                    <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-ink text-[12px] font-semibold text-white">
+                        GT
+                    </span>
+                    <span className="text-[16px] font-semibold tracking-[-0.01em]">biolink</span>
+                </Link>
 
-                {/* HEADER */}
-                <div className="flex items-start justify-between mb-5">
-                    <div className="min-w-0">
-                        <p className="text-[9px] tracking-[0.24em] text-black/35" style={{ fontFamily: MONO }}>
-                            DASHBOARD
-                        </p>
-                        <h1 className="text-[32px] font-extrabold tracking-[-0.035em] leading-[1.05] mt-1.5 break-words">
-                            {profile.display_name || 'Kartu kamu'}
-                        </h1>
-                        {isB2B && (
-                            <p className="text-[11px] text-black/40 mt-1.5">{profile.company?.name}</p>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-3">
-                        <div className="w-[46px] h-[46px] rounded-full overflow-hidden border-2 border-white shadow-[0_6px_16px_rgba(20,21,26,0.14)] bg-[#EDEEF3]">
-                            {profile.avatar_url ? (
-                                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center font-bold text-black/30">
-                                    {(profile.display_name || profile.slug)?.[0]?.toUpperCase()}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* HERO — status kartu, angka, dan aksi utama jadi satu */}
-                <div className="bg-white rounded-[28px] p-5 mb-4 shadow-[0_14px_34px_rgba(20,21,26,0.09)]">
-                    <div className="flex items-center justify-between">
-                        <p className="text-[9px] tracking-[0.24em] text-black/35" style={{ fontFamily: MONO }}>
-                            KARTU KAMU SEKARANG
-                        </p>
-                        <span
-                            className="text-[9px] tracking-[0.12em] font-bold px-2.5 py-1.5 rounded-full bg-[#14151A] text-white"
-                            style={{ fontFamily: MONO }}
-                        >
-                            {liveShortcut ? 'PINTASAN' : 'KARTU NAMA'}
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 my-3.5">
-                        <div className="w-[52px] h-[52px] rounded-[15px] overflow-hidden bg-[#EDEEF3] shrink-0 flex items-center justify-center">
-                            {liveShortcut ? (
-                                <Zap className="w-5 h-5 text-black/40" />
-                            ) : profile.avatar_url ? (
-                                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                                <CreditCard className="w-5 h-5 text-black/30" />
-                            )}
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[17px] font-bold tracking-[-0.01em] truncate">
-                                {liveShortcut ? liveShortcut.title : 'Kartu nama digital'}
-                            </p>
-                            <p className="text-[11px] text-black/40 truncate mt-0.5">
-                                {liveShortcut ? liveShortcut.siteName || liveShortcut.url : shareUrl.replace(/^https?:\/\//, '')}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-1 mb-3.5">
-                        <span className="h-[7px] rounded-full bg-[#3B82F6]" style={{ flex: seg(viewCount) }} />
-                        <span className="h-[7px] rounded-full bg-[#F0A93B]" style={{ flex: seg(linkClicks) }} />
-                        <span className="h-[7px] rounded-full bg-[#E8695F]" style={{ flex: seg(shortcutCount) }} />
-                    </div>
-
-                    <div className="flex">
-                        {[
-                            { n: viewCount, l: 'Dilihat' },
-                            { n: linkClicks, l: 'Link diklik' },
-                            { n: shortcutCount, l: 'Pintasan' },
-                        ].map((s) => (
-                            <div key={s.l} className="flex-1">
-                                <b className="block text-[22px] font-extrabold tracking-[-0.03em]">{s.n}</b>
-                                <span className="text-[10px] text-black/40">{s.l}</span>
-                            </div>
-                        ))}
-                    </div>
-
+                <div className="flex items-center gap-2.5">
                     <Link
-                        href="/switch"
-                        className="mt-4.5 flex items-center justify-between bg-[#14151A] text-white rounded-[18px] px-[18px] py-[15px] active:scale-[0.99] transition-transform"
-                        style={{ marginTop: 18 }}
+                        href="/dashboard/analytics"
+                        aria-label="Notifikasi"
+                        className="relative flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95"
                     >
-                        <b className="text-[14px] font-semibold">Atur pintasan</b>
-                        <span className="w-7 h-7 rounded-full bg-white/[0.14] flex items-center justify-center">
-                            <ArrowUpRight className="w-3.5 h-3.5" />
-                        </span>
+                        <Bell className="h-[19px] w-[19px]" strokeWidth={1.8} />
+                        {newContacts.length > 0 && (
+                            <span className="absolute right-3 top-3 h-[9px] w-[9px] rounded-full bg-coral ring-2 ring-white" />
+                        )}
+                    </Link>
+                    <button
+                        onClick={() => {
+                            if (navigator.share) navigator.share({ url: shareUrl }).catch(() => { })
+                            else navigator.clipboard.writeText(shareUrl)
+                        }}
+                        aria-label="Bagikan kartu"
+                        className="flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95"
+                    >
+                        <Share2 className="h-[19px] w-[19px]" strokeWidth={1.8} />
+                    </button>
+                    <Link
+                        href="/dashboard/profile"
+                        aria-label="Profil"
+                        className="h-12 w-12 overflow-hidden rounded-full bg-avatar ring-2 ring-white"
+                    >
+                        {profile.avatar_url ? (
+                            <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                            <span className="flex h-full w-full items-center justify-center text-[13px] font-medium text-avatar-ink">
+                                {initials(profile.display_name || profile.slug)}
+                            </span>
+                        )}
                     </Link>
                 </div>
+            </header>
 
-                {/* AKSI CEPAT */}
-                <div className="flex gap-2.5 mb-4.5" style={{ marginBottom: 18 }}>
-                    {quickActions.map((a) => {
-                        const inner = (
-                            <>
-                                <a.icon className="w-[17px] h-[17px] mx-auto text-black/70" />
-                                <span className="block text-[9px] font-semibold text-black/50 mt-1.5">{a.label}</span>
-                            </>
-                        )
-                        const cls = 'flex-1 bg-white rounded-[20px] py-3.5 px-1.5 text-center shadow-[0_8px_20px_rgba(20,21,26,0.07)] active:scale-[0.97] transition-transform'
-                        return a.href ? (
-                            <Link key={a.label} href={a.href} className={cls}>{inner}</Link>
-                        ) : (
-                            <button key={a.label} onClick={a.onClick} className={cls}>{inner}</button>
-                        )
-                    })}
-                </div>
+            {/* JUDUL */}
+            <h1 className="mt-6 text-[34px] font-medium leading-[1.03] tracking-[-0.032em] lg:text-[44px]">
+                Aktivitas
+                <br />
+                kartu kamu
+            </h1>
 
-                {/* LINK */}
-                <div className="bg-white rounded-[24px] p-[18px] mb-3.5 shadow-[0_10px_26px_rgba(20,21,26,0.07)]">
-                    <div className="flex items-center justify-between mb-3.5">
-                        <h2 className="text-[14px] font-bold tracking-[-0.01em]">Link kamu</h2>
-                        <Link href="/dashboard/links" className="text-[11px] text-black/40 flex items-center gap-1">
-                            Kelola <ChevronRight className="w-3 h-3" />
-                        </Link>
+            <div className="mt-6 md:grid md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+
+                {/* KARTU UTAMA — tumpukan berlapis */}
+                <section className="relative md:col-span-2 lg:col-span-3">
+                    {/* Lapisan belakang: hiasan kedalaman, bukan konten */}
+                    <div aria-hidden className="absolute inset-x-3 top-[26px] h-full rounded-card bg-white/50" />
+                    <div
+                        aria-hidden
+                        className="absolute inset-x-6 top-[44px] flex h-full items-end justify-center rounded-card bg-white/[0.34] pb-3 text-[13px] text-ink-2"
+                    >
+                        Minggu lalu · {nf.format(tapsPrevWeek)} tap
                     </div>
 
-                    {linkList.length === 0 ? (
-                        <Link href="/dashboard/links" className="flex items-center gap-3 py-2 text-black/40">
-                            <span className="w-[34px] h-[34px] rounded-[11px] bg-[#EDEEF3] flex items-center justify-center">
-                                <Plus className="w-4 h-4" />
-                            </span>
-                            <span className="text-[13px]">Belum ada link. Tambah yang pertama.</span>
-                        </Link>
-                    ) : (
-                        linkList.slice(0, 4).map((l: { id?: string; title?: string; url?: string }, i: number) => (
-                            <div key={l.id ?? i}>
-                                {i > 0 && <div className="h-px bg-black/[0.06]" />}
-                                <div className="flex items-center gap-3 py-2.5">
-                                    <span className="w-[34px] h-[34px] rounded-[11px] bg-[#EDEEF3] flex items-center justify-center shrink-0">
-                                        <Link2 className="w-4 h-4 text-black/45" />
-                                    </span>
-                                    <div className="min-w-0">
-                                        <p className="text-[13px] font-semibold truncate">{l.title || 'Tanpa nama'}</p>
-                                        <p className="text-[10px] text-black/35 truncate">{l.url}</p>
+                    <div className="relative rounded-card bg-surface p-5 shadow-card">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h2 className="text-[20px] font-medium tracking-[-0.025em]">Kartu utama</h2>
+                                <p className="mt-1 text-[12px] tracking-[0.04em] text-ink-2" style={{ fontFamily: 'var(--font-mono)' }}>
+                                    {serial ? `GTN-${serial}` : 'Belum terhubung'}
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <Link
+                                    href="/dashboard/profile"
+                                    aria-label="Edit kartu"
+                                    className="flex h-11 w-11 items-center justify-center rounded-full bg-fill-subtle transition-colors hover:bg-track"
+                                >
+                                    <Pencil className="h-[17px] w-[17px]" strokeWidth={1.8} />
+                                </Link>
+                                <Link
+                                    href={shareUrl}
+                                    target="_blank"
+                                    aria-label="Lihat kartu publik"
+                                    className="flex h-11 w-11 items-center justify-center rounded-full bg-fill-subtle transition-colors hover:bg-track"
+                                >
+                                    <QrCode className="h-[17px] w-[17px]" strokeWidth={1.8} />
+                                </Link>
+                            </div>
+                        </div>
+
+                        {/* Kontak baru minggu ini */}
+                        <div className="mt-5">
+                            {newContacts.length ? (
+                                <div className="flex items-center gap-[9px]">
+                                    {newContacts.slice(0, 5).map((lead) => (
+                                        <div
+                                            key={lead.id}
+                                            className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-avatar text-[14px] font-medium text-avatar-ink"
+                                        >
+                                            {initials(lead.name)}
+                                        </div>
+                                    ))}
+                                    {newContacts.length > 5 && (
+                                        <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-dashed border-ink/25 text-[12px] text-ink-2">
+                                            +{newContacts.length - 5}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-dashed border-ink/20 text-ink-3">
+                                    <UserPlus className="h-4 w-4" strokeWidth={1.8} />
+                                </div>
+                            )}
+                            <p className="mt-2.5 text-[13px] text-ink-2">
+                                {newContacts.length ? 'Kontak baru minggu ini' : 'Belum ada kontak baru minggu ini'}
+                            </p>
+                        </div>
+
+                        {/* Sumber kunjungan */}
+                        <div className="mt-5">
+                            <div className="flex h-2 gap-1.5 overflow-hidden rounded-full">
+                                {segmentTotal ? (
+                                    segments.map((s) => (
+                                        <span key={s.label} className={`rounded-full ${s.tone}`} style={{ flex: s.count }} />
+                                    ))
+                                ) : (
+                                    <span className="flex-1 rounded-full bg-track" />
+                                )}
+                            </div>
+                            <p className="mt-2.5 truncate text-[13px] text-ink-2">
+                                {segmentTotal
+                                    ? `Sumber kunjungan · ${segments.map((s) => s.label).join(', ')}`
+                                    : 'Sumber kunjungan · belum ada data'}
+                            </p>
+                        </div>
+
+                        {/* Angka inti */}
+                        <div className="mt-5 flex gap-10">
+                            <Metric value={nf.format(tapsWeek)} unit="tap" label="Total minggu ini" />
+                            <Metric value={nf.format(contactsTotal)} unit="orang" label="Kontak tersimpan" />
+                        </div>
+
+                        {/* Footer */}
+                        <div className="mt-5 flex items-center justify-between border-t border-hairline pt-5">
+                            <div className="flex gap-8">
+                                <div className="flex items-center gap-2.5">
+                                    <Link2 className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                                    <div>
+                                        <p className="text-[15px] font-medium leading-tight">{activeLinks.length} tautan</p>
+                                        <p className="text-[11.5px] text-ink-2">aktif</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2.5">
+                                    <CreditCard className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                                    <div>
+                                        <p className="text-[15px] font-medium leading-tight">{cardCount} kartu</p>
+                                        <p className="text-[11.5px] text-ink-2">terhubung</p>
                                     </div>
                                 </div>
                             </div>
-                        ))
-                    )}
-                </div>
-
-                {/* QR */}
-                <div className="bg-white rounded-[24px] p-[18px] mb-3.5 shadow-[0_10px_26px_rgba(20,21,26,0.07)]">
-                    <h2 className="text-[14px] font-bold tracking-[-0.01em] mb-3.5">QR Code profil</h2>
-                    <div className="flex gap-4 items-center">
-                        <div className="bg-white rounded-2xl shrink-0">
-                            <QRCodeSVG value={shareUrl} size={92} level="M" includeMargin={false} />
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-[12px] text-black/55 leading-relaxed">
-                                Tunjukkan atau cetak. Selalu mengarah ke kartu kamu yang aktif.
-                            </p>
-                            <div className="flex gap-2 mt-2.5">
-                                <a
-                                    href={shareUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-[11px] font-semibold bg-[#EDEEF3] rounded-[10px] px-3 py-2 flex items-center gap-1.5"
-                                >
-                                    <ExternalLink className="w-3 h-3" /> Buka
-                                </a>
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(shareUrl)
-                                        setCopied(true)
-                                        setTimeout(() => setCopied(false), 2000)
-                                    }}
-                                    className="text-[11px] font-semibold bg-[#EDEEF3] rounded-[10px] px-3 py-2 flex items-center gap-1.5"
-                                >
-                                    {copied ? <Check className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
-                                    {copied ? 'Tersalin' : 'Bagikan'}
-                                </button>
-                            </div>
+                            <Link
+                                href="/switch"
+                                aria-label="Atur kartu"
+                                className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-ink text-white shadow-ink transition-transform active:scale-95"
+                            >
+                                <ChevronRight className="h-5 w-5" strokeWidth={2} />
+                            </Link>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                {/* GREEN IMPACT */}
-                <div
-                    className="rounded-[24px] p-[18px] shadow-[0_10px_26px_rgba(20,21,26,0.07)]"
-                    style={{ background: 'linear-gradient(150deg,#E7F3EC,#ffffff 70%)' }}
-                >
-                    <div className="flex items-center gap-2 mb-3">
-                        <Leaf className="w-4 h-4 text-emerald-600" />
-                        <h2 className="text-[14px] font-bold tracking-[-0.01em]">Gentanala Green Impact</h2>
-                    </div>
-                    <div className="flex gap-2">
-                        {[
-                            { v: `${paperKg.toFixed(1)} kg`, l: 'Kertas dihemat' },
-                            { v: `${co2Kg.toFixed(1)} kg`, l: 'CO₂ ditekan' },
-                            { v: `${cardsAvoided}`, l: 'Kartu tak dicetak' },
-                        ].map((g) => (
-                            <div key={g.l} className="flex-1 bg-white/75 rounded-[14px] p-2.5">
-                                <b className="block text-[15px] font-extrabold tracking-[-0.02em]">{g.v}</b>
-                                <span className="text-[9px] text-black/45">{g.l}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                {/* PERLU DITINDAK */}
+                {tasks.length > 0 && (
+                    <section className="mt-[86px] md:col-span-2 md:mt-16 lg:col-span-3">
+                        <div className="flex items-baseline justify-between">
+                            <h2 className="text-[20px] font-medium tracking-[-0.025em]">Perlu ditindak</h2>
+                            <span className="text-[13px] text-ink-2">{tasks.length} hal</span>
+                        </div>
 
-                <button
-                    onClick={() => setShowPWAHint(true)}
-                    className="w-full mt-3.5 text-[11px] text-black/35 flex items-center justify-center gap-1.5 py-3"
-                >
-                    <Smartphone className="w-3.5 h-3.5" /> Pasang di HP (Android/iOS)
-                </button>
+                        <ul className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+                            {tasks.map((t) => (
+                                <li key={t.id}>
+                                    <Link
+                                        href={t.href}
+                                        className="flex items-center gap-3.5 rounded-row bg-surface p-3.5 shadow-row transition-transform active:scale-[0.99] md:hover:-translate-y-px"
+                                    >
+                                        <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-fill-subtle">
+                                            <t.icon className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-[15px] font-medium leading-tight">{t.title}</p>
+                                            <p className="mt-0.5 truncate text-[11.5px] text-ink-2">{t.meta}</p>
+                                        </div>
+                                        {t.chip ? (
+                                            <span className="shrink-0 rounded-full bg-coral-soft px-3 py-1.5 text-[12px] font-medium text-coral-soft-ink">
+                                                {t.chip}
+                                            </span>
+                                        ) : (
+                                            <ChevronRight className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={1.8} />
+                                        )}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
             </div>
-
-            <PWAHint isOpen={showPWAHint} onClose={() => setShowPWAHint(false)} />
         </div>
     )
 }

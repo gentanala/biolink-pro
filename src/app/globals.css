@@ -1,5 +1,44 @@
 @import "tailwindcss";
 
+/* ── Kabut — token desain area dashboard ─────────────────────────────────
+   Dipakai lewat utility Tailwind (bg-canvas, text-ink, rounded-card, …)
+   supaya nilainya tidak tersebar sebagai angka mentah di dalam komponen.
+   Cakupannya hanya dashboard: kartu profil publik, /tap dan /switch tidak
+   memakai token ini.                                                      */
+@theme {
+  --color-canvas: #DEDDE6;
+  --color-surface: #FFFFFF;
+  --color-ink: #17171E;
+  --color-ink-2: #6C6A79;
+  --color-ink-3: #9A98A8;
+  --color-hairline: rgba(23, 23, 30, 0.08);
+  --color-fill-subtle: #F1F0F5;
+  --color-track: #ECEBF2;
+  --color-avatar: #D9D7E4;
+  --color-avatar-ink: #4A4858;
+  --color-coral: #F58C84;
+  --color-coral-ink: #4A1E1A;
+  --color-coral-soft: #FCE3E0;
+  --color-coral-soft-ink: #8A342C;
+  --color-sky: #A6C4EE;
+  --color-butter: #F2CE6A;
+  --color-moss: #A5D4B6;
+  --color-success-soft: #E7F1E9;
+  --color-success-soft-ink: #1F5B33;
+
+  --radius-card: 30px;
+  --radius-card-sm: 26px;
+  --radius-row: 24px;
+
+  --shadow-card: 0 22px 44px -26px rgba(40, 38, 70, 0.55);
+  --shadow-row: 0 12px 26px -20px rgba(40, 38, 70, 0.55);
+  --shadow-ink: 0 22px 44px -24px rgba(23, 23, 30, 0.9);
+  --shadow-nav: 0 20px 40px -20px rgba(40, 38, 70, 0.5);
+
+  --font-kabut: var(--font-kabut), ui-sans-serif, system-ui, sans-serif;
+}
+
+
 :root {
   --background: #ffffff;
   --foreground: #18181b;

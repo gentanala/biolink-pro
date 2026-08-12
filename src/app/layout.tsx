@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/lib/cart-context";
 
@@ -11,6 +11,13 @@ const inter = Inter({
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
   subsets: ["latin"],
+});
+
+// Muka huruf untuk area dashboard (arah desain "Kabut").
+const schibsted = Schibsted_Grotesk({
+  variable: "--font-kabut",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -35,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-white text-zinc-900`}>
+      <body className={`${inter.variable} ${jetbrainsMono.variable} ${schibsted.variable} font-sans antialiased bg-white text-zinc-900`}>
         <CartProvider>
           {children}
         </CartProvider>
