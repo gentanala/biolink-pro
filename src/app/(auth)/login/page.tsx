@@ -65,6 +65,11 @@ function LoginContent() {
             provider: 'google',
             options: {
                 redirectTo: `${window.location.origin}/auth/callback?next=${nextUrl}`,
+                // Aplikasi yang dipasang di layar utama punya penyimpanan sendiri,
+                // terpisah dari browser — Google tidak mengenali sesi apa pun di sana
+                // dan bisa berhenti di halaman kosong tanpa daftar akun. Memaksa
+                // pemilih akun membuatnya selalu menampilkan pilihan atau form masuk.
+                queryParams: { prompt: 'select_account' },
             },
         })
 
