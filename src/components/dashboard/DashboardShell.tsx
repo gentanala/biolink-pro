@@ -50,7 +50,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-zinc-100 via-blue-50/50 to-zinc-100 flex overflow-hidden">
+        <div className="min-h-screen bg-[#EDEEF3] flex overflow-hidden">
             {/* Sidebar Desktop — Liquid Glass Light */}
             <aside className="hidden lg:flex flex-col w-64 bg-white/50 backdrop-blur-2xl border-r border-white/40 shrink-0 shadow-sm">
                 <div className="p-6">
@@ -148,7 +148,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
             {/* Mobile Bottom Navigation — Floating Liquid Glass */}
             <div className="lg:hidden fixed bottom-4 left-4 right-4 z-50">
-                <div className="bg-white/40 backdrop-blur-2xl border border-white/60 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.1)]">
+                <div className="bg-white/75 backdrop-blur-2xl border border-white/70 rounded-[26px] shadow-[0_10px_30px_rgba(20,21,26,0.12)]">
                     <nav className="flex items-center justify-around px-2 py-2 relative">
                         {navItems.map((item) => {
                             const isActive = pathname === item.href
@@ -158,8 +158,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                                 <Link
                                     key={item.href}
                                     href={item.href}
-                                    className={`flex flex-col items-center justify-center p-2 rounded-2xl transition-all relative flex-1 ${isActive
-                                        ? 'text-blue-600'
+                                    className={`flex flex-col items-center justify-center p-2 rounded-[17px] transition-all relative flex-1 ${isActive
+                                        ? 'text-white'
                                         : 'text-zinc-500 hover:text-zinc-900'
                                         }`}
                                 >
@@ -167,7 +167,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                                     {isActive && (
                                         <motion.div
                                             layoutId="mobileNavIndicator"
-                                            className="absolute inset-0 bg-white/60 backdrop-blur-md border border-white/80 shadow-[inset_0_2px_4px_rgba(255,255,255,0.8),0_4px_12px_-2px_rgba(0,0,0,0.1)] rounded-2xl z-0"
+                                            className="absolute inset-0 bg-[#14151A] rounded-[17px] z-0"
                                             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                         />
                                     )}

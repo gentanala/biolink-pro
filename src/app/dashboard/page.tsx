@@ -10,20 +10,15 @@ import {
     Link2,
     ExternalLink,
     Edit,
-    LogOut,
     Plus,
-    Eye,
-    BarChart3,
-    QrCode,
     Share2,
     Download,
     Check,
     Leaf,
-    Wind,
-    TreeDeciduous,
     Smartphone,
-    RefreshCw,
-    Zap
+    Zap,
+    ArrowUpRight,
+    ChevronRight
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { downloadVCard } from '@/lib/vcard'
@@ -51,6 +46,9 @@ interface Profile {
 }
 
 type LiveShortcut = { title: string; url: string; siteName?: string | null }
+type ProfileWithTheme = Profile & { theme?: { shortcuts?: unknown[] } }
+
+const MONO = "var(--font-mono), 'JetBrains Mono', ui-monospace, monospace"
 
 export default function DashboardPage() {
     const router = useRouter()
@@ -63,6 +61,7 @@ export default function DashboardPage() {
 
     const [showClaimSuccess, setShowClaimSuccess] = useState(false)
     const [showPWAHint, setShowPWAHint] = useState(false)
+    const [copied, setCopied] = useState(false)
 
 
     useEffect(() => {
@@ -173,12 +172,6 @@ export default function DashboardPage() {
         checkUserAndProfile()
     }, [router])
 
-    const handleLogout = async () => {
-        await supabase.auth.signOut()
-        localStorage.clear()
-        router.push('/login')
-    }
-
     // Cerminan saja: apa yang sedang dipakai link publik. Diatur di /switch.
     const liveTheme = (profile as Profile & { theme?: Record<string, unknown> })?.theme || {}
     const liveUrl: string | null = activeRedirectUrl(liveTheme)
@@ -197,551 +190,272 @@ export default function DashboardPage() {
 
     const isB2B = profile.tier === 'B2B' && profile.company
 
+    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/${profile.slug}` : `/${profile.slug}`
+    const linkList = (profile.social_links?.length ? profile.social_links : profile.links) || []
+    const shortcutCount = Array.isArray((profile as ProfileWithTheme).theme?.shortcuts)
+        ? ((profile as ProfileWithTheme).theme!.shortcuts as unknown[]).length
+        : 0
+
+    // Setiap segmen diberi lebar minimum, kalau tidak angka terbesar menelan
+    // sisanya dan batangnya terbaca sebagai satu warna saja.
+    const seg = (n: number) => Math.max(n, Math.max(viewCount, linkClicks, shortcutCount, 1) * 0.06)
+
+    // Dampak lingkungan: satu kartu cetak ~5 g kertas, ~1,7 g CO2 per lembar.
+    const cardsAvoided = viewCount
+    const paperKg = (cardsAvoided * 5) / 1000
+    const co2Kg = (cardsAvoided * 1.7) / 1000
+
+    const quickActions = [
+        { icon: Edit, label: 'Edit Profil', href: '/dashboard/profile' },
+        { icon: Link2, label: 'Kelola Link', href: '/dashboard/links' },
+        {
+            icon: copied ? Check : Share2,
+            label: copied ? 'Tersalin' : 'Salin Link',
+            onClick: () => {
+                navigator.clipboard.writeText(shareUrl)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+            },
+        },
+        {
+            icon: Download,
+            label: 'vCard',
+            onClick: () => downloadVCard({
+                displayName: profile.display_name,
+                bio: profile.bio,
+                slug: profile.slug,
+                links: profile.links,
+                email: profile.email || undefined,
+            }),
+        },
+    ]
+
     return (
-        <div className="min-h-screen">
-            {/* Header */}
-            <header className="bg-white/50 backdrop-blur-xl border-b border-white/40 sticky top-0 z-50 shadow-sm">
-                <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <Link href="/" className="flex items-center gap-2">
-                        <CreditCard className="w-8 h-8 text-blue-600" />
-                        <span className="text-xl font-bold text-zinc-900">GenHub</span>
-                    </Link>
+        <div className="min-h-screen bg-[#EDEEF3] text-[#14151A] pb-28">
+            <div className="max-w-2xl mx-auto px-5 pt-6">
 
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-2 text-zinc-400 hover:text-zinc-700 transition-colors"
-                    >
-                        <LogOut className="w-4 h-4" />
-                        Keluar
-                    </button>
-                </div>
-            </header>
-
-            <div className="max-w-6xl mx-auto px-6 py-8">
-                {/* Claim Success Notification */}
                 {showClaimSuccess && (
                     <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        className="mb-8"
+                        initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                        className="mb-5 rounded-2xl bg-white p-4 flex items-center gap-3 shadow-[0_10px_26px_rgba(20,21,26,0.07)]"
                     >
-                        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                            <div className="flex items-center gap-4 text-center md:text-left">
-                                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                    <Check className="w-6 h-6 text-green-600" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-green-700">Klaim Berhasil! 🎉</h3>
-                                    <p className="text-green-600 text-sm">Jam Gentanala Anda sekarang sudah terhubung ke akun ini. Silakan atur profil Anda di bawah.</p>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => setShowClaimSuccess(false)}
-                                className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg text-sm transition-colors"
-                            >
-                                Oke, Paham
-                            </button>
-                        </div>
+                        <span className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                            <Check className="w-4 h-4 text-emerald-600" />
+                        </span>
+                        <p className="text-[13px] font-semibold">Kartu berhasil diklaim. Selamat datang!</p>
                     </motion.div>
                 )}
 
-                {/* Welcome */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-8"
-                >
-                    {profile.tier === 'B2B' && profile.company ? (
-                        <div className="flex items-center gap-4 mb-2">
-                            {profile.company.logo_url ? (
-                                <img src={profile.company.logo_url} alt={profile.company.name} className="w-16 h-16 object-contain" />
+                {/* HEADER */}
+                <div className="flex items-start justify-between mb-5">
+                    <div className="min-w-0">
+                        <p className="text-[9px] tracking-[0.24em] text-black/35" style={{ fontFamily: MONO }}>
+                            DASHBOARD
+                        </p>
+                        <h1 className="text-[32px] font-extrabold tracking-[-0.035em] leading-[1.05] mt-1.5 break-words">
+                            {profile.display_name || 'Kartu kamu'}
+                        </h1>
+                        {isB2B && (
+                            <p className="text-[11px] text-black/40 mt-1.5">{profile.company?.name}</p>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                        <div className="w-[46px] h-[46px] rounded-full overflow-hidden border-2 border-white shadow-[0_6px_16px_rgba(20,21,26,0.14)] bg-[#EDEEF3]">
+                            {profile.avatar_url ? (
+                                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
                             ) : (
-                                <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-xl">
-                                    {profile.company.name[0]}
+                                <div className="w-full h-full flex items-center justify-center font-bold text-black/30">
+                                    {(profile.display_name || profile.slug)?.[0]?.toUpperCase()}
                                 </div>
                             )}
-                            <div>
-                                <h1 className="text-3xl font-bold text-zinc-900">
-                                    {profile.company.name} Dashboard
-                                </h1>
-                                <p className="text-zinc-500">
-                                    Welcome back, {profile.display_name}
-                                </p>
-                            </div>
                         </div>
-                    ) : (
-                        <>
-                            <h1 className="text-3xl font-bold mb-2 text-zinc-900">
-                                Selamat datang, {profile.display_name}! 👋
-                            </h1>
-                            <p className="text-zinc-500">
-                                Kelola profil kartu nama digital Anda dari sini
-                            </p>
-                            <p className="text-xs text-zinc-400 mt-2 flex items-center gap-1.5">
-                                <Smartphone className="w-3.5 h-3.5 text-blue-500" />
-                                Akses lebih cepat & praktis?
-                                <button
-                                    onClick={() => setShowPWAHint(true)}
-                                    className="text-blue-600 font-bold hover:underline"
-                                >
-                                    Pasang di HP (Android/iOS)
-                                </button>
-                            </p>
-                        </>
-                    )}
-                </motion.div>
-
-                {/* --- Fungsi Kartu / Mode — cerminan saja, atur di /switch --- */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 }}
-                    className="mb-8 glass rounded-3xl p-6 overflow-hidden border border-zinc-200/50"
-                >
-                    <div className="flex items-center justify-between mb-2">
-                        <h2 className="text-lg font-semibold flex items-center gap-2 text-zinc-900">
-                            <RefreshCw className="w-5 h-5 text-blue-600" />
-                            Fungsi Utama Link
-                        </h2>
                     </div>
-                    <p className="text-xs text-zinc-500 mb-5">
-                        Yang dilihat pengunjung saat membuka link kamu sekarang.
-                    </p>
+                </div>
 
-                    <div className="flex items-center gap-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-200/60 mb-4">
-                        <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
-                            {liveShortcut ? <Zap className="w-5 h-5 text-blue-600" /> : <CreditCard className="w-5 h-5 text-blue-600" />}
+                {/* HERO — status kartu, angka, dan aksi utama jadi satu */}
+                <div className="bg-white rounded-[28px] p-5 mb-4 shadow-[0_14px_34px_rgba(20,21,26,0.09)]">
+                    <div className="flex items-center justify-between">
+                        <p className="text-[9px] tracking-[0.24em] text-black/35" style={{ fontFamily: MONO }}>
+                            KARTU KAMU SEKARANG
+                        </p>
+                        <span
+                            className="text-[9px] tracking-[0.12em] font-bold px-2.5 py-1.5 rounded-full bg-[#14151A] text-white"
+                            style={{ fontFamily: MONO }}
+                        >
+                            {liveShortcut ? 'PINTASAN' : 'KARTU NAMA'}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-3 my-3.5">
+                        <div className="w-[52px] h-[52px] rounded-[15px] overflow-hidden bg-[#EDEEF3] shrink-0 flex items-center justify-center">
+                            {liveShortcut ? (
+                                <Zap className="w-5 h-5 text-black/40" />
+                            ) : profile.avatar_url ? (
+                                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                                <CreditCard className="w-5 h-5 text-black/30" />
+                            )}
                         </div>
                         <div className="min-w-0">
-                            <p className="text-sm font-bold text-zinc-900 truncate">
-                                {liveShortcut ? liveShortcut.title : 'Kartu Nama Digital'}
+                            <p className="text-[17px] font-bold tracking-[-0.01em] truncate">
+                                {liveShortcut ? liveShortcut.title : 'Kartu nama digital'}
                             </p>
-                            <p className="text-xs text-zinc-500 truncate">
-                                {liveShortcut
-                                    ? `Pengunjung dilempar ke ${liveShortcut.siteName || liveShortcut.url}`
-                                    : 'Pengunjung melihat profil lengkap kamu'}
+                            <p className="text-[11px] text-black/40 truncate mt-0.5">
+                                {liveShortcut ? liveShortcut.siteName || liveShortcut.url : shareUrl.replace(/^https?:\/\//, '')}
                             </p>
                         </div>
+                    </div>
+
+                    <div className="flex gap-1 mb-3.5">
+                        <span className="h-[7px] rounded-full bg-[#3B82F6]" style={{ flex: seg(viewCount) }} />
+                        <span className="h-[7px] rounded-full bg-[#F0A93B]" style={{ flex: seg(linkClicks) }} />
+                        <span className="h-[7px] rounded-full bg-[#E8695F]" style={{ flex: seg(shortcutCount) }} />
+                    </div>
+
+                    <div className="flex">
+                        {[
+                            { n: viewCount, l: 'Dilihat' },
+                            { n: linkClicks, l: 'Link diklik' },
+                            { n: shortcutCount, l: 'Pintasan' },
+                        ].map((s) => (
+                            <div key={s.l} className="flex-1">
+                                <b className="block text-[22px] font-extrabold tracking-[-0.03em]">{s.n}</b>
+                                <span className="text-[10px] text-black/40">{s.l}</span>
+                            </div>
+                        ))}
                     </div>
 
                     <Link
                         href="/switch"
-                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
+                        className="mt-4.5 flex items-center justify-between bg-[#14151A] text-white rounded-[18px] px-[18px] py-[15px] active:scale-[0.99] transition-transform"
+                        style={{ marginTop: 18 }}
                     >
-                        Atur pintasan
-                        <ExternalLink className="w-4 h-4" />
+                        <b className="text-[14px] font-semibold">Atur pintasan</b>
+                        <span className="w-7 h-7 rounded-full bg-white/[0.14] flex items-center justify-center">
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                        </span>
                     </Link>
-                    <p className="text-[11px] text-zinc-400 text-center mt-2.5">
-                        Ganti tujuan, atur cara mendarat, dan pasang timer di halaman Pintasan.
-                    </p>
-                </motion.section>
-
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="glass rounded-2xl p-6"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                                <Eye className="w-6 h-6 text-blue-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold text-zinc-900">{viewCount}</p>
-                                <p className="text-zinc-500 text-sm">Profile Views</p>
-                            </div>
-                        </div>
-                    </motion.div>
-
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="glass rounded-2xl p-6"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                                <Link2 className="w-6 h-6 text-purple-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold text-zinc-900">{profile.links?.length || 0}</p>
-                                <p className="text-zinc-500 text-sm">Total Links</p>
-                            </div>
-                        </div>
-                    </motion.div>
-
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="glass rounded-2xl p-6"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                                <BarChart3 className="w-6 h-6 text-green-600" />
-                            </div>
-                            <div>
-                                {profile.tier === 'FREE' ? (
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-2xl font-bold text-zinc-300 blur-sm select-none">123</span>
-                                            <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded border border-zinc-200">PREMIUM</span>
-                                        </div>
-                                        <p className="text-zinc-400 text-xs">Link Clicks (Hidden)</p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <p className="text-2xl font-bold text-zinc-900">{linkClicks}</p>
-                                        <p className="text-zinc-500 text-sm">Link Clicks</p>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </motion.div>
                 </div>
 
-                {/* Green Impact Section */}
-                <motion.section
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.35 }}
-                    className="mb-12 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent rounded-3xl p-6 border border-emerald-100/50"
-                >
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="bg-emerald-500 p-2 rounded-lg">
-                            <Leaf className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold text-zinc-900 leading-tight">Gentanala Green Impact</h2>
-                            <p className="text-emerald-700/70 text-sm font-medium">Kontribusi Anda terhadap lingkungan</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white shadow-sm hover:shadow-md transition-all group">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                                    <BarChart3 className="w-5 h-5 text-emerald-600" />
-                                </div>
-                                <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Eco-Friendly</span>
-                            </div>
-                            <h4 className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1">Kertas Terselamatkan</h4>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-bold text-zinc-900">{viewCount.toLocaleString()}</span>
-                                <span className="text-zinc-400 text-sm font-medium">Lembar</span>
-                            </div>
-                            <p className="text-zinc-400 text-[10px] mt-2 italic">*1 View profil = 1 Kartu nama kertas diselamatkan</p>
-                        </div>
-
-                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white shadow-sm hover:shadow-md transition-all group">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                                    <Wind className="w-5 h-5 text-blue-600" />
-                                </div>
-                            </div>
-                            <h4 className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1">Emisi Karbon Dicegah</h4>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-bold text-zinc-900">
-                                    {viewCount * 10 >= 1000
-                                        ? (viewCount * 10 / 1000).toFixed(2)
-                                        : (viewCount * 10).toLocaleString()}
-                                </span>
-                                <span className="text-zinc-400 text-sm font-medium">
-                                    {viewCount * 10 >= 1000 ? 'kg' : 'gram'}
-                                </span>
-                            </div>
-                            <p className="text-zinc-400 text-[10px] mt-2 italic">*10gram CO2/kartu emisi produksi dicegah</p>
-                        </div>
-
-                        <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-5 border border-white shadow-sm hover:shadow-md transition-all group">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center group-hover:bg-amber-200 transition-colors">
-                                    <TreeDeciduous className="w-5 h-5 text-amber-600" />
-                                </div>
-                            </div>
-                            <h4 className="text-zinc-500 text-xs font-medium uppercase tracking-wider mb-1">Pohon Dilindungi</h4>
-                            <div className="flex items-baseline gap-1">
-                                <span className="text-3xl font-bold text-zinc-900">{(viewCount / 10000).toFixed(4)}</span>
-                                <span className="text-zinc-400 text-sm font-medium">Pohon</span>
-                            </div>
-                            <p className="text-zinc-400 text-[10px] mt-2 italic">*10,000 kartu = 1 Pohon dewasa (Pulp source)</p>
-                        </div>
-                    </div>
-                </motion.section>
-
-                <div className="grid lg:grid-cols-2 gap-8">
-                    {/* Profile Card */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                    >
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-zinc-900">Profil Anda</h2>
-                            <Link
-                                href="/dashboard/profile"
-                                className="flex items-center gap-2 text-blue-600 hover:text-blue-500 text-sm font-medium"
-                            >
-                                <Edit className="w-4 h-4" />
-                                Edit Profil
-                            </Link>
-                        </div>
-
-                        <div className="glass rounded-2xl p-6">
-                            <div className="flex items-start gap-6">
-                                {profile.avatar_url ? (
-                                    <img
-                                        src={profile.avatar_url}
-                                        alt={profile.display_name}
-                                        className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-sm flex-shrink-0"
-                                    />
-                                ) : (
-                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
-                                        {profile.display_name?.[0]?.toUpperCase() || 'U'}
-                                    </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-xl font-semibold text-zinc-900">{profile.display_name || 'Set your name'}</h3>
-                                    {profile.bio && (
-                                        <p className="text-zinc-500 text-sm mt-2 line-clamp-2">{profile.bio}</p>
-                                    )}
-                                    <div className="mt-4">
-                                        <Link
-                                            href={`/${profile.slug}`}
-                                            target="_blank"
-                                            className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-blue-600"
-                                        >
-                                            <ExternalLink className="w-4 h-4" />
-                                            {typeof window !== 'undefined' ? window.location.host : ''}{'/'}{profile.slug}
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </motion.section>
-
-                    {/* Quick Actions */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 }}
-                    >
-                        <h2 className="text-lg font-semibold mb-4 text-zinc-900">Aksi Cepat</h2>
-
-                        <div className="grid gap-3">
-                            <Link
-                                href="/dashboard/profile"
-                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group hover:shadow-md"
-                            >
-                                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                                    <User className="w-6 h-6 text-blue-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-medium text-zinc-900">Edit Profil</h3>
-                                    <p className="text-zinc-500 text-sm">Ubah foto, nama, dan bio</p>
-                                </div>
-                            </Link>
-
-                            <Link
-                                href="/dashboard/links"
-                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group hover:shadow-md"
-                            >
-                                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                                    <Link2 className="w-6 h-6 text-purple-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-medium text-zinc-900">Kelola Link</h3>
-                                    <p className="text-zinc-500 text-sm">Tambah dan atur social links</p>
-                                </div>
-                            </Link>
-
-                            <button
-                                onClick={() => {
-                                    const url = `${window.location.origin}/${profile.slug}`;
-                                    navigator.clipboard.writeText(url);
-                                    alert('Link profil disalin!');
-                                }}
-                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group text-left hover:shadow-md"
-                            >
-                                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                                    <Share2 className="w-6 h-6 text-blue-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-medium text-zinc-900">Salin Link Profil</h3>
-                                    <p className="text-zinc-500 text-sm">Bagikan URL GenHub Anda</p>
-                                </div>
-                            </button>
-
-                            <button
-                                onClick={() => downloadVCard({
-                                    displayName: profile.display_name,
-                                    bio: profile.bio,
-                                    slug: profile.slug,
-                                    links: profile.links,
-                                    email: profile.email || undefined
-                                })}
-                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group text-left hover:shadow-md"
-                            >
-                                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                                    <Download className="w-6 h-6 text-green-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-medium text-zinc-900">Download vCard</h3>
-                                    <p className="text-zinc-500 text-sm">Simpan kontak ke file .vcf</p>
-                                </div>
-                            </button>
-
-                            <Link
-                                href={`/${profile.slug}`}
-                                target="_blank"
-                                className="glass rounded-xl p-4 flex items-center gap-4 transition-all group hover:shadow-md"
-                            >
-                                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center group-hover:bg-amber-200 transition-colors">
-                                    <ExternalLink className="w-6 h-6 text-amber-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-medium text-zinc-900">Lihat Profil Publik</h3>
-                                    <p className="text-zinc-500 text-sm">Buka halaman kartu digital Anda</p>
-                                </div>
-                            </Link>
-                        </div>
-                    </motion.section>
-                </div>
-
-                {/* Links & Sharing Section */}
-                <div className="grid lg:grid-cols-3 gap-8 mt-8">
-                    <motion.section
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.6 }}
-                        className="lg:col-span-2"
-                    >
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-semibold text-zinc-900">Link Anda</h2>
-                            <Link
-                                href="/dashboard/links"
-                                className="flex items-center gap-2 text-blue-600 hover:text-blue-500 text-sm font-medium"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Tambah Link
-                            </Link>
-                        </div>
-
-                        {profile.social_links && profile.social_links.length > 0 ? (
-                            <div className="grid gap-3">
-                                {profile.social_links.slice(0, 5).map((link: any) => (
-                                    <div key={link.id} className="glass rounded-xl p-4 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-blue-600">
-                                                <Link2 className="w-4 h-4" />
-                                            </div>
-                                            <span className="font-medium text-sm text-zinc-900">{link.title}</span>
-                                        </div>
-                                        <ExternalLink className="w-4 h-4 text-zinc-400" />
-                                    </div>
-                                ))}
-                                {profile.social_links.length > 5 && (
-                                    <p className="text-center text-xs text-zinc-400 mt-2">Dapatkan akses ke semua link di menu Atur Link</p>
-                                )}
-                            </div>
-                        ) : profile.links && profile.links.length > 0 ? (
-                            <div className="grid gap-3">
-                                {profile.links.slice(0, 5).map((link: any) => (
-                                    <div key={link.id} className="glass rounded-xl p-4 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center text-blue-600">
-                                                <Link2 className="w-4 h-4" />
-                                            </div>
-                                            <span className="font-medium text-sm text-zinc-900">{link.title}</span>
-                                        </div>
-                                        <ExternalLink className="w-4 h-4 text-zinc-400" />
-                                    </div>
-                                ))}
-                                {profile.links.length > 5 && (
-                                    <p className="text-center text-xs text-zinc-400 mt-2">Dapatkan akses ke semua link di menu Atur Link</p>
-                                )}
-                            </div>
+                {/* AKSI CEPAT */}
+                <div className="flex gap-2.5 mb-4.5" style={{ marginBottom: 18 }}>
+                    {quickActions.map((a) => {
+                        const inner = (
+                            <>
+                                <a.icon className="w-[17px] h-[17px] mx-auto text-black/70" />
+                                <span className="block text-[9px] font-semibold text-black/50 mt-1.5">{a.label}</span>
+                            </>
+                        )
+                        const cls = 'flex-1 bg-white rounded-[20px] py-3.5 px-1.5 text-center shadow-[0_8px_20px_rgba(20,21,26,0.07)] active:scale-[0.97] transition-transform'
+                        return a.href ? (
+                            <Link key={a.label} href={a.href} className={cls}>{inner}</Link>
                         ) : (
-                            <div className="glass border-dashed rounded-2xl p-12 text-center">
-                                <Link2 className="w-12 h-12 text-zinc-300 mx-auto mb-4" />
-                                <h3 className="text-lg font-medium mb-2 text-zinc-700">Belum ada link</h3>
-                                <p className="text-zinc-400 text-sm mb-6">
-                                    Tambahkan social media dan link custom Anda
-                                </p>
-                                <Link
-                                    href="/dashboard/links"
-                                    className="inline-flex items-center gap-2 px-6 py-3 btn-gradient rounded-xl font-medium text-white"
-                                >
-                                    <Plus className="w-5 h-5" />
-                                    Tambah Link Pertama
-                                </Link>
-                            </div>
-                        )}
-                    </motion.section>
-
-                    {/* QR Code Section */}
-                    <motion.section
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: 0.7 }}
-                        className="glass rounded-3xl p-6 flex flex-col items-center"
-                    >
-                        <div className="flex items-center gap-2 self-start mb-6">
-                            <QrCode className="w-5 h-5 text-blue-600" />
-                            <h2 className="text-lg font-semibold text-zinc-900">QR Code Profil</h2>
-                        </div>
-
-                        <div className="bg-white p-4 rounded-2xl shadow-lg mb-6">
-                            <QRCodeSVG
-                                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/${profile.slug}`}
-                                size={180}
-                                level="H"
-                                includeMargin={false}
-                            />
-                        </div>
-
-                        <p className="text-zinc-500 text-sm text-center mb-6 px-4">
-                            Scan untuk melihat kartu nama digital Anda secara instan
-                        </p>
-
-                        <button
-                            onClick={() => {
-                                const svg = document.querySelector('svg');
-                                if (svg) {
-                                    const svgData = new XMLSerializer().serializeToString(svg);
-                                    const canvas = document.createElement('canvas');
-                                    const ctx = canvas.getContext('2d');
-                                    const img = new Image();
-                                    img.onload = () => {
-                                        canvas.width = img.width;
-                                        canvas.height = img.height;
-                                        ctx?.drawImage(img, 0, 0);
-                                        const pngFile = canvas.toDataURL('image/png');
-                                        const downloadLink = document.createElement('a');
-                                        downloadLink.download = `qrcode-${profile.slug}.png`;
-                                        downloadLink.href = pngFile;
-                                        downloadLink.click();
-                                    };
-                                    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
-                                }
-                            }}
-                            className="w-full py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-sm font-medium transition-colors"
-                        >
-                            Download QR Code
-                        </button>
-                    </motion.section>
+                            <button key={a.label} onClick={a.onClick} className={cls}>{inner}</button>
+                        )
+                    })}
                 </div>
+
+                {/* LINK */}
+                <div className="bg-white rounded-[24px] p-[18px] mb-3.5 shadow-[0_10px_26px_rgba(20,21,26,0.07)]">
+                    <div className="flex items-center justify-between mb-3.5">
+                        <h2 className="text-[14px] font-bold tracking-[-0.01em]">Link kamu</h2>
+                        <Link href="/dashboard/links" className="text-[11px] text-black/40 flex items-center gap-1">
+                            Kelola <ChevronRight className="w-3 h-3" />
+                        </Link>
+                    </div>
+
+                    {linkList.length === 0 ? (
+                        <Link href="/dashboard/links" className="flex items-center gap-3 py-2 text-black/40">
+                            <span className="w-[34px] h-[34px] rounded-[11px] bg-[#EDEEF3] flex items-center justify-center">
+                                <Plus className="w-4 h-4" />
+                            </span>
+                            <span className="text-[13px]">Belum ada link. Tambah yang pertama.</span>
+                        </Link>
+                    ) : (
+                        linkList.slice(0, 4).map((l: { id?: string; title?: string; url?: string }, i: number) => (
+                            <div key={l.id ?? i}>
+                                {i > 0 && <div className="h-px bg-black/[0.06]" />}
+                                <div className="flex items-center gap-3 py-2.5">
+                                    <span className="w-[34px] h-[34px] rounded-[11px] bg-[#EDEEF3] flex items-center justify-center shrink-0">
+                                        <Link2 className="w-4 h-4 text-black/45" />
+                                    </span>
+                                    <div className="min-w-0">
+                                        <p className="text-[13px] font-semibold truncate">{l.title || 'Tanpa nama'}</p>
+                                        <p className="text-[10px] text-black/35 truncate">{l.url}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* QR */}
+                <div className="bg-white rounded-[24px] p-[18px] mb-3.5 shadow-[0_10px_26px_rgba(20,21,26,0.07)]">
+                    <h2 className="text-[14px] font-bold tracking-[-0.01em] mb-3.5">QR Code profil</h2>
+                    <div className="flex gap-4 items-center">
+                        <div className="bg-white rounded-2xl shrink-0">
+                            <QRCodeSVG value={shareUrl} size={92} level="M" includeMargin={false} />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[12px] text-black/55 leading-relaxed">
+                                Tunjukkan atau cetak. Selalu mengarah ke kartu kamu yang aktif.
+                            </p>
+                            <div className="flex gap-2 mt-2.5">
+                                <a
+                                    href={shareUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] font-semibold bg-[#EDEEF3] rounded-[10px] px-3 py-2 flex items-center gap-1.5"
+                                >
+                                    <ExternalLink className="w-3 h-3" /> Buka
+                                </a>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(shareUrl)
+                                        setCopied(true)
+                                        setTimeout(() => setCopied(false), 2000)
+                                    }}
+                                    className="text-[11px] font-semibold bg-[#EDEEF3] rounded-[10px] px-3 py-2 flex items-center gap-1.5"
+                                >
+                                    {copied ? <Check className="w-3 h-3" /> : <Share2 className="w-3 h-3" />}
+                                    {copied ? 'Tersalin' : 'Bagikan'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* GREEN IMPACT */}
+                <div
+                    className="rounded-[24px] p-[18px] shadow-[0_10px_26px_rgba(20,21,26,0.07)]"
+                    style={{ background: 'linear-gradient(150deg,#E7F3EC,#ffffff 70%)' }}
+                >
+                    <div className="flex items-center gap-2 mb-3">
+                        <Leaf className="w-4 h-4 text-emerald-600" />
+                        <h2 className="text-[14px] font-bold tracking-[-0.01em]">Gentanala Green Impact</h2>
+                    </div>
+                    <div className="flex gap-2">
+                        {[
+                            { v: `${paperKg.toFixed(1)} kg`, l: 'Kertas dihemat' },
+                            { v: `${co2Kg.toFixed(1)} kg`, l: 'CO₂ ditekan' },
+                            { v: `${cardsAvoided}`, l: 'Kartu tak dicetak' },
+                        ].map((g) => (
+                            <div key={g.l} className="flex-1 bg-white/75 rounded-[14px] p-2.5">
+                                <b className="block text-[15px] font-extrabold tracking-[-0.02em]">{g.v}</b>
+                                <span className="text-[9px] text-black/45">{g.l}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <button
+                    onClick={() => setShowPWAHint(true)}
+                    className="w-full mt-3.5 text-[11px] text-black/35 flex items-center justify-center gap-1.5 py-3"
+                >
+                    <Smartphone className="w-3.5 h-3.5" /> Pasang di HP (Android/iOS)
+                </button>
             </div>
 
-            {/* Dev badge */}
-            <div className="fixed bottom-4 right-4">
-                <span className="text-xs text-zinc-400 bg-white/60 backdrop-blur-sm px-3 py-1.5 rounded-full border border-zinc-200/50">
-                    🔧 Dev Mode
-                </span>
-            </div>
-            {/* PWA Save as App Hint Modal */}
             <PWAHint isOpen={showPWAHint} onClose={() => setShowPWAHint(false)} />
         </div>
     )
