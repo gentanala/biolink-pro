@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-    Bell, ChevronRight, CreditCard, Link2, Mail, Pencil,
-    QrCode, Share2, UserPlus,
+    ArrowUpRight, Bell, Eye, Link2, MousePointerClick, Search, Share2, UserPlus, Zap,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { activeRedirectUrl, readShortcuts } from '@/lib/redirect-mode.mjs'
 
 type LinkRow = { id?: string; title?: string; url?: string; is_active?: boolean }
 type DashProfile = {
@@ -16,61 +16,51 @@ type DashProfile = {
     display_name: string | null
     avatar_url: string | null
     social_links?: LinkRow[] | null
-    theme?: { links?: LinkRow[] } | null
+    theme?: { links?: LinkRow[]; shortcuts?: { url?: string; title?: string }[] } | null
 }
-type Lead = { id: string; name: string | null; created_at: string }
-type Segment = { label: string; count: number; tone: string }
-type Task = { id: string; title: string; meta: string; icon: typeof Mail; href: string; chip?: string }
+type TopLink = { title: string; url: string; clicks: number; trend: number[] }
+type Activity = { id: string; kind: 'view' | 'click' | 'lead'; title: string; meta: string; at: number }
 
-const WEEK = 7 * 24 * 60 * 60 * 1000
-const SEGMENT_TONES = ['bg-sky', 'bg-butter', 'bg-moss', 'bg-coral']
-
-const initials = (name?: string | null) =>
-    (name || '?')
-        .split(/\s+/)
-        .slice(0, 2)
-        .map((w) => w[0]?.toUpperCase() ?? '')
-        .join('') || '?'
-
+const DAY = 24 * 60 * 60 * 1000
 const nf = new Intl.NumberFormat('id-ID')
+const ICONS = { view: Eye, click: MousePointerClick, lead: UserPlus }
 
-/** Nama sumber yang bisa dibaca orang dari referrer yang tersimpan. */
-function sourceLabel(referrer?: string) {
-    if (!referrer || referrer === 'direct') return 'Langsung'
-    try {
-        const host = new URL(referrer).hostname.replace(/^www\./, '')
-        if (host.includes('instagram')) return 'Instagram'
-        if (host.includes('linkedin')) return 'LinkedIn'
-        if (host.includes('wa.me') || host.includes('whatsapp')) return 'WhatsApp'
-        if (host.includes('google')) return 'Google'
-        return host
-    } catch {
-        return 'Lainnya'
-    }
+/** Jarak waktu dalam bahasa sehari-hari. */
+function ago(ms: number) {
+    const s = Math.max(0, Math.floor((Date.now() - ms) / 1000))
+    if (s < 60) return 'baru saja'
+    const m = Math.floor(s / 60)
+    if (m < 60) return `${m} mnt lalu`
+    const h = Math.floor(m / 60)
+    if (h < 24) return `${h} jam lalu`
+    const d = Math.floor(h / 24)
+    if (d < 7) return `${d} hari lalu`
+    return new Date(ms).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 }
 
-/** Angka besar + satuan + label — pola data inti desain ini. */
-function Metric({ value, unit, label }: { value: string; unit: string; label: string }) {
+function Sparkline({ values, tone }: { values: number[]; tone: string }) {
+    const peak = Math.max(...values, 1)
     return (
-        <div>
-            <p className="flex items-baseline gap-1.5">
-                <span className="text-[28px] font-medium tracking-[-0.035em] leading-none">{value}</span>
-                <span className="text-[13px] font-medium text-ink-3">{unit}</span>
-            </p>
-            <p className="mt-1.5 text-[11.5px] text-ink-2">{label}</p>
+        <div className="flex h-full items-end gap-[3px]">
+            {values.map((v, i) => (
+                <span
+                    key={i}
+                    className={`flex-1 rounded-[3px] ${tone}`}
+                    style={{ height: `${Math.max((v / peak) * 100, 8)}%` }}
+                />
+            ))}
         </div>
     )
 }
 
 function Skeleton() {
     return (
-        <div className="mx-auto max-w-[1200px] px-[18px] pb-[130px] pt-5">
-            <div className="h-12 w-40 rounded-full bg-track" />
-            <div className="mt-6 h-20 w-64 rounded-3xl bg-track" />
-            <div className="mt-6 h-[380px] rounded-card bg-track" />
-            <div className="mt-6 space-y-2.5">
-                {[0, 1, 2].map((i) => <div key={i} className="h-[74px] rounded-row bg-track" />)}
-            </div>
+        <div className="mx-auto max-w-[1200px] px-5 pb-[150px] pt-6">
+            <div className="h-9 w-52 rounded-full bg-track" />
+            <div className="mt-5 h-[52px] rounded-full bg-track" />
+            <div className="mt-4 h-[150px] rounded-card bg-track" />
+            <div className="mt-2.5 h-[76px] rounded-card-sm bg-track" />
+            <div className="mt-7 h-[212px] rounded-card bg-track" />
         </div>
     )
 }
@@ -81,13 +71,13 @@ export default function DashboardPage() {
 
     const [loading, setLoading] = useState(true)
     const [profile, setProfile] = useState<DashProfile | null>(null)
+    const [query, setQuery] = useState('')
     const [tapsWeek, setTapsWeek] = useState(0)
-    const [tapsPrevWeek, setTapsPrevWeek] = useState(0)
-    const [contactsTotal, setContactsTotal] = useState(0)
-    const [newContacts, setNewContacts] = useState<Lead[]>([])
-    const [cardCount, setCardCount] = useState(0)
-    const [serial, setSerial] = useState<string | null>(null)
-    const [segments, setSegments] = useState<Segment[]>([])
+    const [tapsPrev, setTapsPrev] = useState(0)
+    const [weekBars, setWeekBars] = useState<number[]>([])
+    const [topLinks, setTopLinks] = useState<TopLink[]>([])
+    const [activity, setActivity] = useState<Activity[]>([])
+    const [newLeads, setNewLeads] = useState(0)
 
     useEffect(() => {
         const load = async () => {
@@ -109,325 +99,327 @@ export default function DashboardPage() {
             }
             setProfile(dbProfile as DashProfile)
 
-            const since = new Date(Date.now() - WEEK).toISOString()
-            const prevSince = new Date(Date.now() - 2 * WEEK).toISOString()
+            const now = Date.now()
+            const since7 = new Date(now - 7 * DAY).toISOString()
+            const since14 = new Date(now - 14 * DAY).toISOString()
+            const since30 = new Date(now - 30 * DAY).toISOString()
 
-            const [week, prev, contacts, fresh, serials, sources] = await Promise.all([
-                supabase.from('analytics').select('*', { count: 'exact', head: true })
-                    .eq('profile_id', dbProfile.id).eq('event_type', 'view').gte('created_at', since),
+            const [views, prev, clicks, leads] = await Promise.all([
+                supabase.from('analytics').select('created_at, meta')
+                    .eq('profile_id', dbProfile.id).eq('event_type', 'view')
+                    .gte('created_at', since7).order('created_at', { ascending: false }).limit(2000),
                 supabase.from('analytics').select('*', { count: 'exact', head: true })
                     .eq('profile_id', dbProfile.id).eq('event_type', 'view')
-                    .gte('created_at', prevSince).lt('created_at', since),
-                supabase.from('leads').select('*', { count: 'exact', head: true })
-                    .eq('profile_id', dbProfile.id),
+                    .gte('created_at', since14).lt('created_at', since7),
+                supabase.from('analytics').select('created_at, meta')
+                    .eq('profile_id', dbProfile.id).eq('event_type', 'click')
+                    .gte('created_at', since30).order('created_at', { ascending: false }).limit(2000),
                 supabase.from('leads').select('id, name, created_at')
-                    .eq('profile_id', dbProfile.id).gte('created_at', since)
-                    .order('created_at', { ascending: false }).limit(20),
-                supabase.from('serial_numbers').select('serial_uuid').eq('owner_id', user.id),
-                supabase.from('analytics').select('meta')
-                    .eq('profile_id', dbProfile.id).eq('event_type', 'view')
-                    .gte('created_at', since).limit(1000),
+                    .eq('profile_id', dbProfile.id).order('created_at', { ascending: false }).limit(20),
             ])
 
-            setTapsWeek(week.count || 0)
-            setTapsPrevWeek(prev.count || 0)
-            setContactsTotal(contacts.count || 0)
-            setNewContacts((fresh.data as Lead[]) || [])
-            setCardCount(serials.data?.length || 0)
-            setSerial(serials.data?.[0]?.serial_uuid?.slice(0, 8).toUpperCase() ?? null)
+            type Row = { created_at: string; meta?: { city?: string; link_title?: string; link_url?: string } }
+            const viewRows = (views.data as Row[]) || []
+            const clickRows = (clicks.data as Row[]) || []
+            const leadRows = (leads.data as { id: string; name: string | null; created_at: string }[]) || []
 
-            // Sumber kunjungan dihitung dari referrer yang memang sudah dicatat.
-            // Tidak ada pembedaan NFC vs QR di data, jadi keduanya jatuh ke "Langsung"
-            // dan labelnya tidak mengklaim lebih dari itu.
-            const tally = new Map<string, number>()
-            for (const row of (sources.data as { meta?: { referrer?: string } }[]) || []) {
-                const key = sourceLabel(row.meta?.referrer)
-                tally.set(key, (tally.get(key) || 0) + 1)
+            setTapsWeek(viewRows.length)
+            setTapsPrev(prev.count || 0)
+            setNewLeads(leadRows.filter((l) => new Date(l.created_at).getTime() > now - 7 * DAY).length)
+
+            // Tujuh batang harian untuk grafik mini.
+            const bars = new Array(7).fill(0)
+            for (const r of viewRows) {
+                const i = Math.min(6, Math.floor((new Date(r.created_at).getTime() - (now - 7 * DAY)) / DAY))
+                if (i >= 0) bars[i] += 1
             }
-            const ranked = [...tally.entries()].sort((a, b) => b[1] - a[1])
-            const top = ranked.slice(0, 3)
-            const restCount = ranked.slice(3).reduce((sum, [, n]) => sum + n, 0)
-            setSegments([
-                ...top.map(([label, count], i) => ({ label, count, tone: SEGMENT_TONES[i] })),
-                ...(restCount ? [{ label: 'Lainnya', count: restCount, tone: SEGMENT_TONES[3] }] : []),
-            ])
+            setWeekBars(bars)
 
+            // Tautan teratas dari klik 30 hari terakhir, lengkap dengan pola
+            // hariannya sendiri supaya tiap kartu punya grafik masing-masing.
+            const byLink = new Map<string, { url: string; times: number[] }>()
+            for (const r of clickRows) {
+                const title = r.meta?.link_title || r.meta?.link_url || 'Tautan'
+                const entry = byLink.get(title) || { url: r.meta?.link_url || '', times: [] }
+                entry.times.push(new Date(r.created_at).getTime())
+                byLink.set(title, entry)
+            }
+            setTopLinks(
+                [...byLink.entries()]
+                    .sort((a, b) => b[1].times.length - a[1].times.length)
+                    .slice(0, 6)
+                    .map(([title, e]) => {
+                        const trend = new Array(7).fill(0)
+                        for (const t of e.times) {
+                            const i = Math.min(6, Math.floor((t - (now - 7 * DAY)) / DAY))
+                            if (i >= 0) trend[i] += 1
+                        }
+                        return { title, url: e.url, clicks: e.times.length, trend }
+                    })
+            )
+
+            // Riwayat gabungan: apa yang terjadi belakangan, terbaru dulu.
+            const feed: Activity[] = [
+                ...viewRows.slice(0, 12).map((r, i) => ({
+                    id: `v${i}-${r.created_at}`,
+                    kind: 'view' as const,
+                    title: 'Kartu kamu dibuka',
+                    meta: r.meta?.city ? `dari ${r.meta.city}` : 'lokasi tidak terbaca',
+                    at: new Date(r.created_at).getTime(),
+                })),
+                ...clickRows.slice(0, 12).map((r, i) => ({
+                    id: `c${i}-${r.created_at}`,
+                    kind: 'click' as const,
+                    title: `${r.meta?.link_title || 'Tautan'} diklik`,
+                    meta: r.meta?.link_url || '',
+                    at: new Date(r.created_at).getTime(),
+                })),
+                ...leadRows.map((l) => ({
+                    id: `l${l.id}`,
+                    kind: 'lead' as const,
+                    title: l.name ? `Kontak baru: ${l.name}` : 'Kontak baru masuk',
+                    meta: 'tersimpan di kontak kamu',
+                    at: new Date(l.created_at).getTime(),
+                })),
+            ].sort((a, b) => b.at - a.at)
+
+            setActivity(feed)
             setLoading(false)
         }
 
         load()
     }, [router])
 
+    const q = query.trim().toLowerCase()
+    const shownLinks = useMemo(
+        () => (q ? topLinks.filter((l) => (l.title + l.url).toLowerCase().includes(q)) : topLinks),
+        [topLinks, q]
+    )
+    const shownActivity = useMemo(
+        () => (q ? activity.filter((a) => (a.title + a.meta).toLowerCase().includes(q)) : activity).slice(0, 8),
+        [activity, q]
+    )
+
     if (loading) return <Skeleton />
 
     if (!profile) {
         return (
-            <div className="flex min-h-screen items-center justify-center px-[18px] text-center">
+            <div className="flex min-h-screen items-center justify-center px-5 text-center">
                 <p className="text-sm text-ink-2">Profil belum ada. Klaim kartu kamu dulu.</p>
             </div>
         )
     }
 
-    const links: LinkRow[] = (profile.social_links?.length ? profile.social_links : profile.theme?.links) || []
-    const activeLinks = links.filter((l) => l.is_active !== false)
-    const hiddenLinks = links.filter((l) => l.is_active === false)
-    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/${profile.slug}` : `/${profile.slug}`
-    const segmentTotal = segments.reduce((sum, s) => sum + s.count, 0)
-
-    // "Perlu ditindak" dibangun dari kondisi yang benar-benar bisa dicek,
-    // bukan daftar tetap. Kalau tidak ada yang perlu, bagiannya tidak muncul.
-    const tasks: Task[] = []
-    if (newContacts.length) {
-        tasks.push({
-            id: 'contacts',
-            title: newContacts[0].name || 'Kontak baru',
-            meta: `${newContacts.length} kontak baru minggu ini`,
-            icon: UserPlus,
-            href: '/dashboard/analytics',
-            chip: 'Lihat',
-        })
-    }
-    if (hiddenLinks.length) {
-        tasks.push({
-            id: 'hidden',
-            title: `${hiddenLinks.length} tautan disembunyikan`,
-            meta: 'Tidak tampil di kartu kamu',
-            icon: Link2,
-            href: '/dashboard/links',
-        })
-    }
-    if (!links.length) {
-        tasks.push({
-            id: 'nolinks',
-            title: 'Belum ada tautan',
-            meta: 'Tambah tautan pertama kamu',
-            icon: Link2,
-            href: '/dashboard/links',
-        })
-    }
-    if (!profile.avatar_url) {
-        tasks.push({
-            id: 'avatar',
-            title: 'Foto profil belum dipasang',
-            meta: 'Kartu terasa lebih personal dengan foto',
-            icon: Pencil,
-            href: '/dashboard/profile',
-        })
-    }
+    const theme = profile.theme || {}
+    const liveUrl = activeRedirectUrl(theme)
+    const shortcuts = readShortcuts(theme) as { url?: string; title?: string }[]
+    const live = liveUrl ? shortcuts.find((s) => s.url === liveUrl) : null
+    const links: LinkRow[] = (profile.social_links?.length ? profile.social_links : theme.links) || []
+    const activeLinks = links.filter((l) => l.is_active !== false).length
+    const delta = tapsPrev > 0 ? Math.round(((tapsWeek - tapsPrev) / tapsPrev) * 100) : null
+    const clickTotal = topLinks.reduce((s, l) => s + l.clicks, 0)
+    const firstName = (profile.display_name || profile.slug || '').split(/\s+/)[0]
 
     return (
-        <div className="mx-auto max-w-[1200px] px-[18px] pb-[130px] pt-5">
+        <div className="mx-auto max-w-[1200px] px-5 pb-[150px] pt-6">
 
-            {/* HEADER */}
-            <header className="flex items-center justify-between">
-                <Link href="/" className="flex items-center gap-2.5">
-                    <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[11px] bg-ink text-[12px] font-semibold text-white">
-                        GT
-                    </span>
-                    <span className="text-[16px] font-semibold tracking-[-0.01em]">biolink</span>
-                </Link>
-
-                <div className="flex items-center gap-2.5">
+            {/* SAPAAN */}
+            <header className="flex items-center justify-between gap-3">
+                <h1 className="min-w-0 truncate text-[26px] font-semibold tracking-[-0.03em]">
+                    Halo, {firstName || 'kamu'}
+                </h1>
+                <div className="flex shrink-0 gap-2.5">
                     <Link
                         href="/dashboard/analytics"
                         aria-label="Notifikasi"
-                        className="relative flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95"
+                        className="relative flex h-11 w-11 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95"
                     >
-                        <Bell className="h-[19px] w-[19px]" strokeWidth={1.8} />
-                        {newContacts.length > 0 && (
-                            <span className="absolute right-3 top-3 h-[9px] w-[9px] rounded-full bg-coral ring-2 ring-white" />
+                        <Bell className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                        {newLeads > 0 && (
+                            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-coral ring-2 ring-canvas" />
                         )}
                     </Link>
-                    <button
-                        onClick={() => {
-                            if (navigator.share) navigator.share({ url: shareUrl }).catch(() => { })
-                            else navigator.clipboard.writeText(shareUrl)
-                        }}
-                        aria-label="Bagikan kartu"
-                        className="flex h-12 w-12 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95"
-                    >
-                        <Share2 className="h-[19px] w-[19px]" strokeWidth={1.8} />
-                    </button>
                     <Link
-                        href="/dashboard/profile"
-                        aria-label="Profil"
-                        className="h-12 w-12 overflow-hidden rounded-full bg-avatar ring-2 ring-white"
+                        href={`/${profile.slug}`}
+                        target="_blank"
+                        aria-label="Lihat kartu publik"
+                        className="flex h-11 w-11 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95"
                     >
-                        {profile.avatar_url ? (
-                            <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[13px] font-medium text-avatar-ink">
-                                {initials(profile.display_name || profile.slug)}
-                            </span>
-                        )}
+                        <Share2 className="h-[18px] w-[18px]" strokeWidth={1.8} />
                     </Link>
                 </div>
             </header>
 
-            {/* JUDUL */}
-            <h1 className="mt-6 text-[34px] font-medium leading-[1.03] tracking-[-0.032em] lg:text-[44px]">
-                Aktivitas
-                <br />
-                kartu kamu
-            </h1>
-
-            <div className="mt-6 md:grid md:grid-cols-2 md:gap-6 lg:grid-cols-3">
-
-                {/* KARTU UTAMA — tumpukan berlapis */}
-                <section className="relative md:col-span-2 lg:col-span-3">
-                    {/* Lapisan belakang: hiasan kedalaman, bukan konten */}
-                    <div aria-hidden className="absolute inset-x-3 top-[26px] h-full rounded-card bg-white/50" />
-                    <div
-                        aria-hidden
-                        className="absolute inset-x-6 top-[44px] flex h-full items-end justify-center rounded-card bg-white/[0.34] pb-3 text-[13px] text-ink-2"
-                    >
-                        Minggu lalu · {nf.format(tapsPrevWeek)} tap
-                    </div>
-
-                    <div className="relative rounded-card bg-surface p-5 shadow-card">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <h2 className="text-[20px] font-medium tracking-[-0.025em]">Kartu utama</h2>
-                                <p className="mt-1 text-[12px] tracking-[0.04em] text-ink-2" style={{ fontFamily: 'var(--font-mono)' }}>
-                                    {serial ? `GTN-${serial}` : 'Belum terhubung'}
-                                </p>
-                            </div>
-                            <div className="flex gap-2">
-                                <Link
-                                    href="/dashboard/profile"
-                                    aria-label="Edit kartu"
-                                    className="flex h-11 w-11 items-center justify-center rounded-full bg-fill-subtle transition-colors hover:bg-track"
-                                >
-                                    <Pencil className="h-[17px] w-[17px]" strokeWidth={1.8} />
-                                </Link>
-                                <Link
-                                    href={shareUrl}
-                                    target="_blank"
-                                    aria-label="Lihat kartu publik"
-                                    className="flex h-11 w-11 items-center justify-center rounded-full bg-fill-subtle transition-colors hover:bg-track"
-                                >
-                                    <QrCode className="h-[17px] w-[17px]" strokeWidth={1.8} />
-                                </Link>
-                            </div>
-                        </div>
-
-                        {/* Kontak baru minggu ini */}
-                        <div className="mt-5">
-                            {newContacts.length ? (
-                                <div className="flex items-center gap-[9px]">
-                                    {newContacts.slice(0, 5).map((lead) => (
-                                        <div
-                                            key={lead.id}
-                                            className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-avatar text-[14px] font-medium text-avatar-ink"
-                                        >
-                                            {initials(lead.name)}
-                                        </div>
-                                    ))}
-                                    {newContacts.length > 5 && (
-                                        <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-dashed border-ink/25 text-[12px] text-ink-2">
-                                            +{newContacts.length - 5}
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="flex h-[46px] w-[46px] items-center justify-center rounded-full border border-dashed border-ink/20 text-ink-3">
-                                    <UserPlus className="h-4 w-4" strokeWidth={1.8} />
-                                </div>
-                            )}
-                            <p className="mt-2.5 text-[13px] text-ink-2">
-                                {newContacts.length ? 'Kontak baru minggu ini' : 'Belum ada kontak baru minggu ini'}
-                            </p>
-                        </div>
-
-                        {/* Sumber kunjungan */}
-                        <div className="mt-5">
-                            <div className="flex h-2 gap-1.5 overflow-hidden rounded-full">
-                                {segmentTotal ? (
-                                    segments.map((s) => (
-                                        <span key={s.label} className={`rounded-full ${s.tone}`} style={{ flex: s.count }} />
-                                    ))
-                                ) : (
-                                    <span className="flex-1 rounded-full bg-track" />
-                                )}
-                            </div>
-                            <p className="mt-2.5 truncate text-[13px] text-ink-2">
-                                {segmentTotal
-                                    ? `Sumber kunjungan · ${segments.map((s) => s.label).join(', ')}`
-                                    : 'Sumber kunjungan · belum ada data'}
-                            </p>
-                        </div>
-
-                        {/* Angka inti */}
-                        <div className="mt-5 flex gap-10">
-                            <Metric value={nf.format(tapsWeek)} unit="tap" label="Total minggu ini" />
-                            <Metric value={nf.format(contactsTotal)} unit="orang" label="Kontak tersimpan" />
-                        </div>
-
-                        {/* Footer */}
-                        <div className="mt-5 flex items-center justify-between border-t border-hairline pt-5">
-                            <div className="flex gap-8">
-                                <div className="flex items-center gap-2.5">
-                                    <Link2 className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
-                                    <div>
-                                        <p className="text-[15px] font-medium leading-tight">{activeLinks.length} tautan</p>
-                                        <p className="text-[11.5px] text-ink-2">aktif</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2.5">
-                                    <CreditCard className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
-                                    <div>
-                                        <p className="text-[15px] font-medium leading-tight">{cardCount} kartu</p>
-                                        <p className="text-[11.5px] text-ink-2">terhubung</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <Link
-                                href="/switch"
-                                aria-label="Atur kartu"
-                                className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-ink text-white shadow-ink transition-transform active:scale-95"
-                            >
-                                <ChevronRight className="h-5 w-5" strokeWidth={2} />
-                            </Link>
-                        </div>
-                    </div>
-                </section>
-
-                {/* PERLU DITINDAK */}
-                {tasks.length > 0 && (
-                    <section className="mt-[86px] md:col-span-2 md:mt-16 lg:col-span-3">
-                        <div className="flex items-baseline justify-between">
-                            <h2 className="text-[20px] font-medium tracking-[-0.025em]">Perlu ditindak</h2>
-                            <span className="text-[13px] text-ink-2">{tasks.length} hal</span>
-                        </div>
-
-                        <ul className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
-                            {tasks.map((t) => (
-                                <li key={t.id}>
-                                    <Link
-                                        href={t.href}
-                                        className="flex items-center gap-3.5 rounded-row bg-surface p-3.5 shadow-row transition-transform active:scale-[0.99] md:hover:-translate-y-px"
-                                    >
-                                        <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-fill-subtle">
-                                            <t.icon className="h-[18px] w-[18px] text-ink-2" strokeWidth={1.8} />
-                                        </span>
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[15px] font-medium leading-tight">{t.title}</p>
-                                            <p className="mt-0.5 truncate text-[11.5px] text-ink-2">{t.meta}</p>
-                                        </div>
-                                        {t.chip ? (
-                                            <span className="shrink-0 rounded-full bg-coral-soft px-3 py-1.5 text-[12px] font-medium text-coral-soft-ink">
-                                                {t.chip}
-                                            </span>
-                                        ) : (
-                                            <ChevronRight className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={1.8} />
-                                        )}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
+            {/* CARI */}
+            <div className="mt-5 flex items-center gap-2.5 rounded-full bg-surface px-4 shadow-row">
+                <Search className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={1.8} />
+                <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Cari tautan atau aktivitas…"
+                    className="h-[52px] min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-ink-3"
+                />
+                {query && (
+                    <button onClick={() => setQuery('')} className="shrink-0 text-[12px] text-ink-2">
+                        Hapus
+                    </button>
                 )}
             </div>
+
+            {/* PERFORMA */}
+            <section className="mt-4 rounded-card bg-surface p-5 shadow-card">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <p className="text-[15px] font-medium leading-tight">Performa kartu</p>
+                        <p className="mt-1 text-[12px] text-ink-2">7 hari terakhir</p>
+                        <Link
+                            href="/dashboard/analytics"
+                            className="mt-3.5 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2.5 text-[12.5px] font-medium text-white transition-transform active:scale-95"
+                        >
+                            Cek statistik
+                            <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} />
+                        </Link>
+                    </div>
+
+                    <div className="relative w-[46%] max-w-[220px] shrink-0">
+                        {delta !== null && (
+                            <span
+                                className={`absolute -top-1 left-1/2 z-10 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-medium ${delta >= 0
+                                    ? 'bg-success-soft text-success-soft-ink'
+                                    : 'bg-coral-soft text-coral-soft-ink'
+                                    }`}
+                            >
+                                {delta >= 0 ? '▲' : '▼'} {Math.abs(delta)}%
+                            </span>
+                        )}
+                        <div className="h-[76px] pt-5">
+                            <Sparkline values={weekBars.length ? weekBars : [0, 0, 0, 0, 0, 0, 0]} tone="bg-ink/15" />
+                        </div>
+                        <p className="mt-2 text-right text-[13px] font-semibold">
+                            {nf.format(tapsWeek)} <span className="text-[11px] font-normal text-ink-2">tap</span>
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            {/* RINGKASAN CEPAT */}
+            <section className="mt-2.5 grid grid-cols-3 gap-2.5">
+                {[
+                    { v: nf.format(activeLinks), l: 'Tautan aktif', href: '/dashboard/links' },
+                    { v: nf.format(clickTotal), l: 'Klik 30 hari', href: '/dashboard/analytics' },
+                    { v: nf.format(newLeads), l: 'Kontak baru', href: '/dashboard/analytics' },
+                ].map((s) => (
+                    <Link
+                        key={s.l}
+                        href={s.href}
+                        className="rounded-card-sm bg-surface p-3.5 shadow-row transition-transform active:scale-[0.98]"
+                    >
+                        <p className="text-[22px] font-semibold leading-none tracking-[-0.03em]">{s.v}</p>
+                        <p className="mt-1.5 text-[11px] text-ink-2">{s.l}</p>
+                    </Link>
+                ))}
+            </section>
+
+            {/* KARTU LAGI NUNJUK KE MANA */}
+            <Link
+                href="/switch"
+                className="mt-2.5 flex items-center gap-3.5 rounded-card-sm bg-ink p-4 text-white shadow-ink transition-transform active:scale-[0.99]"
+            >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.14]">
+                    <Zap className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                </span>
+                <div className="min-w-0 flex-1">
+                    <p
+                        className="text-[10px] uppercase tracking-[0.14em] text-white/55"
+                        style={{ fontFamily: 'var(--font-mono)' }}
+                    >
+                        KARTU KAMU SEKARANG
+                    </p>
+                    <p className="mt-1 truncate text-[15px] font-medium">
+                        {live ? live.title || 'Pintasan' : 'Kartu nama digital'}
+                    </p>
+                </div>
+                <ArrowUpRight className="h-[18px] w-[18px] shrink-0 text-white/60" strokeWidth={2} />
+            </Link>
+
+            {/* TAUTAN TERATAS */}
+            <section className="mt-7">
+                <div className="flex items-baseline justify-between">
+                    <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Tautan teratas</h2>
+                    <Link href="/dashboard/links" className="text-[12.5px] text-ink-2">Semua</Link>
+                </div>
+
+                {shownLinks.length ? (
+                    <div className="-mx-5 mt-4 flex gap-3 overflow-x-auto px-5 pb-1" style={{ scrollbarWidth: 'none' }}>
+                        {shownLinks.map((l) => {
+                            const share = clickTotal ? Math.round((l.clicks / clickTotal) * 100) : 0
+                            return (
+                                <article
+                                    key={l.title}
+                                    className="w-[212px] shrink-0 rounded-card bg-surface p-4 shadow-card md:w-[240px]"
+                                >
+                                    <div className="h-[92px] rounded-card-sm bg-fill-subtle p-3">
+                                        <Sparkline values={l.trend} tone="bg-coral" />
+                                    </div>
+                                    <p className="mt-3.5 truncate text-[15px] font-medium">{l.title}</p>
+                                    <p className="mt-1 truncate text-[11.5px] text-ink-2">{l.url || '—'}</p>
+                                    <div className="mt-3.5 flex items-center gap-2.5">
+                                        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-track">
+                                            <span className="block h-full rounded-full bg-ink" style={{ width: `${share}%` }} />
+                                        </span>
+                                        <span className="shrink-0 text-[11.5px] font-medium text-ink-2">{share}%</span>
+                                    </div>
+                                </article>
+                            )
+                        })}
+                    </div>
+                ) : (
+                    <div className="mt-4 flex items-center gap-3 rounded-card-sm border border-dashed border-ink/15 bg-surface/60 p-5">
+                        <Link2 className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={1.8} />
+                        <p className="text-[13px] text-ink-2">
+                            {q ? 'Tidak ada tautan yang cocok.' : 'Belum ada tautan yang diklik.'}
+                        </p>
+                    </div>
+                )}
+            </section>
+
+            {/* AKTIVITAS */}
+            <section className="mt-7">
+                <div className="flex items-baseline justify-between">
+                    <h2 className="text-[19px] font-semibold tracking-[-0.025em]">Aktivitas terbaru</h2>
+                    <Link href="/dashboard/analytics" className="text-[12.5px] text-ink-2">Semua</Link>
+                </div>
+
+                {shownActivity.length ? (
+                    <ul className="mt-4 grid gap-2.5 md:grid-cols-2">
+                        {shownActivity.map((a) => {
+                            const Icon = ICONS[a.kind]
+                            return (
+                                <li key={a.id} className="flex items-center gap-3.5 rounded-row bg-surface p-3.5 shadow-row">
+                                    <span
+                                        className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full ${a.kind === 'lead' ? 'bg-coral-soft text-coral-soft-ink' : 'bg-fill-subtle text-ink-2'
+                                            }`}
+                                    >
+                                        <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-[14.5px] font-medium leading-tight">{a.title}</p>
+                                        <p className="mt-0.5 truncate text-[11.5px] text-ink-2">{a.meta}</p>
+                                    </div>
+                                    <span className="shrink-0 text-[11px] text-ink-3">{ago(a.at)}</span>
+                                </li>
+                            )
+                        })}
+                    </ul>
+                ) : (
+                    <div className="mt-4 flex items-center gap-3 rounded-card-sm border border-dashed border-ink/15 bg-surface/60 p-5">
+                        <Eye className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={1.8} />
+                        <p className="text-[13px] text-ink-2">
+                            {q ? 'Tidak ada aktivitas yang cocok.' : 'Belum ada aktivitas.'}
+                        </p>
+                    </div>
+                )}
+            </section>
         </div>
     )
 }
