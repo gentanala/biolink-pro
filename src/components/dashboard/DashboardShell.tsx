@@ -32,7 +32,7 @@ const navItems = [
 // Rute yang sudah dipindahkan ke arah desain Kabut. Layar di daftar ini memakai
 // kanvas + navigasi baru; sisanya tetap pakai cangkang lama sampai gilirannya
 // dikerjakan. Daftar ini menyusut jadi tidak perlu begitu semua layar pindah.
-const KABUT_ROUTES = ['/dashboard']
+const KABUT_ROUTES = ['/dashboard', '/dashboard/analytics']
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
     const [profile, setProfile] = useState<any>(null)

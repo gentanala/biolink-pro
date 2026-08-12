@@ -1,643 +1,426 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { ArrowUpRight, ChevronLeft, Download, MapPin, TrendingDown, UserPlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import {
-    BarChart3,
-    TrendingUp,
-    Users,
-    MousePointer2,
-    Calendar,
-    ArrowUpRight,
-    ArrowDownRight,
-    Download,
-    Loader2,
-    Eye,
-    MessageSquare,
-    Phone,
-    Mail,
-    CheckCircle2,
-    Clock,
-    XCircle,
-    ArrowUpDown
-} from 'lucide-react'
 import PremiumLock from '@/components/dashboard/PremiumLock'
 import { useTier } from '@/app/dashboard/tier-context'
 
-// Helper for status colors
-const getStatusColor = (status: string) => {
-    switch (status) {
-        case 'contacted': return 'bg-orange-100 text-orange-700 border-orange-200'
-        case 'converted': return 'bg-green-100 text-green-700 border-green-200'
-        default: return 'bg-blue-100 text-blue-700 border-blue-200'
+type Range = 7 | 30 | 90
+type Bucket = { label: string; value: number }
+type Named = { label: string; count: number }
+type Lead = {
+    id: string
+    name: string | null
+    email: string | null
+    whatsapp: string | null
+    company: string | null
+    created_at: string
+}
+
+const RANGES: { id: Range; label: string }[] = [
+    { id: 7, label: '7 hari' },
+    { id: 30, label: '30 hari' },
+    { id: 90, label: '90 hari' },
+]
+
+const BUCKETS = 7
+const DAY_INITIAL = ['M', 'S', 'S', 'R', 'K', 'J', 'S'] // Minggu…Sabtu
+const LEGEND_TONES = ['bg-sky', 'bg-butter', 'bg-moss', 'bg-coral']
+const DAY_MS = 24 * 60 * 60 * 1000
+const nf = new Intl.NumberFormat('id-ID')
+const MONO = { fontFamily: 'var(--font-mono)' }
+
+/** Nama sumber yang bisa dibaca orang dari referrer yang tersimpan. */
+function sourceLabel(referrer?: string) {
+    if (!referrer || referrer === 'direct') return 'Langsung'
+    try {
+        const host = new URL(referrer).hostname.replace(/^www\./, '')
+        if (host.includes('instagram')) return 'Instagram'
+        if (host.includes('linkedin')) return 'LinkedIn'
+        if (host.includes('wa.me') || host.includes('whatsapp')) return 'WhatsApp'
+        if (host.includes('google')) return 'Google'
+        return host
+    } catch {
+        return 'Lainnya'
     }
 }
 
+function Metric({ value, unit, label }: { value: string; unit?: string; label: string }) {
+    return (
+        <div className="flex-1">
+            <p className="flex items-baseline gap-1.5">
+                <span className="text-[28px] font-medium leading-none tracking-[-0.035em]">{value}</span>
+                {unit && <span className="text-[13px] font-medium text-ink-3">{unit}</span>}
+            </p>
+            <p className="mt-1.5 text-[11.5px] text-ink-2">{label}</p>
+        </div>
+    )
+}
+
+function Skeleton() {
+    return (
+        <div className="mx-auto max-w-[1200px] px-[18px] pb-[130px] pt-5">
+            <div className="h-12 w-56 rounded-full bg-track" />
+            <div className="mt-6 h-[50px] rounded-full bg-track" />
+            <div className="mt-3 h-[300px] rounded-card bg-track" />
+            <div className="mt-3 h-[86px] rounded-card-sm bg-track" />
+        </div>
+    )
+}
+
 export default function AnalyticsPage() {
+    const router = useRouter()
     const supabase = createClient()
     const { hasFeature } = useTier()
     const isLocked = !hasFeature('analytics_leads')
 
+    const [range, setRange] = useState<Range>(7)
     const [loading, setLoading] = useState(true)
-    const [stats, setStats] = useState({
-        totalViews: 0,
-        totalClicks: 0,
-        totalLeads: 0,
-        uniqueVisitors: 0
-    })
-    const [chartData, setChartData] = useState<any[]>([])
-    const [recentLeads, setRecentLeads] = useState<any[]>([])
-    const [dateRange, setDateRange] = useState('30d')
-    const [leadCaptureEnabled, setLeadCaptureEnabled] = useState(false)
-    const [leadCaptureDelay, setLeadCaptureDelay] = useState(4)
-    const [savingDelay, setSavingDelay] = useState(false)
+    const [total, setTotal] = useState(0)
+    const [prevTotal, setPrevTotal] = useState(0)
+    const [clicks, setClicks] = useState(0)
+    const [newLeads, setNewLeads] = useState(0)
+    const [buckets, setBuckets] = useState<Bucket[]>([])
+    const [sources, setSources] = useState<Named[]>([])
+    const [cities, setCities] = useState<Named[]>([])
+    const [leads, setLeads] = useState<Lead[]>([])
 
-    // Filtering & Sorting State
-    const [statusFilter, setStatusFilter] = useState('all')
-    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
-    const [loadingLeads, setLoadingLeads] = useState(false)
-
-    useEffect(() => {
-        fetchAnalytics()
-    }, [dateRange])
-
-    useEffect(() => {
-        fetchLeads()
-    }, [statusFilter, sortOrder])
-
-    const fetchLeads = async () => {
-        try {
-            setLoadingLeads(true)
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
-
-            // Get profile ID first (we need it for the query)
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('user_id', user.id)
-                .single()
-
-            if (!profile) return
-
-            let query = supabase
-                .from('leads')
-                .select('*')
-                .eq('profile_id', profile.id)
-
-            // Apply Status Filter
-            if (statusFilter !== 'all') {
-                query = query.eq('status', statusFilter)
-            }
-
-            // Apply Sorting
-            query = query.order('created_at', { ascending: sortOrder === 'asc' })
-
-            // Limit (increase limit for better UX with filtering)
-            query = query.limit(50)
-
-            const { data: leads, error } = await query
-
-            if (error) {
-                console.error('Error fetching leads:', error)
-            } else {
-                setRecentLeads(leads || [])
-            }
-        } catch (err) {
-            console.error('Error in fetchLeads:', err)
-        } finally {
-            setLoadingLeads(false)
+    const load = useCallback(async (days: Range) => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            router.push('/login')
+            return
         }
-    }
 
-    const fetchAnalytics = async () => {
-        try {
-            setLoading(true)
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
-
-            // Get profile and settings
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('id, lead_capture_enabled, lead_capture_delay')
-                .eq('user_id', user.id)
-                .single()
-
-            if (!profile) return
-
-            console.log('Fetching analytics for profile:', profile.id)
-
-            setLeadCaptureEnabled(profile.lead_capture_enabled || false)
-            setLeadCaptureDelay(profile.lead_capture_delay || 4)
-
-            // 1. Fetch Stats (Direct Counts)
-            // Calculate date range
-            const endDate = new Date()
-            const startDate = new Date()
-            startDate.setDate(endDate.getDate() - parseInt(dateRange))
-
-            const { count: viewsCount } = await supabase
-                .from('analytics')
-                .select('*', { count: 'exact', head: true })
-                .eq('profile_id', profile.id)
-                .eq('event_type', 'view')
-                .gte('created_at', startDate.toISOString())
-
-            const { count: clicksCount } = await supabase
-                .from('analytics')
-                .select('*', { count: 'exact', head: true })
-                .eq('profile_id', profile.id)
-                .eq('event_type', 'click')
-                .gte('created_at', startDate.toISOString())
-
-            const { count: leadsCount } = await supabase
-                .from('leads')
-                .select('*', { count: 'exact', head: true })
-                .eq('profile_id', profile.id)
-
-            console.log('Stats fetched:', { views: viewsCount, clicks: clicksCount, leads: leadsCount })
-
-            setStats({
-                totalViews: viewsCount || 0,
-                totalClicks: clicksCount || 0,
-                totalLeads: leadsCount || 0,
-                uniqueVisitors: 0
-            })
-
-            // 2. Fetch Chart Data (Daily Views/Clicks)
-            // startDate/endDate already defined above
-
-            const { data: dailyData } = await supabase
-                .from('analytics')
-                .select('created_at, event_type')
-                .eq('profile_id', profile.id)
-                .gte('created_at', startDate.toISOString())
-                .order('created_at', { ascending: true })
-
-            // Process daily data
-            const days = new Map()
-            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-                const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                days.set(dateStr, { date: dateStr, views: 0, clicks: 0 })
-            }
-
-            if (dailyData) {
-                dailyData.forEach((item: any) => {
-                    const date = new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    if (days.has(date)) {
-                        const dayStats = days.get(date)
-                        if (item.event_type === 'view') dayStats.views++
-                        if (item.event_type === 'click') dayStats.clicks++
-                    }
-                })
-            }
-            setChartData(Array.from(days.values()))
-
-            // Note: fetchLeads is called by useEffect now
-
-        } catch (err) {
-            console.error('Error fetching analytics:', err)
-        } finally {
+        const { data: profile } = await supabase
+            .from('profiles').select('id').eq('user_id', user.id).single()
+        if (!profile) {
             setLoading(false)
+            return
         }
-    }
 
-    const toggleLeadCapture = async () => {
-        try {
-            const newValue = !leadCaptureEnabled
-            setLeadCaptureEnabled(newValue)
+        const now = Date.now()
+        const since = new Date(now - days * DAY_MS).toISOString()
+        const prevSince = new Date(now - 2 * days * DAY_MS).toISOString()
 
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                const { error } = await supabase
-                    .from('profiles')
-                    .update({ lead_capture_enabled: newValue })
-                    .eq('user_id', user.id)
+        const [views, prev, clickCount, leadCount, recent] = await Promise.all([
+            supabase.from('analytics').select('created_at, meta')
+                .eq('profile_id', profile.id).eq('event_type', 'view')
+                .gte('created_at', since).order('created_at', { ascending: true }).limit(5000),
+            supabase.from('analytics').select('*', { count: 'exact', head: true })
+                .eq('profile_id', profile.id).eq('event_type', 'view')
+                .gte('created_at', prevSince).lt('created_at', since),
+            supabase.from('analytics').select('*', { count: 'exact', head: true })
+                .eq('profile_id', profile.id).eq('event_type', 'click').gte('created_at', since),
+            supabase.from('leads').select('*', { count: 'exact', head: true })
+                .eq('profile_id', profile.id).gte('created_at', since),
+            supabase.from('leads').select('id, name, email, whatsapp, company, created_at')
+                .eq('profile_id', profile.id).order('created_at', { ascending: false }).limit(50),
+        ])
 
-                if (error) {
-                    // Revert on error
-                    setLeadCaptureEnabled(!newValue)
-                    console.error('Error updating setting:', error)
-                    console.error('Error details:', error.message, error.details, error.hint)
-                    alert(`Failed to update settings: ${error.message}`)
-                }
+        const rows = (views.data as { created_at: string; meta?: { referrer?: string; city?: string } }[]) || []
+
+        setTotal(rows.length)
+        setPrevTotal(prev.count || 0)
+        setClicks(clickCount.count || 0)
+        setNewLeads(leadCount.count || 0)
+        setLeads((recent.data as Lead[]) || [])
+
+        // Selalu tujuh batang. Untuk 7 hari satu batang = satu hari; untuk rentang
+        // lebih panjang satu batang menampung beberapa hari, dan labelnya ikut ganti
+        // supaya tidak ada yang mengira itu masih harian.
+        const span = (days * DAY_MS) / BUCKETS
+        const start = now - days * DAY_MS
+        const counts = new Array(BUCKETS).fill(0)
+        for (const row of rows) {
+            const i = Math.min(BUCKETS - 1, Math.floor((new Date(row.created_at).getTime() - start) / span))
+            if (i >= 0) counts[i] += 1
+        }
+        setBuckets(counts.map((value, i) => {
+            const at = new Date(start + i * span)
+            return {
+                label: days === 7 ? DAY_INITIAL[at.getDay()] : String(at.getDate()),
+                value,
             }
-        } catch (err) {
-            console.error('Error toggling lead capture:', err)
-        }
-    }
+        }))
 
-    const exportLeads = async () => {
-        // Implementation for CSV export
-        const csvContent = "data:text/csv;charset=utf-8,"
-            + "Name,Email,WhatsApp,Company,Date\n"
-            + recentLeads.map(l =>
-                `"${l.name || ''}","${l.email || ''}","${l.whatsapp || ''}","${l.company || ''}","${new Date(l.created_at).toLocaleDateString()}"`
-            ).join("\n");
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "leads_export.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    const updateLeadStatus = async (leadId: string, newStatus: string) => {
-        try {
-            // Optimistic update
-            setRecentLeads(prev => prev.map(lead =>
-                lead.id === leadId ? { ...lead, status: newStatus } : lead
-            ))
-
-            const { error } = await supabase
-                .from('leads')
-                .update({ status: newStatus })
-                .eq('id', leadId)
-
-            if (error) {
-                console.error('Error updating status:', error)
-                // Revert
-                fetchAnalytics()
-                alert('Failed to update status')
+        const tally = (key: (r: { meta?: { referrer?: string; city?: string } }) => string | undefined) => {
+            const map = new Map<string, number>()
+            for (const row of rows) {
+                const k = key(row)
+                if (!k) continue
+                map.set(k, (map.get(k) || 0) + 1)
             }
-        } catch (err) {
-            console.error('Error updating status:', err)
+            return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([label, count]) => ({ label, count }))
         }
+
+        setSources(tally((r) => sourceLabel(r.meta?.referrer)).slice(0, 4))
+        setCities(tally((r) => r.meta?.city).slice(0, 3))
+        setLoading(false)
+    }, [router])
+
+    useEffect(() => {
+        // load() hanya menulis state setelah menunggu jaringan, jadi tidak ada
+        // penulisan yang terjadi di dalam siklus render effect ini. Aturannya
+        // tidak bisa menembus batas async, jadi dimatikan di baris ini saja.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void load(range)
+    }, [range, load])
+
+    // Ekspor kontak — perilaku lama yang dipertahankan, sekarang jadi tombol
+    // lingkaran di header sesuai desain.
+    const exportLeads = () => {
+        const csv = 'data:text/csv;charset=utf-8,'
+            + 'Name,Email,WhatsApp,Company,Date\n'
+            + leads.map((l) =>
+                `"${l.name || ''}","${l.email || ''}","${l.whatsapp || ''}","${l.company || ''}","${new Date(l.created_at).toLocaleDateString('id-ID')}"`
+            ).join('\n')
+        const a = document.createElement('a')
+        a.href = encodeURI(csv)
+        a.download = 'kontak.csv'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
     }
 
-    const saveDelaySettings = async (newDelay: number) => {
-        try {
-            setSavingDelay(true)
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
-
-            const { error } = await supabase
-                .from('profiles')
-                .update({ lead_capture_delay: newDelay })
-                .eq('user_id', user.id)
-
-            if (error) {
-                console.error('Error saving delay:', error)
-                alert('Failed to save delay settings')
-            }
-        } catch (err) {
-            console.error('Error saving delay:', err)
-        } finally {
-            setSavingDelay(false)
-        }
-    }
+    const peak = Math.max(...buckets.map((b) => b.value), 0)
+    const sourceTotal = sources.reduce((s, x) => s + x.count, 0)
+    const cityPeak = Math.max(...cities.map((c) => c.count), 1)
+    const delta = prevTotal > 0 ? Math.round(((total - prevTotal) / prevTotal) * 100) : null
+    const perDay = Math.round(total / range)
 
     return (
         <PremiumLock
             isLocked={isLocked}
-            featureName="Analytics & Leads"
-            description="Unlock detailed visitor insights, lead capture forms, and traffic charts."
+            featureName="Statistik"
+            description="Upgrade untuk melihat statistik tap dan kontak masuk."
         >
-            <div className="max-w-6xl mx-auto space-y-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold text-zinc-900 mb-2">Analytics</h1>
-                        <p className="text-zinc-500">Track your profile performance and leads</p>
-                    </div>
-                    <div className="flex bg-white rounded-lg p-1 border border-zinc-200">
-                        {['7d', '30d', '90d'].map((range) => (
+            {loading ? <Skeleton /> : (
+                <div className="mx-auto max-w-[1200px] px-[18px] pb-[130px] pt-5">
+
+                    {/* HEADER */}
+                    <header className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                            <Link
+                                href="/dashboard"
+                                aria-label="Kembali"
+                                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95"
+                            >
+                                <ChevronLeft className="h-5 w-5" strokeWidth={1.8} />
+                            </Link>
+                            <h1 className="text-[34px] font-medium leading-[1.03] tracking-[-0.032em] lg:text-[44px]">
+                                Statistik
+                                <br />
+                                tap kartu
+                            </h1>
+                        </div>
+                        <button
+                            onClick={exportLeads}
+                            disabled={!leads.length}
+                            aria-label="Ekspor kontak ke CSV"
+                            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface shadow-row transition-transform active:scale-95 disabled:opacity-40"
+                        >
+                            <Download className="h-[19px] w-[19px]" strokeWidth={1.8} />
+                        </button>
+                    </header>
+
+                    {/* RENTANG */}
+                    <div className="mt-6 flex gap-0 rounded-full bg-white/60 p-[5px]">
+                        {RANGES.map((r) => (
                             <button
-                                key={range}
-                                onClick={() => setDateRange(range)}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${dateRange === range
-                                    ? 'bg-zinc-900 text-white shadow-sm'
-                                    : 'text-zinc-500 hover:text-zinc-900'
+                                key={r.id}
+                                onClick={() => {
+                                    if (r.id === range) return
+                                    setLoading(true)
+                                    setRange(r.id)
+                                }}
+                                aria-pressed={range === r.id}
+                                className={`h-10 flex-1 rounded-full text-[12.5px] font-medium transition-colors ${range === r.id ? 'bg-ink text-white' : 'text-ink-2'
                                     }`}
                             >
-                                Last {range.replace('d', ' Days')}
+                                {r.label}
                             </button>
                         ))}
                     </div>
-                </div>
 
-                {/* Lead Capture Settings Card */}
-                <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm flex flex-col md:flex-row md:items-start justify-between gap-6 transition-all">
-                    <div className="flex items-start gap-4">
-                        <div className={`p-3 rounded-xl flex items-center justify-center shrink-0 transition-colors ${leadCaptureEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-zinc-100 text-zinc-500'}`}>
-                            <Users className="w-6 h-6" />
-                        </div>
-                        <div className="space-y-4 w-full">
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-semibold text-zinc-900 text-lg">Lead Capture Form</h3>
-                                    {leadCaptureEnabled && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Active</span>}
+                    <div className="mt-3 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-3">
+
+                        {/* GRAFIK */}
+                        <section className="rounded-card bg-surface p-5 shadow-card md:col-span-2 lg:col-span-3">
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="flex items-baseline gap-1.5">
+                                        <span className="text-[36px] font-medium leading-none tracking-[-0.035em]">{nf.format(total)}</span>
+                                        <span className="text-[14px] font-medium text-ink-3">tap</span>
+                                    </p>
+                                    <p className="mt-2 text-[11.5px] text-ink-2">{range} hari terakhir</p>
                                 </div>
-                                <p className="text-sm text-zinc-500">Collect visitor contact info (Name, WhatsApp, Email) on your public profile</p>
+                                {delta !== null && (
+                                    <span
+                                        className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-medium ${delta >= 0
+                                            ? 'bg-success-soft text-success-soft-ink'
+                                            : 'bg-coral-soft text-coral-soft-ink'
+                                            }`}
+                                    >
+                                        {delta >= 0
+                                            ? <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={2} />
+                                            : <TrendingDown className="h-3.5 w-3.5" strokeWidth={2} />}
+                                        {Math.abs(delta)}%
+                                    </span>
+                                )}
                             </div>
 
-                            {/* Delay Slider */}
-                            {leadCaptureEnabled && (
-                                <div className="bg-zinc-50 p-4 rounded-xl max-w-sm space-y-3 border border-zinc-100">
-                                    <div className="flex items-center justify-between text-sm">
-                                        <span className="font-medium text-zinc-700 flex items-center gap-2">
-                                            <Clock className="w-4 h-4 text-zinc-400" />
-                                            Popup Delay
-                                        </span>
-                                        <span className="bg-white px-2 py-0.5 rounded border border-zinc-200 text-zinc-600 font-mono text-xs">
-                                            {leadCaptureDelay}s
-                                        </span>
-                                    </div>
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="15"
-                                        step="1"
-                                        value={leadCaptureDelay}
-                                        onChange={(e) => setLeadCaptureDelay(parseInt(e.target.value))}
-                                        onMouseUp={(e) => saveDelaySettings(parseInt((e.target as HTMLInputElement).value))}
-                                        onTouchEnd={(e) => saveDelaySettings(parseInt((e.target as HTMLInputElement).value))}
-                                        className="w-full h-2 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900 hover:accent-zinc-700 transition-all"
-                                    />
-                                    <div className="flex justify-between text-[10px] text-zinc-400 font-medium px-0.5">
-                                        <span>Fast (1s)</span>
-                                        <span>Slow (15s)</span>
-                                    </div>
+                            <div className="mt-6 flex h-[140px] items-stretch gap-2">
+                                {buckets.map((b, i) => {
+                                    const isPeak = peak > 0 && b.value === peak
+                                    return (
+                                        <div key={i} className="flex h-full flex-1 flex-col items-center justify-end">
+                                            {isPeak && (
+                                                <span
+                                                    className="mb-1.5 rounded-full bg-ink px-2.5 py-1 text-[11px] font-medium text-white"
+                                                    style={MONO}
+                                                >
+                                                    {nf.format(b.value)}
+                                                </span>
+                                            )}
+                                            <div
+                                                className={`w-full rounded-[9px] transition-[height] duration-500 ${isPeak ? 'bg-coral' : 'bg-track'}`}
+                                                style={{ height: `${peak ? Math.max((b.value / peak) * 100, 6) : 6}%` }}
+                                            />
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            <div className="mt-2.5 flex gap-2">
+                                {buckets.map((b, i) => (
+                                    <span
+                                        key={i}
+                                        className={`flex-1 text-center text-[11px] ${peak > 0 && b.value === peak ? 'font-medium text-ink' : 'text-ink-3'}`}
+                                        style={MONO}
+                                    >
+                                        {b.label}
+                                    </span>
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* TIGA ANGKA */}
+                        <section className="mt-3 flex rounded-card-sm border border-white/90 bg-white/[0.62] p-5 md:col-span-2 lg:col-span-3">
+                            <Metric value={nf.format(clicks)} label="Klik tautan" />
+                            <div className="mx-4 w-px bg-ink/10" />
+                            <Metric value={nf.format(newLeads)} label="Kontak baru" />
+                            <div className="mx-4 w-px bg-ink/10" />
+                            <Metric value={nf.format(perDay)} unit="/hr" label="Rata-rata" />
+                        </section>
+
+                        {/* SUMBER */}
+                        <section className="mt-6 md:col-span-1 md:mt-6 lg:col-span-2">
+                            <h2 className="text-[20px] font-medium tracking-[-0.025em]">Sumber kunjungan</h2>
+                            <div className="mt-4 rounded-card bg-surface p-5 shadow-card">
+                                {sourceTotal ? (
+                                    <>
+                                        <div className="flex h-2.5 gap-1.5">
+                                            {sources.map((s, i) => (
+                                                <span
+                                                    key={s.label}
+                                                    className={`rounded-full ${LEGEND_TONES[i % LEGEND_TONES.length]}`}
+                                                    style={{ flex: s.count }}
+                                                />
+                                            ))}
+                                        </div>
+                                        <ul className="mt-4">
+                                            {sources.map((s, i) => (
+                                                <li
+                                                    key={s.label}
+                                                    className="flex items-center gap-3 border-t border-hairline py-3 first:border-t-0 first:pt-0"
+                                                >
+                                                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${LEGEND_TONES[i % LEGEND_TONES.length]}`} />
+                                                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{s.label}</span>
+                                                    <span className="text-[15px] font-medium">{nf.format(s.count)}</span>
+                                                    <span className="w-11 text-right text-[13px] text-ink-2" style={MONO}>
+                                                        {Math.round((s.count / sourceTotal) * 100)}%
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                ) : (
+                                    <p className="text-[13px] text-ink-2">Belum ada kunjungan di rentang ini.</p>
+                                )}
+                            </div>
+                        </section>
+
+                        {/* KOTA */}
+                        <section className="mt-6 md:col-span-1 lg:col-span-1">
+                            <h2 className="text-[20px] font-medium tracking-[-0.025em]">Kota teratas</h2>
+                            {cities.length ? (
+                                <ul className="mt-4 space-y-2.5">
+                                    {cities.map((c, i) => (
+                                        <li
+                                            key={c.label}
+                                            className="flex items-center gap-3 rounded-row bg-surface p-3.5 shadow-row"
+                                        >
+                                            <span className="w-4 shrink-0 text-[13px] text-ink-3" style={MONO}>{i + 1}</span>
+                                            <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{c.label}</span>
+                                            <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-track">
+                                                <span
+                                                    className="block h-full rounded-full bg-sky"
+                                                    style={{ width: `${(c.count / cityPeak) * 100}%` }}
+                                                />
+                                            </span>
+                                            <span className="w-10 shrink-0 text-right text-[13px] text-ink-2" style={MONO}>
+                                                {nf.format(c.count)}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="mt-4 flex items-center gap-3 rounded-card-sm border border-dashed border-ink/20 bg-white/[0.5] p-5">
+                                    <MapPin className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={1.8} />
+                                    <p className="text-[13px] text-ink-2">Kota belum terbaca di rentang ini.</p>
                                 </div>
                             )}
-                        </div>
-                    </div>
+                        </section>
 
-                    <div className="flex items-center justify-between md:justify-end gap-4 border-t md:border-t-0 pt-4 md:pt-0 border-zinc-100 w-full md:w-auto">
-                        <span className="text-sm font-medium text-zinc-700 md:hidden">
-                            Enable Feature
-                        </span>
-                        <button
-                            onClick={toggleLeadCapture}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${leadCaptureEnabled ? 'bg-emerald-500' : 'bg-zinc-200'}`}
-                        >
-                            <span className={`inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform ${leadCaptureEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
-                        </button>
+                        {/* KONTAK — dipertahankan di sini sampai layar /dashboard/contacts ada */}
+                        <section className="mt-6 md:col-span-2 lg:col-span-3">
+                            <div className="flex items-baseline justify-between">
+                                <h2 className="text-[20px] font-medium tracking-[-0.025em]">Kontak masuk</h2>
+                                <span className="text-[13px] text-ink-2">{leads.length} tersimpan</span>
+                            </div>
+
+                            {leads.length ? (
+                                <ul className="mt-4 grid gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+                                    {leads.slice(0, 9).map((l) => (
+                                        <li key={l.id} className="flex items-center gap-3.5 rounded-row bg-surface p-3.5 shadow-row">
+                                            <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-avatar text-[13px] font-medium text-avatar-ink">
+                                                {(l.name || '?').slice(0, 2).toUpperCase()}
+                                            </span>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-[15px] font-medium leading-tight">{l.name || 'Tanpa nama'}</p>
+                                                <p className="mt-0.5 truncate text-[11.5px] text-ink-2">
+                                                    {l.email || l.whatsapp || l.company || '—'}
+                                                </p>
+                                            </div>
+                                            <span className="shrink-0 text-[11px] text-ink-3" style={MONO}>
+                                                {new Date(l.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' })}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="mt-4 flex items-center gap-3 rounded-card-sm border border-dashed border-ink/20 bg-white/[0.5] p-5">
+                                    <UserPlus className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={1.8} />
+                                    <p className="text-[13px] text-ink-2">Belum ada kontak masuk.</p>
+                                </div>
+                            )}
+                        </section>
                     </div>
                 </div>
-
-                {loading ? (
-                    <div className="h-64 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
-                    </div>
-                ) : (
-                    <>
-                        {/* Stats Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <StatsCard
-                                title="Total Views"
-                                value={stats.totalViews}
-                                icon={<Eye className="w-5 h-5 text-blue-500" />}
-                            />
-                            <StatsCard
-                                title="Link Clicks"
-                                value={stats.totalClicks}
-                                icon={<MousePointer2 className="w-5 h-5 text-purple-500" />}
-                            />
-                            <StatsCard
-                                title="Total Leads"
-                                value={stats.totalLeads}
-                                icon={<Users className="w-5 h-5 text-emerald-500" />}
-                            />
-                            <StatsCard
-                                title="CTR"
-                                value={`${stats.totalViews > 0 ? ((stats.totalClicks / stats.totalViews) * 100).toFixed(1) : 0}%`}
-                                icon={<TrendingUp className="w-5 h-5 text-orange-500" />}
-                            />
-                        </div>
-
-                        {/* Chart Section */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            {/* Main Chart */}
-                            <div className="lg:col-span-2 bg-white rounded-3xl p-6 border border-zinc-100 shadow-sm">
-                                <div className="flex items-center justify-between mb-8">
-                                    <h3 className="font-semibold text-zinc-900">Traffic Overview</h3>
-                                    <div className="flex items-center gap-4 text-sm">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-3 h-3 rounded-full bg-blue-500" />
-                                            <span className="text-zinc-500">Views</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-3 h-3 rounded-full bg-purple-500" />
-                                            <span className="text-zinc-500">Clicks</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Custom Bar Chart using Framer Motion */}
-                                <div className="h-64 flex items-end gap-2">
-                                    {chartData.map((item, i) => {
-                                        const maxVal = Math.max(...chartData.map(d => Math.max(d.views, d.clicks, 10)))
-                                        const viewHeight = (item.views / maxVal) * 100
-                                        const clickHeight = (item.clicks / maxVal) * 100
-
-                                        return (
-                                            <div key={i} className="flex-1 flex flex-col justify-end gap-1 group relative h-full">
-                                                {/* Tooltip */}
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-zinc-900 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
-                                                    {item.date}: {item.views} views, {item.clicks} clicks
-                                                </div>
-
-                                                <motion.div
-                                                    initial={{ height: 0 }}
-                                                    animate={{ height: `${viewHeight}%` }}
-                                                    className="w-full bg-blue-100 rounded-t-sm group-hover:bg-blue-200 transition-colors relative"
-                                                >
-                                                    <motion.div
-                                                        initial={{ height: 0 }}
-                                                        animate={{ height: `${clickHeight}%` }}
-                                                        className="absolute bottom-0 left-0 right-0 bg-purple-400/50 rounded-t-sm"
-                                                    />
-                                                </motion.div>
-
-                                                {/* X-Axis Label (show every 5th label on small screens) */}
-                                                {i % 5 === 0 && (
-                                                    <span className="text-[10px] text-zinc-400 absolute top-full mt-2 w-max -translate-x-1/2 left-1/2">
-                                                        {item.date}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Recent Leads Table */}
-                            <div className="lg:col-span-3 bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
-                                <div className="p-6 border-b border-zinc-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                    <h3 className="font-semibold text-zinc-900">Recent Leads</h3>
-
-                                    <div className="flex items-center gap-3">
-                                        {/* Status Filter */}
-                                        <div className="relative">
-                                            <select
-                                                value={statusFilter}
-                                                onChange={(e) => setStatusFilter(e.target.value)}
-                                                className="appearance-none bg-zinc-50 border border-zinc-200 text-zinc-700 text-sm rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-zinc-900 cursor-pointer"
-                                            >
-                                                <option value="all">All Status</option>
-                                                <option value="new">New</option>
-                                                <option value="contacted">Contacted</option>
-                                                <option value="converted">Converted</option>
-                                            </select>
-                                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-zinc-500">
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                                            </div>
-                                        </div>
-
-                                        {/* Sort Toggle */}
-                                        <button
-                                            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
-                                            className="flex items-center gap-2 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-100 transition-colors"
-                                            title={`Sort by Date (${sortOrder === 'desc' ? 'Newest First' : 'Oldest First'})`}
-                                        >
-                                            <ArrowUpDown className="w-4 h-4" />
-                                            <span className="hidden sm:inline">{sortOrder === 'desc' ? 'Newest' : 'Oldest'}</span>
-                                        </button>
-
-                                        <button onClick={exportLeads} className="flex items-center gap-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 transition-colors px-4 py-2 bg-emerald-50 rounded-lg">
-                                            <Download className="w-4 h-4" />
-                                            <span className="hidden sm:inline">Export</span>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-zinc-50 border-b border-zinc-100">
-                                            <tr>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900">Lead Details</th>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900">Contact Info</th>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900">
-                                                    <div className="flex items-center gap-1 cursor-pointer" onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}>
-                                                        Date
-                                                        <ArrowUpDown className="w-3 h-3 text-zinc-400" />
-                                                    </div>
-                                                </th>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900">Status</th>
-                                                <th className="px-6 py-4 font-semibold text-zinc-900 text-right">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-zinc-100 text-zinc-600">
-                                            {loadingLeads ? (
-                                                <tr>
-                                                    <td colSpan={5} className="px-6 py-12 text-center">
-                                                        <div className="flex justify-center">
-                                                            <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ) : recentLeads.length > 0 ? (
-                                                recentLeads.map((lead: any) => (
-                                                    <tr key={lead.id} className="hover:bg-zinc-50/50 transition-colors">
-                                                        <td className="px-6 py-4">
-                                                            <div className="font-medium text-zinc-900">{lead.name || 'Anonymous'}</div>
-                                                            {lead.company && (
-                                                                <div className="text-xs text-zinc-400 mt-0.5 uppercase tracking-wide">{lead.company}</div>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <div className="space-y-1">
-                                                                <div className="flex items-center gap-2 text-zinc-700">
-                                                                    <Phone className="w-3 h-3 text-zinc-400" />
-                                                                    {lead.whatsapp}
-                                                                </div>
-                                                                {lead.email && (
-                                                                    <div className="flex items-center gap-2 text-zinc-500 text-xs">
-                                                                        <Mail className="w-3 h-3 text-zinc-400" />
-                                                                        {lead.email}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-4 whitespace-nowrap">
-                                                            {new Date(lead.created_at).toLocaleDateString()}
-                                                            <div className="text-[10px] text-zinc-400">{new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                                        </td>
-                                                        <td className="px-6 py-4">
-                                                            <select
-                                                                value={lead.status || 'new'}
-                                                                onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
-                                                                className={`text-xs font-medium px-2 py-1 rounded-full border appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-zinc-900 ${getStatusColor(lead.status || 'new')}`}
-                                                            >
-                                                                <option value="new">New Lead</option>
-                                                                <option value="contacted">Contacted</option>
-                                                                <option value="converted">Converted</option>
-                                                            </select>
-                                                        </td>
-                                                        <td className="px-6 py-4 text-right">
-                                                            <div className="flex items-center justify-end gap-2">
-                                                                {lead.whatsapp && (
-                                                                    <a
-                                                                        href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '').replace(/^0/, '62')}`}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="p-2 hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors border border-transparent hover:border-emerald-100"
-                                                                        title="Open WhatsApp"
-                                                                    >
-                                                                        <Phone className="w-4 h-4" />
-                                                                    </a>
-                                                                )}
-                                                                {lead.email && (
-                                                                    <a
-                                                                        href={`mailto:${lead.email}`}
-                                                                        className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors border border-transparent hover:border-blue-100"
-                                                                        title="Send Email"
-                                                                    >
-                                                                        <Mail className="w-4 h-4" />
-                                                                    </a>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            ) : (
-                                                <tr>
-                                                    <td colSpan={5} className="px-6 py-12 text-center text-zinc-400">
-                                                        <div className="flex flex-col items-center gap-2">
-                                                            <MessageSquare className="w-8 h-8 opacity-20" />
-                                                            <p className="text-sm">No leads collected yet.</p>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )}
-            </div>
+            )}
         </PremiumLock>
-    )
-}
-
-function StatsCard({ title, value, icon, trend, trendUp }: any) {
-    return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-sm"
-        >
-            <div className="flex items-start justify-between mb-4">
-                <div className="p-2 bg-zinc-50 rounded-xl">
-                    {icon}
-                </div>
-                {trend && (
-                    <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${trendUp ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                        }`}>
-                        {trendUp ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                        {trend}
-                    </div>
-                )}
-            </div>
-            <div>
-                <p className="text-sm text-zinc-500 font-medium">{title}</p>
-                <h3 className="text-2xl font-bold text-zinc-900 mt-1">{value}</h3>
-            </div>
-        </motion.div>
     )
 }
