@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PWAHint } from '@/components/dashboard/PWAHint'
 import { activeRedirectUrl, readShortcuts } from '@/lib/redirect-mode.mjs'
 import PetSprite from '@/components/pet/PetSprite'
-import { petDisplayName, selectPetCharacter } from '@/lib/pet/pet-selection.mjs'
+import { PET_FEATURE_ENABLED, petDisplayName, selectPetCharacter } from '@/lib/pet/pet-selection.mjs'
 
 type LinkRow = { id?: string; title?: string; url?: string; is_active?: boolean }
 type DashProfile = {
@@ -252,7 +252,7 @@ export default function DashboardPage() {
 
     // Kotak Asisten dibedakan dari empat aksi lain: melebar dua kolom dan
     // menampilkan pet-nya langsung sebagai pratinjau hidup.
-    const petCharacter = selectPetCharacter(profile)
+    const petCharacter = PET_FEATURE_ENABLED ? selectPetCharacter(profile) : null
 
     return (
         <div className="mx-auto max-w-[1200px] px-5 pb-[150px] pt-6">

@@ -16,7 +16,7 @@ import AIAssistant from '@/components/profile/AIAssistant'
 import PetBuddy from '@/components/pet/PetBuddy'
 import PetGreeting from '@/components/pet/PetGreeting'
 import { usePetSpriteReady } from '@/components/pet/PetSprite'
-import { selectPetCharacter } from '@/lib/pet/pet-selection.mjs'
+import { PET_FEATURE_ENABLED, selectPetCharacter } from '@/lib/pet/pet-selection.mjs'
 import { getSelectedSpecialGreetingAnimation, getWelcomeCloseDelay, shouldShowSpecialGreetingAnimation } from '@/lib/special-greeting.mjs'
 import { activeRedirectUrl, normalizeUrl } from '@/lib/redirect-mode.mjs'
 
@@ -51,7 +51,9 @@ export default function PublicProfile() {
     const [showBuddy, setShowBuddy] = useState(false)
     const [chatOpen, setChatOpen] = useState(false)
     const petSpriteReady = usePetSpriteReady(
-        profile && !activeRedirectUrl(profile) ? (selectPetCharacter(profile)?.id ?? null) : null
+        PET_FEATURE_ENABLED && profile && !activeRedirectUrl(profile)
+            ? (selectPetCharacter(profile)?.id ?? null)
+            : null
     )
 
     // State untuk fitur Pintasan Link dengan efek Intro Typewriter
@@ -176,7 +178,7 @@ export default function PublicProfile() {
     useEffect(() => {
         if (!profile || petIntroDone) return
 
-        const character = activeRedirectUrl(profile) ? null : selectPetCharacter(profile)
+        const character = PET_FEATURE_ENABLED && !activeRedirectUrl(profile) ? selectPetCharacter(profile) : null
         if (!character || petSpriteReady === false) {
             setPetIntroDone(true)
             return
@@ -406,7 +408,7 @@ export default function PublicProfile() {
     // Tidak tampil saat profil sedang mode redirect (pengunjung memang sedang
     // dilempar), dan tidak tampil kalau sprite-nya gagal dimuat — dalam kasus
     // itu tombol chat bulat cadangan yang mengambil alih.
-    const petCharacter = activeRedirectUrl(profile) ? null : selectPetCharacter(profile)
+    const petCharacter = PET_FEATURE_ENABLED && !activeRedirectUrl(profile) ? selectPetCharacter(profile) : null
     const petActive = Boolean(petCharacter) && petSpriteReady === true
     const petFallbackChat = Boolean(petCharacter) && petSpriteReady === false
 

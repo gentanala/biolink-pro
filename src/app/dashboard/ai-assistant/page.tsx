@@ -5,6 +5,7 @@ import { Check, Loader2, Save } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import PetSprite from '@/components/pet/PetSprite'
 import { PET_CHARACTERS } from '@/lib/pet/characters.mjs'
+import { PET_FEATURE_ENABLED } from '@/lib/pet/pet-selection.mjs'
 import { buildPetGreeting } from '@/lib/pet/pet-greeting.mjs'
 
 // Halaman Asisten: pilih karakter pet, kasih nama, nyalakan/matikan.
@@ -95,6 +96,13 @@ export default function AssistantPage() {
                     Karakter yang menyambut pengunjung kartu kamu dan bisa diajak ngobrol
                 </p>
             </header>
+
+            {!PET_FEATURE_ENABLED && (
+                <p className="mt-4 rounded-card bg-coral-soft px-4 py-3 text-[12.5px] leading-relaxed text-coral-soft-ink">
+                    Asisten lagi dimatikan sementara, jadi belum tampil di kartu publik. Setelan di halaman ini
+                    tetap tersimpan dan langsung berlaku begitu fiturnya dinyalakan lagi.
+                </p>
+            )}
 
             {/* Pratinjau */}
             <section className="mt-5 rounded-card bg-surface p-6 shadow-card">
