@@ -6,6 +6,11 @@ import { X, Send, Mic, Volume2, VolumeX, Bot, Loader2 } from 'lucide-react'
 
 interface AIAssistantProps {
     profile: any
+    /** Kendali dari luar (dipegang PetBuddy). Tanpa ini, komponen mandiri seperti dulu. */
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
+    /** Tombol bulat bawaan; mati secara default karena pemicunya kini si pet. */
+    showFallbackTrigger?: boolean
 }
 
 interface Message {
@@ -14,8 +19,14 @@ interface Message {
     text: string
 }
 
-export default function AIAssistant({ profile }: AIAssistantProps) {
-    const [isOpen, setIsOpen] = useState(false)
+export default function AIAssistant({ profile, open, onOpenChange, showFallbackTrigger = false }: AIAssistantProps) {
+    const [internalOpen, setInternalOpen] = useState(false)
+    // Terkendali kalau prop `open` dikirim; kalau tidak, pakai state sendiri.
+    const isOpen = open ?? internalOpen
+    const setIsOpen = (next: boolean) => {
+        setInternalOpen(next)
+        onOpenChange?.(next)
+    }
     const [messages, setMessages] = useState<Message[]>([
         { id: 'welcome', role: 'assistant', text: `Hi! I'm ${profile.display_name}'s AI Assistant. Ask me anything about them, or just say hello!` }
     ])
@@ -156,7 +167,8 @@ export default function AIAssistant({ profile }: AIAssistantProps) {
 
     return (
         <>
-            {/* FAB */}
+            {/* FAB cadangan — tampil hanya saat pemicu utamanya (pet) tidak ada */}
+            {showFallbackTrigger && (
             <motion.button
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -168,6 +180,7 @@ export default function AIAssistant({ profile }: AIAssistantProps) {
                 {/* Robot / Sparkle Icon */}
                 <Bot className="w-8 h-8" />
             </motion.button>
+            )}
 
             {/* Chat Interface */}
             <AnimatePresence>

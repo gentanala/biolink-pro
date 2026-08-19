@@ -39,6 +39,9 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     special_editions JSONB DEFAULT '[]'::JSONB,
     selected_special_greeting_anim TEXT,
     enable_special_greeting_anim BOOLEAN DEFAULT FALSE,
+    pet_enabled BOOLEAN DEFAULT TRUE,
+    pet_character_id TEXT DEFAULT 'widodo',
+    pet_name TEXT,
     is_public BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()

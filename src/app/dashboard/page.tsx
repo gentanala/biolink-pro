@@ -11,6 +11,8 @@ import { QRCodeSVG } from 'qrcode.react'
 import { createClient } from '@/lib/supabase/client'
 import { PWAHint } from '@/components/dashboard/PWAHint'
 import { activeRedirectUrl, readShortcuts } from '@/lib/redirect-mode.mjs'
+import PetSprite from '@/components/pet/PetSprite'
+import { petDisplayName, selectPetCharacter } from '@/lib/pet/pet-selection.mjs'
 
 type LinkRow = { id?: string; title?: string; url?: string; is_active?: boolean }
 type DashProfile = {
@@ -247,6 +249,10 @@ export default function DashboardPage() {
             ),
         },
     ]
+
+    // Kotak Asisten dibedakan dari empat aksi lain: melebar dua kolom dan
+    // menampilkan pet-nya langsung sebagai pratinjau hidup.
+    const petCharacter = selectPetCharacter(profile)
 
     return (
         <div className="mx-auto max-w-[1200px] px-5 pb-[150px] pt-6">
@@ -491,6 +497,22 @@ export default function DashboardPage() {
                                 <button key={a.label} onClick={a.onClick} className={cls}>{inner}</button>
                             )
                         })}
+                        {/* Kotak Asisten — melebar dua kolom, pet-nya jadi pratinjau hidup */}
+                        {petCharacter && (
+                            <Link
+                                href="/dashboard/ai-assistant"
+                                className="col-span-2 flex items-center gap-4 rounded-card-sm bg-surface p-4 text-left shadow-row transition-transform active:scale-[0.99]"
+                            >
+                                <PetSprite characterId={petCharacter.id} clip="idle" size={56} />
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[14px] font-medium leading-tight">Asisten</p>
+                                    <p className="mt-0.5 truncate text-[11.5px] text-ink-2">
+                                        {petDisplayName(profile)} nungguin pengunjung kartu kamu
+                                    </p>
+                                </div>
+                                <ArrowUpRight className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={2} />
+                            </Link>
+                        )}
                     </div>
                 </section>
 
