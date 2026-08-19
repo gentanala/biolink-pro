@@ -44,8 +44,10 @@ export default function PublicProfile() {
     const [welcomeComplete, setWelcomeComplete] = useState(false)
     const [showQR, setShowQR] = useState(false)
     const [showLeadModal, setShowLeadModal] = useState(false)
-    // Pet asisten: pojok baru muncul sesaat setelah layar sapaan tutup,
-    // supaya animasi mendaratnya kebaca sebagai kelanjutan dari overlay.
+    // Pet asisten. Urutan layar pembuka: pet keluar dari kartu dan melambai
+    // dulu (babak `petIntro`), baru layar hello — animasi edisi spesial dan
+    // kata sapaan yang diketik — lalu pet mendarat di pojok.
+    const [petIntroDone, setPetIntroDone] = useState(false)
     const [showBuddy, setShowBuddy] = useState(false)
     const [chatOpen, setChatOpen] = useState(false)
     const petSpriteReady = usePetSpriteReady(
@@ -145,7 +147,7 @@ export default function PublicProfile() {
 
     // Handwriting animation — letter by letter typewriter
     useEffect(() => {
-        if (!profile || !showWelcome) return
+        if (!profile || !showWelcome || !petIntroDone) return
 
         const word = profile.welcome_word || 'hello'
         let i = 0
@@ -157,16 +159,35 @@ export default function PublicProfile() {
                 clearInterval(typeInterval)
                 setWelcomeComplete(true)
                 // Auto close with longer delay only when special greeting animation is enabled
-                const delay = getWelcomeCloseDelay(
-                    profile,
-                    !activeRedirectUrl(profile) && Boolean(selectPetCharacter(profile)) && petSpriteReady === true
-                )
+                const delay = getWelcomeCloseDelay(profile)
                 setTimeout(() => setShowWelcome(false), delay)
             }
         }, 150)
 
         return () => clearInterval(typeInterval)
-    }, [profile, showWelcome])
+    }, [profile, showWelcome, petIntroDone])
+
+    // Babak sapaan pet: pet memanjat keluar kartu (1,1 detik) lalu melambai
+    // sebentar sebelum menyerahkan layar ke hello.
+    // Tanpa pet (sprite gagal / pet dimatikan / mode redirect) babak ini
+    // dilewati seketika, jadi profil tanpa pet tidak kehilangan sepersekian
+    // detik pun. Pengaman 2,5 detik menjaga layar tetap jalan seandainya
+    // status sprite tidak pernah terjawab.
+    useEffect(() => {
+        if (!profile || petIntroDone) return
+
+        const character = activeRedirectUrl(profile) ? null : selectPetCharacter(profile)
+        if (!character || petSpriteReady === false) {
+            setPetIntroDone(true)
+            return
+        }
+        if (petSpriteReady === true) {
+            const play = setTimeout(() => setPetIntroDone(true), 2600)
+            return () => clearTimeout(play)
+        }
+        const guard = setTimeout(() => setPetIntroDone(true), 2500)
+        return () => clearTimeout(guard)
+    }, [profile, petSpriteReady, petIntroDone])
 
     // Pet mendarat di pojok 200 ms setelah layar sapaan tertutup.
     useEffect(() => {
@@ -439,16 +460,17 @@ export default function PublicProfile() {
                             }}
                         >
                             <div className="relative flex w-full flex-col items-center justify-center gap-6 px-6">
-                                {petActive && !shouldShowSpecialGreetingAnimation(profile) && (
+                                {petActive && !petIntroDone && (
                                     <PetGreeting characterId={petCharacter!.id} />
                                 )}
-                                {shouldShowSpecialGreetingAnimation(profile) && selectedSpecialAnimation === 'aruna' && (
+                                {petIntroDone && shouldShowSpecialGreetingAnimation(profile) && selectedSpecialAnimation === 'aruna' && (
                                     <ArunaAnimation mode="loop" size={180} />
                                 )}
-                                {shouldShowSpecialGreetingAnimation(profile) && selectedSpecialAnimation === 'prabowo' && (
+                                {petIntroDone && shouldShowSpecialGreetingAnimation(profile) && selectedSpecialAnimation === 'prabowo' && (
                                     <PrabowoAnimation mode="loop" size={180} />
                                 )}
 
+                                {petIntroDone && (
                                 <motion.span
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
@@ -471,6 +493,7 @@ export default function PublicProfile() {
                                         </motion.span>
                                     )}
                                 </motion.span>
+                                )}
                             </div>
                         </motion.div>
                     )}

@@ -48,11 +48,8 @@ export function shouldShowSpecialGreetingAnimation(profile) {
     )
 }
 
-// Prioritas jeda tutup layar sapaan: animasi spesial (3500) > pet (2000) > default (800).
-// petActive dikirim pemanggil karena keputusan "pet tampil atau tidak" juga
-// bergantung pada mode redirect dan gagal-tidaknya sprite dimuat.
-export function getWelcomeCloseDelay(profile, petActive = false) {
-    if (shouldShowSpecialGreetingAnimation(profile)) return 3500
-    if (petActive) return 2000
-    return 800
+// Jeda tutup layar sapaan. Pet punya babaknya sendiri sebelum layar ini, jadi
+// jedanya cuma soal animasi edisi spesial: kasih waktu animasinya terbaca.
+export function getWelcomeCloseDelay(profile) {
+    return shouldShowSpecialGreetingAnimation(profile) ? 3500 : 800
 }

@@ -484,3 +484,19 @@ textarea:focus {
     animation: none !important; /* berhenti di frame pertama, pet tetap tampil */
   }
 }
+
+/* Pet memanjat keluar dari kartu di babak pembuka profil publik. */
+@keyframes pet-climb {
+  from { transform: translateY(150px); }
+  to   { transform: translateY(0); }
+}
+
+.pet-climb {
+  animation: pet-climb 900ms cubic-bezier(0.2, 0.8, 0.25, 1) 200ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-climb {
+    animation: none; /* pet langsung berdiri di depan kartu */
+  }
+}

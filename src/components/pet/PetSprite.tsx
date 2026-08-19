@@ -53,11 +53,14 @@ export function usePetSpriteReady(characterId: string | null) {
     const [ready, setReady] = useState<boolean | null>(null)
 
     useEffect(() => {
+        // null = belum tahu. Penting dibedakan dari false (= sprite gagal
+        // dimuat): saat profil belum selesai diambil, characterId masih null
+        // dan itu bukan kegagalan — pemanggil menunggu, bukan menyerah.
+        setReady(null)
+
         const character = characterId ? getPetCharacter(characterId) : null
-        if (!character) {
-            setReady(false)
-            return
-        }
+        if (!character) return
+
         let alive = true
         const img = new Image()
         img.onload = () => alive && setReady(true)
