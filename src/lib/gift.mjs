@@ -47,8 +47,20 @@ export function youtubeId(url) {
     return null
 }
 
-/** Alamat pemutar YouTube yang bisa ditanam di halaman kita sendiri. */
-export function youtubeEmbedUrl(url) {
+/**
+ * Alamat pemutar YouTube yang bisa ditanam di halaman kita sendiri.
+ *
+ * `autoplay` hanya dipakai kalau pemutarnya muncul karena penerima menekan
+ * tombol "buka kejutannya" — itu yang bikin browser mengizinkan suara ikut
+ * jalan. `playsinline` menahan iOS supaya videonya tidak melompat ke pemutar
+ * layar penuh bawaan dan menelan seluruh halaman kejutan.
+ */
+export function youtubeEmbedUrl(url, { autoplay = false } = {}) {
     const id = youtubeId(url)
-    return id ? `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1` : null
+    if (!id) return null
+
+    const params = ['rel=0', 'modestbranding=1', 'playsinline=1']
+    if (autoplay) params.push('autoplay=1')
+
+    return `https://www.youtube-nocookie.com/embed/${id}?${params.join('&')}`
 }

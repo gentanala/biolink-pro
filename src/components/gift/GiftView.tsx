@@ -23,7 +23,10 @@ export default function GiftView({
     memory?: boolean
 }) {
     const [opened, setOpened] = useState(Boolean(memory))
-    const embed = youtubeEmbedUrl(gift.url)
+    // Video baru boleh jalan sendiri kalau penerima yang menekan tombolnya —
+    // itu izin dari browser untuk memutar beserta suaranya.
+    const [autoplay, setAutoplay] = useState(false)
+    const embed = youtubeEmbedUrl(gift.url, { autoplay })
 
     return (
         <div className="min-h-screen bg-canvas font-kabut text-ink">
@@ -42,7 +45,7 @@ export default function GiftView({
                             <p className="mt-2 text-[13px] text-ink-2">dari {gift.from}</p>
                         )}
                         <button
-                            onClick={() => setOpened(true)}
+                            onClick={() => { setAutoplay(true); setOpened(true) }}
                             className="mt-7 w-full rounded-full bg-ink py-4 text-[13px] font-medium text-white shadow-ink transition-transform active:scale-[0.99]"
                         >
                             Buka kejutannya
