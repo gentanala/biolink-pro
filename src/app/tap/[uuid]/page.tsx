@@ -8,6 +8,8 @@ import { motion } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { activeRedirectUrl, normalizeUrl } from '@/lib/redirect-mode.mjs'
+import { hasGift } from '@/lib/gift.mjs'
+import GiftView from '@/components/gift/GiftView'
 
 // Default product info (used when no product join is available)
 const DEFAULT_PRODUCT = {
@@ -41,6 +43,9 @@ export default function TapPage() {
 
     const searchParams = useSearchParams()
     const shouldClaim = searchParams.get('claim') === 'true'
+    // Kartu kado: kejutan dulu, ajakan mengaktifkan kartu menyusul. Sekali
+    // penerima menekan tombolnya, layar biasa yang tampil.
+    const [claimOpen, setClaimOpen] = useState(false)
 
     useEffect(() => {
         const checkAndClaim = async () => {
@@ -79,6 +84,16 @@ export default function TapPage() {
             supabase.rpc('increment_tap_count', { p_serial_uuid: cleanUuid }).then(() => {
                 console.log('Tap count incremented')
             })
+
+            // Kado dikunci begitu pertama kali dibuka, supaya pengirim tidak bisa
+            // mengubah kejutan yang sudah dilihat penerimanya.
+            if (hasGift(dbSerial) && !dbSerial.gift_opened_at) {
+                supabase
+                    .from('serial_numbers')
+                    .update({ gift_opened_at: new Date().toISOString() })
+                    .eq('serial_uuid', cleanUuid)
+                    .then(() => console.log('Gift marked as opened'))
+            }
 
             // 3. Handle Branding Sync & Profile Loading
             if (dbSerial.is_claimed && dbSerial.owner_id) {
@@ -266,6 +281,15 @@ export default function TapPage() {
 
         // CASE: Sync Disabled (Independent) - Show ProfileView Directly
         return <ProfileView serial={serial} />
+    }
+
+    if (hasGift(serial) && !claimOpen) {
+        return (
+            <GiftView
+                gift={{ url: serial.gift_url, message: serial.gift_message, from: serial.gift_from }}
+                onClaim={() => setClaimOpen(true)}
+            />
+        )
     }
 
     return <UnclaimedView serial={serial} />

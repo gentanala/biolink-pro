@@ -36,12 +36,14 @@ import {
     FileText,
     UserCheck,
     Settings,
-    Smartphone
+    Smartphone,
+    Gift
 } from 'lucide-react'
 import Link from 'next/link' // Added Link import
 import { createClient } from '@/lib/supabase/client'
 import { QRCodeSVG } from 'qrcode.react'
 import { SPECIAL_EDITIONS, normalizeSpecialEditions } from '@/lib/special-greeting.mjs'
+import { newGiftToken } from '@/lib/gift.mjs'
 
 interface SerialWithProfile {
     id: string
@@ -69,6 +71,13 @@ interface SerialWithProfile {
     company_id: string | null
     company_name: string | null
     user_id: string | null
+    // Mode kado
+    gift_enabled: boolean
+    gift_url: string | null
+    gift_message: string | null
+    gift_from: string | null
+    gift_token: string | null
+    gift_opened_at: string | null
 }
 
 type SortField = 'created_at' | 'display_name' | 'nfc_tap_count' | 'view_count' | 'last_active'
@@ -120,6 +129,11 @@ export default function AdminPage() {
     const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false)
     const [filterStatus, setFilterStatus] = useState<'all' | 'claimed' | 'unclaimed'>('all')
     const [qrDownloadData, setQrDownloadData] = useState<{ uuid: string; label: string; url: string } | null>(null)
+
+    // Mode kado: satu isian yang dipakai bareng pembeli lewat tautan rahasia.
+    const [giftSerial, setGiftSerial] = useState<SerialWithProfile | null>(null)
+    const [giftForm, setGiftForm] = useState({ url: '', message: '', from: '' })
+    const [giftSaving, setGiftSaving] = useState(false)
 
     // Edit Modal State
     const [editUser, setEditUser] = useState<any | null>(null)
@@ -225,7 +239,13 @@ export default function AdminPage() {
                 selected_special_greeting_anim: profile?.selected_special_greeting_anim || null,
                 company_id: s.company_id || profile?.company_id || null,
                 company_name: (s.company_id ? companyMap.get(s.company_id)?.name : null) || (profile?.company_id ? companyMap.get(profile.company_id)?.name : null),
-                user_id: s.owner_id || null
+                user_id: s.owner_id || null,
+                gift_enabled: s.gift_enabled || false,
+                gift_url: s.gift_url || null,
+                gift_message: s.gift_message || null,
+                gift_from: s.gift_from || null,
+                gift_token: s.gift_token || null,
+                gift_opened_at: s.gift_opened_at || null
             }
         })
 
@@ -702,6 +722,13 @@ export default function AdminPage() {
                                                 <QrCode className="w-4 h-4 text-blue-400" />
                                             </button>
                                             <button
+                                                onClick={() => openGift(serial)}
+                                                className={`p-2 rounded-lg transition-colors ${serial.gift_enabled ? 'bg-rose-50 hover:bg-rose-100' : 'hover:bg-zinc-100'}`}
+                                                title={serial.gift_enabled ? 'Kado aktif — klik untuk ubah' : 'Atur mode kado'}
+                                            >
+                                                <Gift className={`w-4 h-4 ${serial.gift_enabled ? 'text-rose-500' : 'text-zinc-400'}`} />
+                                            </button>
+                                            <button
                                                 onClick={() => copyToClipboard(`${siteUrl}/tap/${serial.serial_uuid}`, serial.id)}
                                                 className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
                                                 title="Copy NFC URL"
@@ -759,6 +786,46 @@ export default function AdminPage() {
             alert('Failed to update feature: ' + error.message)
             loadAllData(adminRole!, adminCompanyId) // Revert
         }
+    }
+
+    // Buka isian kado. Tautan rahasia untuk pembeli dibuat sekali di sini,
+    // lalu dipakai terus untuk kartu itu.
+    const openGift = async (serial: SerialWithProfile) => {
+        let token = serial.gift_token
+        if (!token) {
+            token = newGiftToken()
+            const supabase = createClient()
+            await supabase.from('serial_numbers').update({ gift_token: token }).eq('id', serial.id)
+            setSerials(prev => prev.map(s => (s.id === serial.id ? { ...s, gift_token: token } : s)))
+        }
+        setGiftSerial({ ...serial, gift_token: token })
+        setGiftForm({
+            url: serial.gift_url || '',
+            message: serial.gift_message || '',
+            from: serial.gift_from || '',
+        })
+    }
+
+    const saveGift = async (enabled: boolean) => {
+        if (!giftSerial) return
+        setGiftSaving(true)
+        const patch = {
+            gift_enabled: enabled,
+            gift_url: giftForm.url.trim() || null,
+            gift_message: giftForm.message.trim() || null,
+            gift_from: giftForm.from.trim() || null,
+        }
+        const supabase = createClient()
+        const { error } = await supabase.from('serial_numbers').update(patch).eq('id', giftSerial.id)
+        setGiftSaving(false)
+
+        if (error) {
+            alert('Gagal menyimpan kado: ' + error.message)
+            return
+        }
+
+        setSerials(prev => prev.map(s => (s.id === giftSerial.id ? { ...s, ...patch } : s)))
+        setGiftSerial(null)
     }
 
     const toggleSync = async (serialId: string, currentStatus: boolean | null | undefined) => {
@@ -1905,6 +1972,103 @@ export default function AdminPage() {
                 )
                 }
             </AnimatePresence >
+
+            {/* Isian kado — dipakai tim; pembeli membuka isian yang sama lewat tautan rahasia */}
+            {giftSerial && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-zinc-900">Mode Kado</h3>
+                                <p className="text-xs text-zinc-500 mt-0.5">
+                                    Kejutan yang muncul saat jam ini pertama kali ditempel penerima.
+                                </p>
+                            </div>
+                            <button onClick={() => setGiftSerial(null)} className="p-2 text-zinc-400 hover:text-zinc-700">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {giftSerial.is_claimed && (
+                            <p className="mt-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+                                Kartu ini sudah diklaim, jadi kejutannya tidak muncul lagi saat di-tap — cuma tersimpan
+                                sebagai kenangan di dashboard pemiliknya.
+                            </p>
+                        )}
+                        {giftSerial.gift_opened_at && (
+                            <p className="mt-4 rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2 text-xs text-zinc-600">
+                                Sudah dibuka penerimanya pada {new Date(giftSerial.gift_opened_at).toLocaleString('id-ID')}.
+                                Pembeli tidak bisa mengubahnya lagi dari tautan isian.
+                            </p>
+                        )}
+
+                        <label className="mt-5 block text-xs font-medium uppercase text-zinc-500 mb-1.5">Link video kejutan</label>
+                        <input
+                            type="text"
+                            value={giftForm.url}
+                            onChange={(e) => setGiftForm({ ...giftForm, url: e.target.value })}
+                            placeholder="youtube.com/watch?v=..."
+                            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm outline-none focus:border-zinc-400"
+                        />
+
+                        <label className="mt-4 block text-xs font-medium uppercase text-zinc-500 mb-1.5">Pesan buat penerima</label>
+                        <textarea
+                            value={giftForm.message}
+                            onChange={(e) => setGiftForm({ ...giftForm, message: e.target.value })}
+                            rows={3}
+                            maxLength={300}
+                            placeholder="Selamat ulang tahun!"
+                            className="w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm outline-none focus:border-zinc-400"
+                        />
+
+                        <label className="mt-4 block text-xs font-medium uppercase text-zinc-500 mb-1.5">Dari siapa</label>
+                        <input
+                            type="text"
+                            value={giftForm.from}
+                            onChange={(e) => setGiftForm({ ...giftForm, from: e.target.value })}
+                            placeholder="Nama pengirim"
+                            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm outline-none focus:border-zinc-400"
+                        />
+
+                        <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                            <p className="text-[11px] font-medium uppercase text-zinc-500">Tautan isian buat pembeli</p>
+                            <div className="mt-2 flex items-center gap-2">
+                                <code className="flex-1 truncate rounded-lg bg-white border border-zinc-200 px-3 py-2 text-[11px] text-zinc-600">
+                                    {siteUrl}/gift/{giftSerial.gift_token}
+                                </code>
+                                <button
+                                    onClick={() => copyToClipboard(`${siteUrl}/gift/${giftSerial.gift_token}`, `gift-${giftSerial.id}`)}
+                                    className="shrink-0 rounded-lg bg-zinc-900 px-3 py-2 text-xs font-semibold text-white"
+                                >
+                                    {copiedId === `gift-${giftSerial.id}` ? 'Tersalin' : 'Salin'}
+                                </button>
+                            </div>
+                            <p className="mt-2 text-[10px] text-zinc-400">
+                                Kirim ke pembeli lewat WhatsApp/email supaya dia isi sendiri kejutannya.
+                            </p>
+                        </div>
+
+                        <div className="mt-5 flex gap-2">
+                            {giftSerial.gift_enabled && (
+                                <button
+                                    onClick={() => saveGift(false)}
+                                    disabled={giftSaving}
+                                    className="rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 disabled:opacity-40"
+                                >
+                                    Matikan kado
+                                </button>
+                            )}
+                            <button
+                                onClick={() => saveGift(true)}
+                                disabled={giftSaving || !giftForm.url.trim()}
+                                className="flex-1 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-40"
+                            >
+                                {giftSaving ? 'Menyimpan...' : 'Simpan & aktifkan kado'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Hidden QR Code for processing download */}
             < div style={{ display: 'none' }} id="qr-download-svg" >

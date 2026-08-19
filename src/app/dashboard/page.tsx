@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-    ArrowUpRight, BarChart3, Check, Edit, ExternalLink, Eye, Leaf, Link2,
+    ArrowUpRight, BarChart3, Check, Edit, ExternalLink, Eye, Gift, Leaf, Link2,
     Plus, QrCode, Smartphone, TreeDeciduous, User, Wind, Zap,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
@@ -83,6 +83,9 @@ export default function DashboardPage() {
         return new URLSearchParams(window.location.search).get('claim_success') === 'true'
     })
 
+    // Kado yang menempel di jam milik user — kejutan pertama tetap bisa dibuka lagi.
+    const [giftUuid, setGiftUuid] = useState<string | null>(null)
+
     useEffect(() => {
         if (showClaimSuccess) window.history.replaceState({}, '', '/dashboard')
 
@@ -114,6 +117,17 @@ export default function DashboardPage() {
 
             setViewCount(views.count || 0)
             setLinkClicks(clicks.count || 0)
+
+            const { data: gifted } = await supabase
+                .from('serial_numbers')
+                .select('serial_uuid')
+                .eq('owner_id', user.id)
+                .eq('gift_enabled', true)
+                .not('gift_url', 'is', null)
+                .limit(1)
+                .maybeSingle()
+            setGiftUuid(gifted?.serial_uuid || null)
+
             setLoading(false)
         }
 
@@ -327,6 +341,23 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </section>
+
+            {/* KENANGAN KADO — muncul cuma kalau jamnya datang sebagai hadiah */}
+            {giftUuid && (
+                <Link
+                    href={`/kado/${giftUuid}`}
+                    className="mt-3 flex items-center gap-3.5 rounded-card-sm bg-surface p-4 shadow-row transition-transform active:scale-[0.99]"
+                >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-coral-soft text-coral-soft-ink">
+                        <Gift className="h-[18px] w-[18px]" strokeWidth={1.8} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[14.5px] font-medium leading-tight">Kenangan kado</p>
+                        <p className="mt-0.5 text-[12px] text-ink-2">Buka lagi kejutan waktu jam ini pertama datang</p>
+                    </div>
+                    <ArrowUpRight className="h-[18px] w-[18px] shrink-0 text-ink-3" strokeWidth={2} />
+                </Link>
+            )}
 
             {/* FUNGSI UTAMA LINK — cerminan, diatur di /switch */}
             <Link
