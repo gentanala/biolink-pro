@@ -6,7 +6,7 @@ Status: disetujui untuk masuk tahap rencana implementasi
 ## 1. Ringkasan
 
 Setiap pemilik kartu punya satu karakter pixel art ("pet") yang jadi asisten pribadinya.
-Pas pengunjung membuka profil publik, pet-nya muncul bergerak dan menyapa, lalu mengecil
+Pas pengunjung membuka profil publik, pet-nya keluar dari kartu sambil melambai, lalu mengecil
 dan nongkrong di pojok layar sebagai tombol asisten yang hidup.
 
 Batch 1 hanya mengerjakan **pet-nya**. Fitur dandan-dandanan, toko item, mode tamagotchi,
@@ -17,25 +17,24 @@ bisa numpang di atasnya tanpa membongkar ulang.
 
 1. Pengunjung yang tap kartu langsung dapat kejutan yang bikin dia inget dan cerita ke orang lain.
 2. Pemilik kartu merasa profilnya "punya karakter", bukan sekadar daftar link.
-3. Ada alasan konkret buat upgrade ke Premium (karakter terkunci).
-4. Pondasi aset dan datanya siap menampung item dandanan tanpa gambar ulang karakter.
+3. Pondasi aset dan datanya siap menampung skin dan item dandanan tanpa gambar ulang karakter.
+4. Menambah karakter baru di kemudian hari cukup menggambar kepala baru, bukan karakter utuh.
 
 ## 2. Ruang lingkup
 
 ### Masuk batch 1
 
-- Katalog 6 karakter pixel art (3 gratis, 3 Premium).
-- Pet muncul dan melambai di layar sapaan pembuka profil publik `/[slug]`.
+- Dua karakter karikatur: **Widodo** dan **Saraswati**. Keduanya gratis untuk semua tier.
+- Pet keluar dari kartu dan melambai di layar sapaan pembuka profil publik `/[slug]`.
 - Pet mendarat di pojok kanan bawah, animasi diam (idle) berulang.
 - Gelembung sapaan otomatis dari data profil + waktu setempat pengunjung.
 - Tap pet membuka panel chat asisten (jawaban template yang sudah ada di `AIAssistant.tsx`,
   komponennya sudah ditulis tapi belum pernah dipasang di profil publik).
 - Halaman dashboard `Asisten`: pilih karakter, kasih nama pet, nyalakan/matikan sapaan, preview.
-- Aturan kunci Premium pada karakter.
 
 ### Tidak masuk batch 1
 
-- Item dandanan (topi, baju), inventaris, toko, dan pembayaran item.
+- Skin, item dandanan (topi, baju), inventaris, toko, dan pembayaran item.
 - Mode tamagotchi layar penuh.
 - Otak AI beneran (mengganti jawaban template) — batch 2.
 - Suara / text-to-speech pet.
@@ -47,9 +46,9 @@ bisa numpang di atasnya tanpa membongkar ulang.
 
 Urutan waktu sejak profil dibuka:
 
-1. **t = 0** — Layar sapaan (overlay) yang sudah ada terbuka. Kalau pet aktif, sprite pet
-   tampil di atas teks sapaan sambil memainkan klip `greet` (melambai), sementara animasi
-   ketik `welcome_word` yang sudah ada tetap jalan seperti sekarang.
+1. **t = 0** — Layar sapaan (overlay) yang sudah ada terbuka. Kalau pet aktif, muncul siluet
+   kartu kecil di tengah, lalu pet **memanjat keluar dari kartu** dan memainkan klip `greet`
+   (melambai). Animasi ketik `welcome_word` yang sudah ada tetap jalan seperti sekarang.
 2. **Setelah teks selesai diketik** — overlay menutup. Jeda tutupnya jadi 2000 ms saat pet
    aktif (sekarang 800 ms tanpa animasi spesial, 3500 ms dengan animasi spesial).
 3. **+200 ms** — pet berpindah ke pojok kanan bawah sambil mengecil, lalu ganti ke klip `idle`
@@ -62,6 +61,9 @@ Keputusan desain penting: kalimat sapaan **tidak** ditaruh di overlay, tapi di g
 setelah pet mendarat. Alasannya, overlay sudah punya teks ketik `welcome_word` milik pemilik
 kartu — dua teks berebut perhatian di layar yang sama bikin berantakan, dan gelembung di pojok
 justru menarik mata pengunjung ke pet yang bisa diajak ngobrol.
+
+Animasi "keluar dari kartu" dipilih karena hanya masuk akal di produk kartu NFC. Mascot yang
+sekadar muncul bisa ditempel produk apa pun; pet yang keluar dari kartu tidak.
 
 ### Hormati fitur yang sudah ada
 
@@ -78,11 +80,11 @@ punya tempat menempel yang jelas.
 
 | Berkas | Tanggung jawab | Bergantung pada |
 | --- | --- | --- |
-| `src/lib/pet/characters.ts` | Katalog karakter: id, nama, tier, jalur sprite, jumlah frame, titik jangkar | — |
-| `src/lib/pet/pet-selection.mjs` | Menentukan karakter yang dipakai sebuah profil, aturan kunci tier, fallback | katalog |
+| `src/lib/pet/characters.ts` | Katalog karakter: id, nama, jalur sprite, jumlah frame, titik jangkar | — |
+| `src/lib/pet/pet-selection.mjs` | Menentukan karakter yang dipakai sebuah profil dan fallback-nya | katalog |
 | `src/lib/pet/pet-greeting.mjs` | Menyusun kalimat sapaan dari profil + jam | — |
 | `src/components/pet/PetSprite.tsx` | Memutar satu klip sprite. Murni tampilan, tanpa tahu soal profil | katalog |
-| `src/components/pet/PetGreeting.tsx` | Pet di dalam overlay sapaan | PetSprite |
+| `src/components/pet/PetGreeting.tsx` | Kartu + pet yang memanjat keluar, di dalam overlay sapaan | PetSprite |
 | `src/components/pet/PetBuddy.tsx` | Pet di pojok + gelembung + tap membuka chat | PetSprite, pet-greeting |
 | `src/app/[slug]/page.tsx` | Memasang ketiganya, mengatur urutan waktu | semua di atas |
 
@@ -101,8 +103,7 @@ di mode tamagotchi nanti, dan di layar toko item nanti tanpa diubah.
   pet aktif dan animasi spesial tidak aktif. Urutan prioritas: animasi spesial (3500) >
   pet (2000) > default (800).
 - `src/app/dashboard/ai-assistant/page.tsx` — blok "Coming Soon" diganti panel pemilih pet.
-  Kunci Premium tingkat halaman dilepas (pet untuk semua tier); yang dikunci sekarang hanya
-  karakter Premium di dalam pemilihnya.
+  Kunci Premium tingkat halaman dilepas, karena di batch 1 pet terbuka untuk semua tier.
 
 ## 5. Model data
 
@@ -111,7 +112,7 @@ Migrasi baru `supabase/migrations/012_pet_assistant.sql`:
 ```sql
 ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS pet_enabled BOOLEAN DEFAULT TRUE,
-ADD COLUMN IF NOT EXISTS pet_character_id TEXT DEFAULT 'kabut',
+ADD COLUMN IF NOT EXISTS pet_character_id TEXT DEFAULT 'widodo',
 ADD COLUMN IF NOT EXISTS pet_name TEXT DEFAULT NULL;
 ```
 
@@ -122,38 +123,49 @@ ADD COLUMN IF NOT EXISTS pet_name TEXT DEFAULT NULL;
 - `pet_character_id` — id dari katalog. Nilai tak dikenal diperlakukan sebagai default.
 - `pet_name` — nama panggilan pet. Kosong berarti pakai nama bawaan karakter.
 
-Kolom untuk item dandanan **belum** dibuat di batch 1. Saat batch dandanan jalan, tambahnya
-satu kolom `pet_equipped JSONB` — tidak perlu mengubah kolom mana pun yang dibuat sekarang.
+Kolom untuk skin dan item dandanan **belum** dibuat di batch 1. Saat batch dandanan jalan,
+tambahnya satu kolom `pet_equipped JSONB` — tidak perlu mengubah kolom mana pun yang dibuat
+sekarang.
 
 Tidak ada tabel baru dan tidak ada perubahan aturan akses (RLS): kolom ini menempel di
 `profiles` yang aturan bacanya sudah publik untuk keperluan halaman profil.
 
-## 6. Katalog karakter dan aturan tier
+## 6. Katalog karakter
 
-| id | Nama | Tier | Karakter |
-| --- | --- | --- | --- |
-| `kabut` | Kabut | Gratis | Gumpalan kabut abu-kebiruan, mata tenang. Karakter bawaan. |
-| `tetes` | Tetes | Gratis | Tetesan air biru muda, ceria |
-| `tunas` | Tunas | Gratis | Tunas kecambah hijau bertunas di kepala |
-| `bara` | Bara | Premium | Sosok mungil dengan kepala api oranye |
-| `sinyal` | Sinyal | Premium | Robot TV tabung jadul, layar biru sebagai wajah |
-| `lumut` | Lumut | Premium | Makhluk batu berlumut, cokelat-hijau |
+| id | Nama | Tier | Penampilan | Watak |
+| --- | --- | --- | --- | --- |
+| `widodo` | Widodo | Gratis (bawaan) | Rambut hitam rapi belah samping, kumis tipis, kemeja biru muda lengan digulung, celana gelap | Sabar, sopan, senior |
+| `saraswati` | Saraswati | Gratis | Rambut disanggul rapi, kebaya modern hijau tosca, selendang tipis | Cekatan, hangat, teratur |
 
-Aturan kunci:
+Keduanya adalah **karikatur orang generik** — bukan gambaran tokoh publik mana pun, bukan
+potret orang nyata. Nama Widodo dan Saraswati dipakai sebagai nama Indonesia yang familiar.
 
-- Karakter Premium terbuka untuk tier `PREMIUM` dan `B2B` (pakai `getProfileTier` dari
-  `src/lib/feature-gating.ts`). Tidak menambah kunci fitur baru di tabel `tier_configs`,
-  supaya tidak ada dua sumber kebenaran.
-- Pemilihan dikunci **saat menyimpan** di dashboard, dan divalidasi **lagi saat menampilkan**
-  di profil publik. Kalau tier seseorang turun dari Premium ke Gratis, profilnya otomatis
-  jatuh ke `kabut` — bukan menampilkan karakter berbayar secara gratis.
-- Di dashboard, karakter terkunci tetap kelihatan dalam keadaan redup dengan label Premium.
-  Itu etalase upgrade, bukan sekadar pembatas.
+Batch 1 tidak mengunci karakter di balik Premium. Alasannya: dengan hanya dua karakter,
+mengunci salah satunya membuat pilihan pengguna gratis terasa kosong, sementara wow-factor
+pet justru mesin pemasaran produk ini. Monetisasi dipindah ke skin dan item di batch 3, yang
+justru lebih menguntungkan karena bisa dijual berkali-kali ke orang yang sama.
+
+Karena tidak ada karakter berbayar di batch 1, tidak ada kunci fitur baru yang ditambahkan ke
+tabel `tier_configs`.
 
 ## 7. Spesifikasi aset pixel art
 
-Ini bagian paling penting untuk masa depan fitur dandanan. Aturannya dikunci sekarang supaya
-topi dan baju nanti tinggal ditumpuk, bukan digambar ulang per karakter.
+Ini bagian paling penting untuk masa depan skin dan item. Aturannya dikunci sekarang supaya
+baju dan topi tinggal ditumpuk, bukan digambar ulang per karakter.
+
+### Aturan induk: satu badan dasar untuk semua karakter
+
+Semua karakter memakai **rig yang sama persis** — proporsi, tinggi, posisi bahu, dan posisi
+tangan tidak berubah antar karakter. Yang boleh berbeda hanya kepala, rambut, wajah, warna,
+dan pakaian bawaan.
+
+Konsekuensinya, dan ini alasan seluruh aturan di bawah ada:
+
+- Satu topi yang digambar sekali langsung muat di semua karakter, sekarang dan yang akan datang.
+- Menambah karakter ke-3 dan seterusnya cukup menggambar kepala dan pakaian baru di atas rig
+  yang sama.
+- Kalau tiap karakter punya bentuk badan sendiri, setiap item harus digambar ulang sebanyak
+  jumlah karakter. Biaya toko item naik berlipat seiring katalog bertambah.
 
 ### Ukuran dan tata letak
 
@@ -164,23 +176,35 @@ topi dan baju nanti tinggal ditumpuk, bukan digambar ulang per karakter.
   transparan; jumlah frame yang dibaca diambil dari katalog, bukan ditebak dari lebar berkas.
 - Jalur berkas: `public/pet/<id>.png`.
 
-### Aturan penempatan karakter di dalam frame
+### Ukuran rig (berlaku untuk semua karakter, satuan piksel dalam frame)
 
-- Kaki/dasar karakter menyentuh **y = 60** (sisakan 4 piksel di bawah untuk bayangan).
-- Karakter berdiri di tengah horizontal, lebar maksimal **48 piksel**.
-- Tinggi maksimal **56 piksel**.
-- Menghadap depan di semua klip. Tidak ada rotasi atau perubahan skala antar frame.
+| Bagian | Aturan |
+| --- | --- |
+| Tinggi total | 52 px |
+| Garis kaki | menyentuh y = 60 (sisakan 4 px untuk bayangan) |
+| Puncak kepala | y = 8 |
+| Kepala | lebar 26 px, tinggi 26 px, pusat di x = 32 |
+| Badan | lebar 20 px, dari y = 34 sampai y = 60 |
+| Garis bahu | y = 36 |
+| Telapak tangan | kiri di (18, 44), kanan di (46, 44) |
+| Wajah | mata dua titik/garis, tanpa hidung realistis, tanpa jari |
 
-### Titik jangkar (kontrak untuk item dandanan)
+Proporsi karikatur: kepala setengah dari tinggi total. Sengaja dibuat begitu supaya wajahnya
+masih terbaca waktu pet ditampilkan kecil di pojok layar HP.
 
-Setiap karakter mendeklarasikan titik jangkar di katalog, dalam koordinat piksel frame:
+### Titik jangkar (kontrak untuk skin dan item)
 
-- `head` — titik tengah puncak kepala, tempat topi menempel.
-- `body` — titik tengah dada, tempat baju menempel.
+Setiap karakter mendeklarasikan titik jangkar yang sama di katalog:
+
+- `head` — (32, 8), tempat topi/peci/kerudung menempel.
+- `body` — (32, 40), tempat baju menempel.
+- `handLeft` — (18, 44) dan `handRight` — (46, 44), tempat benda pegangan menempel.
 
 Aturan yang harus dipatuhi semua karakter: posisi `head` tidak boleh bergeser lebih dari
-**1 piksel** di sepanjang klip `idle`. Kalau sebuah karakter bergerak lebih liar dari itu,
-topinya akan terlihat lepas dari kepala saat batch dandanan jalan.
+**1 piksel** di sepanjang klip `idle`. Karena kepalanya nyaris diam, sebuah item cukup berupa
+**satu gambar diam** yang ditempel di titik jangkar — item tidak perlu punya lembar animasi
+sendiri. Ini yang bikin bikin item nanti murah. Kalau aturan 1 piksel ini dilanggar, tiap item
+harus dianimasikan mengikuti kepala, dan biayanya melonjak.
 
 ### Penampilan di layar
 
@@ -189,14 +213,15 @@ topinya akan terlihat lepas dari kepala saat batch dandanan jalan.
 - Animasi memakai CSS `steps()` menggeser `background-position`, bukan menumpuk elemen per
   frame — supaya ringan di HP kentang dan tidak membebani baterai.
 - Menghormati `prefers-reduced-motion`: animasi berhenti di frame pertama, pet tetap tampil,
-  gelembung sapaan tetap muncul, perpindahan ke pojok tanpa animasi terbang.
+  gelembung sapaan tetap muncul. Pet langsung berdiri di depan kartu tanpa animasi memanjat,
+  dan langsung berada di pojok tanpa animasi berpindah.
 
 ### Aset sementara
 
-Batch 1 dikirim dengan 6 sprite sheet placeholder sederhana (siluet berwarna dengan mata)
-yang dibuat programatik. Fungsinya supaya fitur bisa diuji dan dinilai sebelum gambar
-sungguhan jadi. Menukar ke gambar final = menimpa berkas PNG-nya saja, tanpa mengubah kode
-sama sekali. Prompt untuk membuat gambar finalnya ada di Lampiran A.
+Batch 1 dikirim dengan 2 sprite sheet placeholder sederhana (siluet rig dengan mata) yang
+dibuat programatik. Fungsinya supaya fitur bisa diuji dan dinilai sebelum gambar sungguhan
+jadi. Menukar ke gambar final = menimpa berkas PNG-nya saja, tanpa mengubah kode sama sekali.
+Prompt untuk membuat gambar finalnya ada di Lampiran A.
 
 ## 8. Logika kalimat sapaan
 
@@ -215,7 +240,7 @@ Bagian waktu, memakai jam perangkat pengunjung:
 Susunan kalimat:
 
 - Nama pet ada dan nama pemilik ada: `"{Waktu}! Aku {petName}, asistennya {displayName}."`
-- Nama pet kosong: pakai nama bawaan karakter dari katalog.
+- Nama pet kosong: pakai nama bawaan karakter dari katalog (Widodo atau Saraswati).
 - Nama pemilik kosong: `"{Waktu}! Aku {petName}, asisten kartu ini."`
 - Kalau `job_title` terisi, tambahkan kalimat kedua: `"Mau tahu soal {displayName}? Tanya aku."`
 
@@ -228,8 +253,8 @@ Halaman `/dashboard/ai-assistant` diganti isinya, judul jadi **Asisten**:
 
 1. **Preview** — pet terpilih dalam ukuran besar memainkan klip `greet`, plus contoh kalimat
    sapaan persis seperti yang akan dilihat pengunjung.
-2. **Pemilih karakter** — grid 6 kartu. Kartu Premium yang terkunci tampil redup, ada lencana
-   Premium, dan menekannya membuka ajakan upgrade yang sudah ada (`PremiumLock`).
+2. **Pemilih karakter** — dua kartu bersebelahan, Widodo dan Saraswati, dengan nama dan watak
+   singkat.
 3. **Nama pet** — kolom teks, maksimal 20 karakter.
 4. **Sakelar** — nyalakan/matikan pet di profil publik.
 5. **Simpan** — memakai pola simpan yang sama dengan halaman dashboard lain.
@@ -241,8 +266,7 @@ Menu sidebar diganti namanya dari "AI Assistant" jadi "Asisten", ikonnya tetap.
 | Kejadian | Yang terjadi |
 | --- | --- |
 | Sprite gagal dimuat (jaringan/berkas hilang) | Pet tidak ditampilkan sama sekali. Panel chat tetap bisa dibuka lewat tombol bulat cadangan. Tidak ada gambar rusak di layar pengunjung. |
-| `pet_character_id` tidak ada di katalog | Jatuh ke `kabut`. |
-| Karakter Premium tapi tier bukan Premium | Jatuh ke `kabut`. Dashboard menampilkan catatan kenapa. |
+| `pet_character_id` tidak ada di katalog | Jatuh ke `widodo`. |
 | `pet_enabled` mati | Tidak ada pet dan tidak ada tombol chat. Profil kembali persis seperti sekarang. |
 | Profil sedang mode redirect | Pet dilewati sepenuhnya. |
 | Kolom pet belum ada di database (migrasi belum jalan) | Nilai dianggap default, pet tampil dengan karakter bawaan. Tidak ada layar error. |
@@ -262,13 +286,13 @@ Tes otomatis (mengikuti pola `*.test.mjs` yang sudah ada di `src/lib/`):
 
 - `pet-greeting.test.mjs` — empat rentang waktu, nama pet kosong, nama pemilik kosong,
   jabatan kosong.
-- `pet-selection.test.mjs` — id tak dikenal jatuh ke default, karakter Premium ditolak untuk
-  tier gratis, diterima untuk `PREMIUM` dan `B2B`, `pet_enabled` mati mengembalikan "tidak ada pet".
+- `pet-selection.test.mjs` — id tak dikenal jatuh ke default, `pet_enabled` mati mengembalikan
+  "tidak ada pet", kedua karakter dapat dipilih oleh tier mana pun.
 
 Pemeriksaan manual sebelum dianggap selesai:
 
 - `npm run lint` dan `npm run build` bersih.
-- Buka satu profil gratis: pet bawaan menyapa, mendarat, gelembung muncul lalu hilang, tap
+- Buka satu profil: pet keluar dari kartu, mendarat, gelembung muncul lalu hilang, tap
   membuka chat.
 - Buka satu profil dengan animasi edisi spesial menyala: animasi spesial tetap menang di
   overlay, pet tetap mendarat di pojok.
@@ -280,11 +304,13 @@ Urutan ini yang desainnya sudah disiapkan:
 
 1. **Batch 2 — otak AI.** Ganti isi jawaban `AIAssistant` dengan jawaban model, dibatasi
    pengetahuannya pada data profil. Perlu pagar biaya dan pembatasan jumlah pesan.
-2. **Batch 3 — dandanan.** Tambah kolom `pet_equipped`, katalog item yang memakai titik
-   jangkar `head`/`body`, dan layar dandan di dashboard.
+2. **Batch 3 — skin & dandanan.** Tambah kolom `pet_equipped`, katalog item yang memakai titik
+   jangkar `head`/`body`/`hand`, dan layar dandan di dashboard. Di sinilah monetisasinya.
 3. **Batch 4 — toko item.** Pembayaran, kepemilikan item, riwayat.
 4. **Batch 5 — mode tamagotchi.** Layar penuh, memakai `PetSprite` yang sama dengan klip
    tambahan.
+5. **Karakter tambahan.** Kapan saja setelah batch 1, dengan biaya kecil: cukup kepala dan
+   pakaian baru di atas rig yang sama.
 
 ---
 
@@ -298,72 +324,50 @@ Model gambar AI tidak bisa diandalkan mengeluarkan sprite sheet 384x192 yang pre
    (1024x1024) bergaya pixel art.
 2. Kecilkan ke 64x64 dengan metode *nearest neighbor* (Photoshop: Image Size → Nearest Neighbor;
    atau alat gratis seperti Piskel/Aseprite).
-3. Rapikan tepi dan hapus latar sampai benar-benar transparan.
-4. Susun frame-nya ke dalam grid 6x3 sesuai Bagian 7.
+3. Rapikan tepi, hapus latar sampai benar-benar transparan, lalu geser karakternya supaya pas
+   dengan ukuran rig di Bagian 7.
+4. Susun frame-nya ke dalam grid 6x3.
 
-Generate ulang pose berikutnya dengan prompt yang sama, ganti bagian **POSE** saja. Sertakan
+Generate pose berikutnya dengan prompt yang sama, ganti bagian **[POSE]** saja, dan sertakan
 gambar hasil pertama sebagai referensi supaya karakternya konsisten.
+
+Kerjakan **Widodo lebih dulu sampai benar-benar pas dengan rig**, baru Saraswati dibuat dengan
+Widodo sebagai referensi badan. Itu cara paling gampang memastikan kedua karakter memakai
+badan yang sama.
 
 ### Blok gaya (tempel di setiap prompt)
 
 ```
-16-bit pixel art sprite, chunky readable pixels, front-facing full body,
-single character centered, standing on flat ground, soft top-down light,
-limited palette of 6 colors, thick 1px dark outline, subtle dithering only for shading,
-cute mascot proportions with oversized head and tiny body, friendly rounded shapes,
-plain solid background, no text, no logo, no shadow on background,
-no gradient background, game asset style
+16-bit pixel art sprite of a caricature human character, chunky readable pixels,
+front-facing full body, single character centered, standing on flat ground,
+big round head about half the total body height, small simple body, mitten hands with no fingers,
+simple dot-and-line face, no realistic nose, friendly cartoon caricature, not photorealistic,
+soft top-down light, limited palette of 8 colors, thick 1px dark outline,
+subtle dithering only for shading, plain solid background, no text, no logo,
+no background shadow, no gradient background, game asset style
 ```
 
 ### Prompt per karakter
 
-Ganti `[POSE]` dengan salah satu: `standing still, arms relaxed` (idle) /
-`waving one arm high, cheerful` (greet) / `mouth open mid-speech, one arm gesturing forward` (talk).
+Ganti `[POSE]` dengan salah satu:
+`standing still, arms relaxed at the sides` (idle) /
+`waving one hand high above the head, cheerful smile` (greet) /
+`mouth open mid-speech, one hand gesturing forward` (talk).
 
-**1. Kabut (gratis, karakter bawaan)**
+**1. Widodo (karakter bawaan)**
 ```
-A small soft mist cloud creature, dusty blue-grey body with pale edges,
-two calm half-closed eyes, tiny stubby arms, faint wisps trailing at the bottom,
+A friendly middle-aged Indonesian man caricature, neat short black hair parted at the side,
+thin moustache, warm calm smile, light blue long-sleeve shirt with sleeves rolled to the elbow,
+dark trousers, simple dark shoes,
 [POSE].
 + blok gaya
 ```
 
-**2. Tetes (gratis)**
+**2. Saraswati**
 ```
-A cheerful water droplet creature, translucent cyan body with a white highlight spot,
-big round bright eyes, small blush marks, tiny flat feet,
-[POSE].
-+ blok gaya
-```
-
-**3. Tunas (gratis)**
-```
-A small pale-cream seedling creature with a bright green sprout with two leaves
-growing from the top of its head, simple dot eyes, tiny round body,
-[POSE].
-+ blok gaya
-```
-
-**4. Bara (Premium)**
-```
-A tiny cream-colored creature with a burning orange flame instead of hair on its head,
-warm glow on its face, calm confident eyes, small sturdy body,
-[POSE].
-+ blok gaya
-```
-
-**5. Sinyal (Premium)**
-```
-A retro CRT television robot, boxy white-grey body, glowing blue screen as a face
-showing two simple pixel eyes, thin antenna with a small ball on top, short blocky legs,
-[POSE].
-+ blok gaya
-```
-
-**6. Lumut (Premium)**
-```
-A round mossy stone creature, brown rock body covered in patches of green moss,
-two sleepy dark eyes peeking out, tiny stubby limbs, small mushroom on its shoulder,
+A friendly Indonesian woman caricature, black hair tied in a neat bun,
+modern simple teal kebaya top with a thin shawl over one shoulder, long dark skirt,
+calm confident smile,
 [POSE].
 + blok gaya
 ```
@@ -371,15 +375,22 @@ two sleepy dark eyes peeking out, tiny stubby limbs, small mushroom on its shoul
 ### Yang harus dicek sebelum aset dipakai
 
 - Latar benar-benar transparan, bukan putih.
-- Karakter tidak menyentuh tepi kiri/kanan frame (sisakan minimal 8 piksel).
-- Kaki menyentuh y = 60, tinggi tidak lebih dari 56 piksel.
-- Puncak kepala tidak bergeser lebih dari 1 piksel antar frame `idle`. Kalau meleset, geser
-  manual di editor piksel — ini yang bikin topi nanti pas di kepala.
+- Kaki menyentuh y = 60, tinggi total 52 piksel, puncak kepala di y = 8.
+- Lebar kepala 26 piksel, lebar badan 20 piksel, telapak tangan di (18, 44) dan (46, 44).
+- **Kedua karakter harus punya ukuran badan yang identik.** Tumpuk gambar Widodo dan
+  Saraswati di editor; kalau bahu, pinggang, atau garis kaki mereka tidak berimpit, perbaiki
+  dulu. Ini syarat mati supaya satu baju muat di keduanya.
+- Puncak kepala tidak bergeser lebih dari 1 piksel antar frame `idle`.
 
-### Prompt untuk item dandanan (batch 3, disimpan di sini biar tidak hilang)
+### Prompt untuk skin dan item (batch 3, disimpan di sini biar tidak hilang)
+
+Item digambar sendirian tanpa karakter, lalu ditempel di titik jangkar.
 
 ```
-16-bit pixel art [NAMA ITEM] only, no character, no head, floating on transparent background,
-front-facing, chunky readable pixels, limited palette of 4 colors, thick 1px dark outline,
-sized to fit a 64x64 sprite where the head is 24 pixels wide, game asset style
+16-bit pixel art [NAMA ITEM] only, no character, no head, no body,
+floating alone on transparent background, front-facing, chunky readable pixels,
+limited palette of 4 colors, thick 1px dark outline,
+sized to sit on a 26-pixel-wide head inside a 64x64 sprite, game asset style
 ```
+
+Untuk baju, ganti kalimat ukurannya jadi: `sized to fit a 20-pixel-wide body inside a 64x64 sprite`.
