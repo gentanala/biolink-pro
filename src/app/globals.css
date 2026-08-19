@@ -469,3 +469,18 @@ textarea:focus {
 .btn-whatsapp:hover {
   background: linear-gradient(135deg, #6EE7B7 0%, #34D399 100%);
 }
+
+/* ── Pet sprite ──────────────────────────────────────────────────────────
+   Satu keyframe untuk semua klip: tiap PetSprite mengatur jarak gesernya
+   sendiri lewat --pet-shift dan jumlah langkahnya lewat steps() inline.   */
+@keyframes pet-play {
+  to {
+    background-position-x: var(--pet-shift);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet-sprite {
+    animation: none !important; /* berhenti di frame pertama, pet tetap tampil */
+  }
+}

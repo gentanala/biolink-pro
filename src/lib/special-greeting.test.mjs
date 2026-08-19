@@ -73,3 +73,8 @@ assert.equal(
     getWelcomeCloseDelay({ special_edition: 'aruna', enable_special_greeting_anim: true }),
     3500
 )
+
+// Prioritas jeda: spesial > pet > default
+assert.equal(getWelcomeCloseDelay({ special_edition: 'aruna', enable_special_greeting_anim: true }, true), 3500)
+assert.equal(getWelcomeCloseDelay({}, true), 2000)
+assert.equal(getWelcomeCloseDelay({}, false), 800)

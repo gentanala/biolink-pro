@@ -12,6 +12,11 @@ import LeadCaptureModal from '@/components/LeadCaptureModal'
 import { trackProfileView, trackLinkClick } from '@/lib/analytics'
 import ArunaAnimation from '@/components/special/ArunaAnimation'
 import PrabowoAnimation from '@/components/special/PrabowoAnimation'
+import AIAssistant from '@/components/profile/AIAssistant'
+import PetBuddy from '@/components/pet/PetBuddy'
+import PetGreeting from '@/components/pet/PetGreeting'
+import { usePetSpriteReady } from '@/components/pet/PetSprite'
+import { selectPetCharacter } from '@/lib/pet/pet-selection.mjs'
 import { getSelectedSpecialGreetingAnimation, getWelcomeCloseDelay, shouldShowSpecialGreetingAnimation } from '@/lib/special-greeting.mjs'
 import { activeRedirectUrl, normalizeUrl } from '@/lib/redirect-mode.mjs'
 
@@ -39,6 +44,13 @@ export default function PublicProfile() {
     const [welcomeComplete, setWelcomeComplete] = useState(false)
     const [showQR, setShowQR] = useState(false)
     const [showLeadModal, setShowLeadModal] = useState(false)
+    // Pet asisten: pojok baru muncul sesaat setelah layar sapaan tutup,
+    // supaya animasi mendaratnya kebaca sebagai kelanjutan dari overlay.
+    const [showBuddy, setShowBuddy] = useState(false)
+    const [chatOpen, setChatOpen] = useState(false)
+    const petSpriteReady = usePetSpriteReady(
+        profile && !activeRedirectUrl(profile) ? (selectPetCharacter(profile)?.id ?? null) : null
+    )
 
     // State untuk fitur Pintasan Link dengan efek Intro Typewriter
     const [introTypewriterText, setIntroTypewriterText] = useState('')
@@ -145,12 +157,22 @@ export default function PublicProfile() {
                 clearInterval(typeInterval)
                 setWelcomeComplete(true)
                 // Auto close with longer delay only when special greeting animation is enabled
-                const delay = getWelcomeCloseDelay(profile)
+                const delay = getWelcomeCloseDelay(
+                    profile,
+                    !activeRedirectUrl(profile) && Boolean(selectPetCharacter(profile)) && petSpriteReady === true
+                )
                 setTimeout(() => setShowWelcome(false), delay)
             }
         }, 150)
 
         return () => clearInterval(typeInterval)
+    }, [profile, showWelcome])
+
+    // Pet mendarat di pojok 200 ms setelah layar sapaan tertutup.
+    useEffect(() => {
+        if (!profile || showWelcome) return
+        const timer = setTimeout(() => setShowBuddy(true), 200)
+        return () => clearTimeout(timer)
     }, [profile, showWelcome])
 
     // Logika Redirect Pintasan Fungsi (Auto Redirect / Intro Effect)
@@ -359,6 +381,14 @@ export default function PublicProfile() {
     const textMuted = isLightMode ? 'text-zinc-500' : 'text-white/60'
     const selectedSpecialAnimation = getSelectedSpecialGreetingAnimation(profile)
 
+    // ── Pet asisten ─────────────────────────────────────────────────────
+    // Tidak tampil saat profil sedang mode redirect (pengunjung memang sedang
+    // dilempar), dan tidak tampil kalau sprite-nya gagal dimuat — dalam kasus
+    // itu tombol chat bulat cadangan yang mengambil alih.
+    const petCharacter = activeRedirectUrl(profile) ? null : selectPetCharacter(profile)
+    const petActive = Boolean(petCharacter) && petSpriteReady === true
+    const petFallbackChat = Boolean(petCharacter) && petSpriteReady === false
+
     // Liquid glass card styles
     const glassCard = isLiquidGlass
         ? 'lg-card'
@@ -409,6 +439,9 @@ export default function PublicProfile() {
                             }}
                         >
                             <div className="relative flex w-full flex-col items-center justify-center gap-6 px-6">
+                                {petActive && !shouldShowSpecialGreetingAnimation(profile) && (
+                                    <PetGreeting characterId={petCharacter!.id} />
+                                )}
                                 {shouldShowSpecialGreetingAnimation(profile) && selectedSpecialAnimation === 'aruna' && (
                                     <ArunaAnimation mode="loop" size={180} />
                                 )}
@@ -750,6 +783,26 @@ export default function PublicProfile() {
                     profileId={profile.id}
                     profileName={profile.display_name || profile.slug}
                 />
+
+                {/* Pet asisten di pojok + panel chat yang dia buka.
+                    Sprite gagal dimuat -> pet disembunyikan seluruhnya dan
+                    tombol bulat cadangan AIAssistant yang tampil. */}
+                {petActive && showBuddy && (
+                    <PetBuddy
+                        profile={profile}
+                        characterId={petCharacter!.id}
+                        chatOpen={chatOpen}
+                        onToggleChat={() => setChatOpen(!chatOpen)}
+                    />
+                )}
+                {(petActive || petFallbackChat) && (
+                    <AIAssistant
+                        profile={profile}
+                        open={chatOpen}
+                        onOpenChange={setChatOpen}
+                        showFallbackTrigger={petFallbackChat}
+                    />
+                )}
             </div>
         </>
     )

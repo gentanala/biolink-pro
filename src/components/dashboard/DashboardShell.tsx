@@ -38,6 +38,7 @@ const KABUT_ROUTES = [
     '/dashboard/profile',
     '/dashboard/links',
     '/dashboard/appearance',
+    '/dashboard/ai-assistant',
 ]
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
