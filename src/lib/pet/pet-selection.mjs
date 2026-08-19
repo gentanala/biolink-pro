@@ -7,6 +7,12 @@
 
 import { DEFAULT_PET_ID, getPetCharacter } from './characters.mjs'
 
+// Saklar besar fitur pet. Dimatikan sementara sampai konsepnya dimatangkan:
+// kartu publik tampil persis seperti sebelum fitur ini ada, tanpa perlu
+// menyentuh data profil siapa pun. Nyalakan lagi cukup dengan mengubah ini
+// jadi true — setelan pilihan karakter tiap orang masih tersimpan utuh.
+export const PET_FEATURE_ENABLED = false
+
 /** Karakter yang dipakai profil ini, atau null kalau pet dimatikan. */
 export function selectPetCharacter(profile) {
     if (profile?.pet_enabled === false) return null
