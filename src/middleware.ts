@@ -15,10 +15,15 @@ export async function middleware(request: NextRequest) {
 
     // Public routes that don't need auth
     const publicRoutes = ['/', '/login', '/register', '/activate', '/admin', '/get-started']
-    const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/tap') || pathname.startsWith('/auth')
+    // /gift/<token> dibuka pembeli yang belum tentu punya akun — tautannya sendiri
+    // yang jadi kuncinya, jadi rute ini harus lolos tanpa login.
+    const isPublicRoute = publicRoutes.includes(pathname)
+        || pathname.startsWith('/tap')
+        || pathname.startsWith('/auth')
+        || pathname.startsWith('/gift')
 
     // Check if it's a public profile route (slug at root level)
-    const reservedPaths = ['login', 'register', 'dashboard', 'activate', 'api', '_next', 'favicon.ico', 'admin', 'tap', 'auth', 'get-started']
+    const reservedPaths = ['login', 'register', 'dashboard', 'activate', 'api', '_next', 'favicon.ico', 'admin', 'tap', 'auth', 'get-started', 'gift', 'kado']
     const pathSegments = pathname.split('/').filter(Boolean)
     const isPublicProfile = pathSegments.length === 1 && !reservedPaths.includes(pathSegments[0])
 
