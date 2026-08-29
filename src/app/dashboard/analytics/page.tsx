@@ -14,9 +14,13 @@ import {
     Phone,
     Mail,
     Clock,
-    ArrowUpDown
+    ArrowUpDown,
+    ChevronRight,
+    Building2,
+    X
 } from 'lucide-react'
 import PremiumLock from '@/components/dashboard/PremiumLock'
+import { whatsappLink } from '@/lib/wa.mjs'
 import { useTier } from '@/app/dashboard/tier-context'
 
 // Warna label status — memakai token hangat yang sama dengan beranda.
@@ -46,6 +50,9 @@ export default function AnalyticsPage() {
     const [leadCaptureEnabled, setLeadCaptureEnabled] = useState(false)
     const [leadCaptureDelay, setLeadCaptureDelay] = useState(4)
     const [savingDelay, setSavingDelay] = useState(false)
+
+    // Kartu calon pelanggan yang sedang dibuka detailnya
+    const [activeLead, setActiveLead] = useState<any | null>(null)
 
     // Filtering & Sorting State
     const [statusFilter, setStatusFilter] = useState('all')
@@ -245,6 +252,7 @@ export default function AnalyticsPage() {
             setRecentLeads(prev => prev.map(lead =>
                 lead.id === leadId ? { ...lead, status: newStatus } : lead
             ))
+            setActiveLead((prev: any) => (prev && prev.id === leadId ? { ...prev, status: newStatus } : prev))
 
             const { error } = await supabase
                 .from('leads')
@@ -486,69 +494,50 @@ export default function AnalyticsPage() {
                                 </div>
                             ) : recentLeads.length > 0 ? (
                                 <div className="mt-4 grid gap-2.5">
-                                    {recentLeads.map((lead: any) => (
-                                        <div key={lead.id} className="rounded-card-sm bg-surface p-4 shadow-row">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <p className="truncate text-[14.5px] font-medium">{lead.name || 'Tanpa nama'}</p>
-                                                    {lead.company && (
-                                                        <p className="mt-0.5 truncate text-[11px] uppercase tracking-wider text-ink-3">{lead.company}</p>
-                                                    )}
-                                                </div>
-                                                <select
-                                                    value={lead.status || 'new'}
-                                                    onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
-                                                    className={`shrink-0 cursor-pointer appearance-none rounded-full px-2.5 py-1 text-[11px] font-semibold focus:outline-none ${getStatusColor(lead.status || 'new')}`}
-                                                >
-                                                    <option value="new">Baru</option>
-                                                    <option value="contacted">Dihubungi</option>
-                                                    <option value="converted">Pelanggan</option>
-                                                </select>
-                                            </div>
-
-                                            <div className="mt-3 grid gap-1 text-[12.5px] text-ink-2">
-                                                <span className="flex items-center gap-2">
-                                                    <Phone className="h-3.5 w-3.5 shrink-0 text-ink-3" strokeWidth={1.8} />
-                                                    <span className="truncate">{lead.whatsapp}</span>
+                                    {recentLeads.map((lead: any) => {
+                                        const wa = whatsappLink(lead.whatsapp)
+                                        return (
+                                            <div
+                                                key={lead.id}
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={() => setActiveLead(lead)}
+                                                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setActiveLead(lead)}
+                                                className="flex cursor-pointer items-center gap-3 rounded-card-sm bg-surface p-4 text-left shadow-row transition-transform active:scale-[0.99]"
+                                            >
+                                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-fill-subtle text-[15px] font-semibold text-ink-2">
+                                                    {(lead.name || '?').trim().charAt(0).toUpperCase()}
                                                 </span>
-                                                {lead.email && (
-                                                    <span className="flex items-center gap-2">
-                                                        <Mail className="h-3.5 w-3.5 shrink-0 text-ink-3" strokeWidth={1.8} />
-                                                        <span className="truncate">{lead.email}</span>
-                                                    </span>
+
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="truncate text-[14.5px] font-medium">{lead.name || 'Tanpa nama'}</p>
+                                                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getStatusColor(lead.status || 'new')}`}>
+                                                            {lead.status === 'contacted' ? 'Dihubungi' : lead.status === 'converted' ? 'Pelanggan' : 'Baru'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="mt-0.5 truncate text-[12px] text-ink-2">
+                                                        {lead.company ? `${lead.company} · ` : ''}{lead.whatsapp}
+                                                    </p>
+                                                </div>
+
+                                                {/* Tombol chat langsung — tidak ikut membuka detail */}
+                                                {wa && (
+                                                    <a
+                                                        href={wa}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        aria-label={`Chat WhatsApp ${lead.name || 'calon pelanggan'}`}
+                                                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-soft text-success-soft-ink transition-transform active:scale-95"
+                                                    >
+                                                        <MessageSquare className="h-4 w-4" strokeWidth={1.8} />
+                                                    </a>
                                                 )}
+                                                <ChevronRight className="h-4 w-4 shrink-0 text-ink-3" strokeWidth={2} />
                                             </div>
-
-                                            <div className="mt-3 flex items-center justify-between gap-3 border-t border-ink/[0.08] pt-3">
-                                                <span className="text-[11px] text-ink-3">
-                                                    {new Date(lead.created_at).toLocaleDateString('id-ID')} ·{' '}
-                                                    {new Date(lead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                                <div className="flex items-center gap-2">
-                                                    {lead.whatsapp && (
-                                                        <a
-                                                            href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '').replace(/^0/, '62')}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="flex h-9 w-9 items-center justify-center rounded-full bg-fill-subtle text-ink-2 transition-colors hover:text-ink"
-                                                            title="Buka WhatsApp"
-                                                        >
-                                                            <Phone className="h-4 w-4" strokeWidth={1.8} />
-                                                        </a>
-                                                    )}
-                                                    {lead.email && (
-                                                        <a
-                                                            href={`mailto:${lead.email}`}
-                                                            className="flex h-9 w-9 items-center justify-center rounded-full bg-fill-subtle text-ink-2 transition-colors hover:text-ink"
-                                                            title="Kirim email"
-                                                        >
-                                                            <Mail className="h-4 w-4" strokeWidth={1.8} />
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             ) : (
                                 <div className="mt-4 rounded-card border border-dashed border-ink/15 bg-surface/60 p-10 text-center">
@@ -559,6 +548,124 @@ export default function AnalyticsPage() {
                             )}
                         </section>
                     </>
+                )}
+
+                {/* Detail satu calon pelanggan — dibuka dengan mengetuk kartunya */}
+                {activeLead && (
+                    <div
+                        className="fixed inset-0 z-50 flex items-end justify-center bg-ink/25 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+                        onClick={() => setActiveLead(null)}
+                    >
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-t-card bg-surface p-5 pb-8 shadow-card sm:rounded-card sm:pb-5"
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-fill-subtle text-[17px] font-semibold text-ink-2">
+                                        {(activeLead.name || '?').trim().charAt(0).toUpperCase()}
+                                    </span>
+                                    <div className="min-w-0">
+                                        <h3 className="truncate text-[17px] font-semibold tracking-[-0.02em]">
+                                            {activeLead.name || 'Tanpa nama'}
+                                        </h3>
+                                        <p className="mt-0.5 text-[11.5px] text-ink-3">
+                                            Masuk {new Date(activeLead.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })} ·{' '}
+                                            {new Date(activeLead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setActiveLead(null)}
+                                    aria-label="Tutup"
+                                    className="shrink-0 text-ink-3 transition-colors hover:text-ink"
+                                >
+                                    <X className="h-5 w-5" strokeWidth={1.8} />
+                                </button>
+                            </div>
+
+                            {/* Data yang dia isi */}
+                            <div className="mt-5 grid gap-2.5">
+                                <div className="flex items-center gap-3 rounded-row bg-fill-subtle px-4 py-3">
+                                    <Phone className="h-4 w-4 shrink-0 text-ink-3" strokeWidth={1.8} />
+                                    <div className="min-w-0">
+                                        <p className="text-[10.5px] uppercase tracking-wider text-ink-3">WhatsApp</p>
+                                        <p className="truncate text-[14px]">{activeLead.whatsapp || '—'}</p>
+                                    </div>
+                                </div>
+
+                                {activeLead.email && (
+                                    <div className="flex items-center gap-3 rounded-row bg-fill-subtle px-4 py-3">
+                                        <Mail className="h-4 w-4 shrink-0 text-ink-3" strokeWidth={1.8} />
+                                        <div className="min-w-0">
+                                            <p className="text-[10.5px] uppercase tracking-wider text-ink-3">Email</p>
+                                            <p className="truncate text-[14px]">{activeLead.email}</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeLead.company && (
+                                    <div className="flex items-center gap-3 rounded-row bg-fill-subtle px-4 py-3">
+                                        <Building2 className="h-4 w-4 shrink-0 text-ink-3" strokeWidth={1.8} />
+                                        <div className="min-w-0">
+                                            <p className="text-[10.5px] uppercase tracking-wider text-ink-3">Perusahaan</p>
+                                            <p className="truncate text-[14px]">{activeLead.company}</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Status */}
+                            <div className="mt-5">
+                                <p className="text-[11px] font-medium uppercase tracking-wider text-ink-2">Status</p>
+                                <div className="mt-2 grid grid-cols-3 gap-1 rounded-full bg-fill-subtle p-1">
+                                    {[
+                                        { id: 'new', label: 'Baru' },
+                                        { id: 'contacted', label: 'Dihubungi' },
+                                        { id: 'converted', label: 'Pelanggan' },
+                                    ].map((opt) => (
+                                        <button
+                                            key={opt.id}
+                                            onClick={() => updateLeadStatus(activeLead.id, opt.id)}
+                                            className={`rounded-full py-2.5 text-[12px] font-medium transition-colors ${(activeLead.status || 'new') === opt.id ? 'bg-ink text-white' : 'text-ink-2 hover:text-ink'
+                                                }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Aksi */}
+                            <div className="mt-5 grid gap-2.5">
+                                {whatsappLink(activeLead.whatsapp) ? (
+                                    <a
+                                        href={whatsappLink(activeLead.whatsapp) as string}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-2 rounded-full bg-ink py-4 text-[13px] font-medium text-white shadow-ink transition-transform active:scale-[0.99]"
+                                    >
+                                        <MessageSquare className="h-4 w-4" strokeWidth={1.8} />
+                                        Chat lewat WhatsApp
+                                    </a>
+                                ) : (
+                                    <p className="rounded-row bg-fill-subtle px-4 py-3 text-center text-[12px] text-ink-3">
+                                        Nomornya tidak bisa dipakai buat chat langsung
+                                    </p>
+                                )}
+
+                                {activeLead.email && (
+                                    <a
+                                        href={`mailto:${activeLead.email}`}
+                                        className="flex items-center justify-center gap-2 rounded-full bg-fill-subtle py-3.5 text-[13px] font-medium text-ink-2 transition-colors hover:text-ink"
+                                    >
+                                        <Mail className="h-4 w-4" strokeWidth={1.8} />
+                                        Kirim email
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </PremiumLock>
